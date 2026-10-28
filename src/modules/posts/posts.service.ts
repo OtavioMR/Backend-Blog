@@ -1,26 +1,122 @@
-import { Injectable } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ForbiddenException,
+} from '@nestjs/common';
+
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+
+import { Post } from './entities/post.entity.js';
 import { CreatePostDto } from './dto/create-post.dto.js';
 import { UpdatePostDto } from './dto/update-post.dto.js';
 
 @Injectable()
 export class PostsService {
-  create(createPostDto: CreatePostDto) {
-    return 'This action adds a new post';
+  constructor(
+    @InjectRepository(Post)
+    private readonly postsRepository: Repository<Post>,
+  ) {}
+
+  async findAll(): Promise<Post[]> {
+    return this.postsRepository.find({
+      where: { published: true },
+      relations: { author: true },
+      select: {
+        id: true,
+        title: true,
+        content: true,
+        published: true,
+        authorId: false,
+        createdAt: true,
+        updatedAt: true,
+        author: {
+          id: true,
+          name: true,
+        },
+      },
+      order: { createdAt: 'DESC' },
+    });
   }
 
-  findAll() {
-    return `This action returns all posts`;
+  async findById(id: string): Promise<Post> {
+    const post = await this.postsRepository.findOne({
+      where: {
+        id,
+        published: true,
+      },
+      relations: { author: true },
+      select: {
+        id: true,
+        title: true,
+        content: true,
+        published: true,
+        authorId: false,
+        createdAt: true,
+        updatedAt: true,
+        author: {
+          id: true,
+          name: true,
+        },
+      },
+    });
+
+    if (!post) {
+      throw new NotFoundException('Artigo não encontrado.');
+    }
+
+    return post;
   }
 
-  findOne(id: number) {
-    return `This action returns a #${id} post`;
+  async create(
+    createPostDto: CreatePostDto,
+    authorId: string,
+  ): Promise<Post> {
+    const post = this.postsRepository.create({
+      ...createPostDto,
+      authorId,
+    });
+
+    const savedPost = await this.postsRepository.save(post);
+
+    return savedPost;
   }
 
-  update(id: number, updatePostDto: UpdatePostDto) {
-    return `This action updates a #${id} post`;
+  async update(
+    id: string,
+    updatePostDto: UpdatePostDto,
+    userId: string,
+  ): Promise<Post> {
+    const post = await this.postsRepository.findOneBy({ id });
+
+    if (!post) {
+      throw new NotFoundException('Artigo não encontrado.');
+    }
+
+    if (post.authorId !== userId) {
+      throw new ForbiddenException(
+        'Você não tem permissão para editar este artigo.',
+      );
+    }
+
+    Object.assign(post, updatePostDto);
+
+    return this.postsRepository.save(post);
   }
 
-  remove(id: number) {
-    return `This action removes a #${id} post`;
+  async remove(id: string, userId: string): Promise<void> {
+    const post = await this.postsRepository.findOneBy({ id });
+
+    if (!post) {
+      throw new NotFoundException('Artigo não encontrado.');
+    }
+
+    if (post.authorId !== userId) {
+      throw new ForbiddenException(
+        'Você não tem permissão para excluir este artigo.',
+      );
+    }
+
+    await this.postsRepository.remove(post);
   }
 }
