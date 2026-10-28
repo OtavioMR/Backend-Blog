@@ -1,11 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { AppController } from './app.controller.js';
-import { AppService } from './app.service.js';
-import { TestResourceModule } from './test-resource/test-resource.module.js';
-import { TesteModule } from './teste/teste.module.js';
-import { Teste3Module } from './teste3/teste3.module.js';
+import { UsersModule } from './modules/users/users.module.js';
 
 @Module({
   imports: [
@@ -27,11 +23,9 @@ import { Teste3Module } from './teste3/teste3.module.js';
         synchronize: false, // Mantido como false conforme planejado para usar migrations
       }),
     }),
-    TestResourceModule,
-    TesteModule,
-    Teste3Module,
+    UsersModule,
   ],
-  controllers: [AppController],
-  providers: [AppService],
+  controllers: [],
+  providers: [],
 })
-export class AppModule {}
+export class AppModule { }
