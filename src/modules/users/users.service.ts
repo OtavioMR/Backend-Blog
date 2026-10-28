@@ -31,6 +31,7 @@ export class UsersService {
       name: user.name,
       email: user.email,
       role: user.role,
+      isActive: user.isActive,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
     };
@@ -57,7 +58,10 @@ export class UsersService {
       throw new BadRequestException('A senha é muito longa.');
     }
 
-    const existingUser = await this.usersRepository.findOneBy({ email });
+    const existingUser = await this.usersRepository.findOne({
+      where: { email },
+      withDeleted: true,
+    });
 
     if (existingUser) {
       throw new ConflictException('Já existe um usuário cadastrado com este e-mail.');
@@ -65,24 +69,37 @@ export class UsersService {
 
     const passwordHash = await bcrypt.hash(password, 12);
 
-    const user = this.usersRepository.create({ name, email, passwordHash });
+    const user = this.usersRepository.create({
+      name,
+      email,
+      passwordHash,
+      role: UserRole.READER,
+      isActive: true,
+    });
     const savedUser = await this.usersRepository.save(user);
 
     return this.toPublic(savedUser);
   }
 
   async findAll(): Promise<User[]> {
-    return this.usersRepository.find({ order: { createdAt: 'DESC' } });
+    return this.usersRepository.find({
+      where: { isActive: true },
+      order: { createdAt: 'DESC' },
+    });
   }
 
   async findById(id: string): Promise<User | null> {
-    return this.usersRepository.findOneBy({ id });
+    return this.usersRepository.findOne({
+      where: { id, isActive: true },
+    });
   }
 
   async update(id: string, updateUserDto: UpdateUserDto, requester: UserRequester) {
     this.assertCanManage(id, requester);
 
-    const user = await this.usersRepository.findOneBy({ id });
+    const user = await this.usersRepository.findOne({
+      where: { id, isActive: true },
+    });
 
     if (!user) {
       throw new NotFoundException('Usuário não encontrado.');
@@ -102,7 +119,10 @@ export class UsersService {
       const email = updateUserDto.email.trim().toLowerCase();
 
       if (email !== user.email) {
-        const existingUser = await this.usersRepository.findOneBy({ email });
+        const existingUser = await this.usersRepository.findOne({
+          where: { email },
+          withDeleted: true,
+        });
 
         if (existingUser) {
           throw new ConflictException('Já existe um usuário cadastrado com este e-mail.');
@@ -118,6 +138,28 @@ export class UsersService {
       }
 
       user.passwordHash = await bcrypt.hash(updateUserDto.password, 12);
+      user.refreshTokenHash = null;
+    }
+
+    if (updateUserDto.role !== undefined) {
+      if (requester.role !== UserRole.ADMIN) {
+        throw new ForbiddenException(
+          'Apenas administradores podem alterar o perfil (role) de usuários.',
+        );
+      }
+      user.role = updateUserDto.role;
+    }
+
+    if (updateUserDto.isActive !== undefined) {
+      if (requester.role !== UserRole.ADMIN) {
+        throw new ForbiddenException(
+          'Apenas administradores podem alterar o status de ativação diretamente.',
+        );
+      }
+      user.isActive = updateUserDto.isActive;
+      if (!user.isActive) {
+        user.refreshTokenHash = null;
+      }
     }
 
     const savedUser = await this.usersRepository.save(user);
@@ -128,13 +170,18 @@ export class UsersService {
   async remove(id: string, requester: UserRequester): Promise<void> {
     this.assertCanManage(id, requester);
 
-    const user = await this.usersRepository.findOneBy({ id });
+    const user = await this.usersRepository.findOne({
+      where: { id, isActive: true },
+    });
 
     if (!user) {
       throw new NotFoundException('Usuário não encontrado.');
     }
 
-    await this.usersRepository.remove(user);
+    user.isActive = false;
+    user.refreshTokenHash = null;
+    await this.usersRepository.save(user);
+    await this.usersRepository.softRemove(user);
   }
 
   async findByEmailForAuth(email: string): Promise<User | null> {
@@ -142,6 +189,23 @@ export class UsersService {
       .createQueryBuilder('user')
       .addSelect('user.passwordHash')
       .where('user.email = :email', { email })
+      .andWhere('user.isActive = true')
+      .getOne();
+  }
+
+  async updateRefreshTokenHash(
+    userId: string,
+    refreshTokenHash: string | null,
+  ): Promise<void> {
+    await this.usersRepository.update(userId, { refreshTokenHash });
+  }
+
+  async findByIdForAuth(id: string): Promise<User | null> {
+    return this.usersRepository
+      .createQueryBuilder('user')
+      .addSelect('user.refreshTokenHash')
+      .where('user.id = :id', { id })
+      .andWhere('user.isActive = true')
       .getOne();
   }
 }

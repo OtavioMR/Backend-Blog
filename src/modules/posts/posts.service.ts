@@ -10,6 +10,10 @@ import { Repository } from 'typeorm';
 import { Post } from './entities/post.entity.js';
 import { CreatePostDto } from './dto/create-post.dto.js';
 import { UpdatePostDto } from './dto/update-post.dto.js';
+import { PaginationQueryDto } from '../../common/dto/pagination-query.dto.js';
+import type { PaginatedResult } from '../../common/interfaces/paginated-result.interface.js';
+import { UserRole } from '../users/enums/user.enum.js';
+import type { AuthenticatedUser } from '../auth/interfaces/request-with-user.interface.js';
 
 @Injectable()
 export class PostsService {
@@ -18,15 +22,22 @@ export class PostsService {
     private readonly postsRepository: Repository<Post>,
   ) {}
 
-  async findAll(): Promise<Post[]> {
-    return this.postsRepository.find({
-      where: { published: true },
+  async findAll(
+    paginationQuery?: PaginationQueryDto,
+  ): Promise<PaginatedResult<Post>> {
+    const page = paginationQuery?.page ?? 1;
+    const limit = paginationQuery?.limit ?? 10;
+    const skip = (page - 1) * limit;
+
+    const [data, total] = await this.postsRepository.findAndCount({
+      where: { published: true, isActive: true },
       relations: { author: true },
       select: {
         id: true,
         title: true,
         content: true,
         published: true,
+        isActive: true,
         authorId: false,
         createdAt: true,
         updatedAt: true,
@@ -36,7 +47,23 @@ export class PostsService {
         },
       },
       order: { createdAt: 'DESC' },
+      skip,
+      take: limit,
     });
+
+    const totalPages = Math.ceil(total / limit);
+
+    return {
+      data,
+      meta: {
+        page,
+        limit,
+        total,
+        totalPages,
+        hasNextPage: page < totalPages,
+        hasPreviousPage: page > 1,
+      },
+    };
   }
 
   async findById(id: string): Promise<Post> {
@@ -44,6 +71,7 @@ export class PostsService {
       where: {
         id,
         published: true,
+        isActive: true,
       },
       relations: { author: true },
       select: {
@@ -51,6 +79,7 @@ export class PostsService {
         title: true,
         content: true,
         published: true,
+        isActive: true,
         authorId: false,
         createdAt: true,
         updatedAt: true,
@@ -75,6 +104,7 @@ export class PostsService {
     const post = this.postsRepository.create({
       ...createPostDto,
       authorId,
+      isActive: true,
     });
 
     const savedPost = await this.postsRepository.save(post);
@@ -85,18 +115,24 @@ export class PostsService {
   async update(
     id: string,
     updatePostDto: UpdatePostDto,
-    userId: string,
+    user: AuthenticatedUser,
   ): Promise<Post> {
-    const post = await this.postsRepository.findOneBy({ id });
+    const post = await this.postsRepository.findOne({
+      where: { id, isActive: true },
+    });
 
     if (!post) {
       throw new NotFoundException('Artigo não encontrado.');
     }
 
-    if (post.authorId !== userId) {
+    if (post.authorId !== user.userId && user.role !== UserRole.ADMIN) {
       throw new ForbiddenException(
         'Você não tem permissão para editar este artigo.',
       );
+    }
+
+    if (updatePostDto.isActive === false) {
+      post.published = false;
     }
 
     Object.assign(post, updatePostDto);
@@ -104,19 +140,24 @@ export class PostsService {
     return this.postsRepository.save(post);
   }
 
-  async remove(id: string, userId: string): Promise<void> {
-    const post = await this.postsRepository.findOneBy({ id });
+  async remove(id: string, user: AuthenticatedUser): Promise<void> {
+    const post = await this.postsRepository.findOne({
+      where: { id, isActive: true },
+    });
 
     if (!post) {
       throw new NotFoundException('Artigo não encontrado.');
     }
 
-    if (post.authorId !== userId) {
+    if (post.authorId !== user.userId && user.role !== UserRole.ADMIN) {
       throw new ForbiddenException(
-        'Você não tem permissão para excluir este artigo.',
+        'Você não tem permissão para desativar este artigo.',
       );
     }
 
-    await this.postsRepository.remove(post);
+    post.published = false;
+    post.isActive = false;
+    await this.postsRepository.save(post);
+    await this.postsRepository.softRemove(post);
   }
 }

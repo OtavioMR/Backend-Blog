@@ -1,28 +1,13 @@
-import {
-  IsBoolean,
-  IsOptional,
-  IsString,
-  IsNotEmpty,
-  MaxLength,
-  MinLength,
-} from 'class-validator';
+import { ApiPropertyOptional, PartialType } from '@nestjs/swagger';
+import { IsBoolean, IsOptional } from 'class-validator';
+import { CreatePostDto } from './create-post.dto.js';
 
-export class UpdatePostDto {
-  @IsOptional()
-  @IsString()
-  @IsNotEmpty()
-  @MinLength(3)
-  @MaxLength(150)
-  title?: string;
-
-  @IsOptional()
-  @IsString()
-  @IsNotEmpty()
-  @MinLength(10)
-  @MaxLength(50000)
-  content?: string;
-
+export class UpdatePostDto extends PartialType(CreatePostDto) {
+  @ApiPropertyOptional({
+    description: 'Status de ativação do artigo',
+    example: true,
+  })
   @IsOptional()
   @IsBoolean()
-  published?: boolean;
+  isActive?: boolean;
 }

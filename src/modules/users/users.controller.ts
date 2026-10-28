@@ -17,23 +17,41 @@ import {
 import { UsersService } from './users.service.js';
 import { CreateUserDto } from './dto/create-user.dto.js';
 import { UpdateUserDto } from './dto/update-user.dto.js';
+import { UserRole } from './enums/user.enum.js';
 import { JwtAuthGuard } from '../auth/guard/jwt-auth.guard.js';
+import { RolesGuard } from '../auth/guard/roles.guard.js';
+import { Roles } from '../../common/decorators/roles.decorator.js';
 import type { RequestWithUser } from '../auth/interfaces/request-with-user.interface.js';
+import {
+  ApiUsersTag,
+  ApiCreateUserDoc,
+  ApiFindAllUsersDoc,
+  ApiFindUserByIdDoc,
+  ApiUpdateUserDoc,
+  ApiRemoveUserDoc,
+} from '../../docs/index.js';
 
+@ApiUsersTag()
 @Controller('users')
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
+  @ApiCreateUserDoc()
   @Post()
   create(@Body() createUserDto: CreateUserDto) {
     return this.usersService.create(createUserDto);
   }
 
+  @ApiFindAllUsersDoc()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
   @Get()
   findAll() {
     return this.usersService.findAll();
   }
 
+  @ApiFindUserByIdDoc()
+  @UseGuards(JwtAuthGuard)
   @Get(':id')
   async findById(@Param('id', new ParseUUIDPipe()) id: string) {
     const user = await this.usersService.findById(id);
@@ -45,6 +63,7 @@ export class UsersController {
     return user;
   }
 
+  @ApiUpdateUserDoc()
   @UseGuards(JwtAuthGuard)
   @Patch(':id')
   update(
@@ -55,6 +74,7 @@ export class UsersController {
     return this.usersService.update(id, updateUserDto, request.user);
   }
 
+  @ApiRemoveUserDoc()
   @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.NO_CONTENT)
   @Delete(':id')
