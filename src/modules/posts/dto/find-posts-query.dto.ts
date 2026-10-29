@@ -24,4 +24,10 @@ export class FindPostsQueryDto extends PaginationQueryDto {
   @Transform(({ value }) => (value === '' ? undefined : value))
   @IsString()
   categorySlug?: string;
+
+  @ApiPropertyOptional({ description: 'Filtrar artigos pelo slug da tag', example: 'nestjs' })
+  @IsOptional()
+  @Transform(({ value }) => (value === '' ? undefined : value))
+  @IsString()
+  tagSlug?: string;
 }

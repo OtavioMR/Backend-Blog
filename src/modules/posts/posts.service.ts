@@ -1,5 +1,6 @@
 import {
   Injectable,
+  Logger,
   NotFoundException,
   ForbiddenException,
 } from '@nestjs/common';
@@ -8,6 +9,7 @@ import { FindOptionsWhere, In, Repository } from 'typeorm';
 
 import { Post } from './entities/post.entity.js';
 import { Category } from '../categories/entities/category.entity.js';
+import { TagsService } from '../tags/tags.service.js';
 import { CreatePostDto } from './dto/create-post.dto.js';
 import { UpdatePostDto } from './dto/update-post.dto.js';
 import { FindPostsQueryDto } from './dto/find-posts-query.dto.js';
@@ -17,11 +19,14 @@ import type { AuthenticatedUser } from '../auth/interfaces/request-with-user.int
 
 @Injectable()
 export class PostsService {
+  private readonly logger = new Logger(PostsService.name);
+
   constructor(
     @InjectRepository(Post)
     private readonly postsRepository: Repository<Post>,
     @InjectRepository(Category)
     private readonly categoriesRepository: Repository<Category>,
+    private readonly tagsService: TagsService,
   ) {}
 
   async findAll(
@@ -33,6 +38,7 @@ export class PostsService {
 
     const categoryId = query?.categoryId?.trim();
     const categorySlug = query?.categorySlug?.trim();
+    const tagSlug = query?.tagSlug?.trim();
 
     const where: FindOptionsWhere<Post> = {
       published: true,
@@ -46,11 +52,15 @@ export class PostsService {
       where.categories = { slug: categorySlug, isActive: true };
     }
 
+    if (tagSlug) where.tags = { slug: tagSlug };
+
     const [data, total] = await this.postsRepository.findAndCount({
       where,
+      relationLoadStrategy: 'query',
       relations: {
         author: true,
         categories: true,
+        tags: true,
       },
       select: {
         id: true,
@@ -70,6 +80,7 @@ export class PostsService {
           slug: true,
           isActive: true,
         },
+        tags: { id: true, name: true, slug: true },
       },
       order: { createdAt: 'DESC' },
       skip,
@@ -80,6 +91,7 @@ export class PostsService {
     const formattedData = data.map((post) => ({
       ...post,
       categories: (post.categories || []).filter((cat) => cat.isActive),
+      tags: post.tags || [],
     }));
 
     const totalPages = Math.ceil(total / limit);
@@ -107,6 +119,7 @@ export class PostsService {
       relations: {
         author: true,
         categories: true,
+        tags: true,
       },
       select: {
         id: true,
@@ -126,6 +139,7 @@ export class PostsService {
           slug: true,
           isActive: true,
         },
+        tags: { id: true, name: true, slug: true },
       },
     });
 
@@ -134,6 +148,7 @@ export class PostsService {
     }
 
     post.categories = (post.categories || []).filter((cat) => cat.isActive);
+    post.tags = post.tags || [];
 
     return post;
   }
@@ -142,7 +157,7 @@ export class PostsService {
     createPostDto: CreatePostDto,
     authorId: string,
   ): Promise<Post> {
-    const { categoryIds, ...postData } = createPostDto;
+    const { categoryIds, tagNames, ...postData } = createPostDto;
 
     let categories: Category[] = [];
     if (categoryIds && categoryIds.length > 0) {
@@ -160,14 +175,18 @@ export class PostsService {
       }
     }
 
+    const tags = await this.tagsService.resolveNames(tagNames ?? []);
+
     const post = this.postsRepository.create({
       ...postData,
       authorId,
       isActive: true,
       categories,
+      tags,
     });
 
     const savedPost = await this.postsRepository.save(post);
+    this.logger.log(`Artigo ${savedPost.id} criado pelo usuário ${authorId}`);
     return savedPost;
   }
 
@@ -178,7 +197,7 @@ export class PostsService {
   ): Promise<Post> {
     const post = await this.postsRepository.findOne({
       where: { id, isActive: true },
-      relations: { categories: true },
+      relations: { categories: true, tags: true },
     });
 
     if (!post) {
@@ -191,7 +210,7 @@ export class PostsService {
       );
     }
 
-    const { categoryIds, ...postData } = updatePostDto;
+    const { categoryIds, tagNames, ...postData } = updatePostDto;
 
     if (postData.isActive === false) {
       post.published = false;
@@ -218,8 +237,14 @@ export class PostsService {
       }
     }
 
+    if (tagNames !== undefined) {
+      post.tags = await this.tagsService.resolveNames(tagNames);
+    }
+
     Object.assign(post, postData);
-    return this.postsRepository.save(post);
+    const savedPost = await this.postsRepository.save(post);
+    this.logger.log(`Artigo ${id} atualizado pelo usuário ${user.userId}`);
+    return savedPost;
   }
 
   async remove(id: string, user: AuthenticatedUser): Promise<void> {
@@ -241,5 +266,6 @@ export class PostsService {
     post.isActive = false;
     await this.postsRepository.save(post);
     await this.postsRepository.softRemove(post);
+    this.logger.log(`Artigo ${id} desativado pelo usuário ${user.userId}`);
   }
 }

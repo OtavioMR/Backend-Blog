@@ -1,6 +1,7 @@
 import {
   ConflictException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -19,6 +20,8 @@ import { slugify } from '../../common/utils/slugify.util.js';
 
 @Injectable()
 export class CategoriesService {
+  private readonly logger = new Logger(CategoriesService.name);
+
   constructor(
     @InjectRepository(Category)
     private readonly categoriesRepository: Repository<Category>,
@@ -58,7 +61,9 @@ export class CategoriesService {
         existingByName.creatorId = creatorId;
       }
 
-      return this.categoriesRepository.save(existingByName);
+      const category = await this.categoriesRepository.save(existingByName);
+      this.logger.log(`Categoria ${category.id} reativada`);
+      return category;
     }
 
     const existingBySlug = await this.categoriesRepository.findOne({
@@ -85,7 +90,9 @@ export class CategoriesService {
         existingBySlug.creatorId = creatorId;
       }
 
-      return this.categoriesRepository.save(existingBySlug);
+      const category = await this.categoriesRepository.save(existingBySlug);
+      this.logger.log(`Categoria ${category.id} reativada`);
+      return category;
     }
 
     const category = this.categoriesRepository.create({
@@ -96,7 +103,9 @@ export class CategoriesService {
       creatorId: creatorId ?? null,
     });
 
-    return this.categoriesRepository.save(category);
+    const savedCategory = await this.categoriesRepository.save(category);
+    this.logger.log(`Categoria ${savedCategory.id} criada`);
+    return savedCategory;
   }
 
   async findAll(
@@ -242,7 +251,9 @@ export class CategoriesService {
       category.isActive = updateCategoryDto.isActive;
     }
 
-    return this.categoriesRepository.save(category);
+    const savedCategory = await this.categoriesRepository.save(category);
+    this.logger.log(`Categoria ${id} atualizada`);
+    return savedCategory;
   }
 
   async remove(id: string): Promise<void> {
@@ -257,5 +268,6 @@ export class CategoriesService {
     category.isActive = false;
     await this.categoriesRepository.save(category);
     await this.categoriesRepository.softRemove(category);
+    this.logger.log(`Categoria ${id} desativada`);
   }
 }

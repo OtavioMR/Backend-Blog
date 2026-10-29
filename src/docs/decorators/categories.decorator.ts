@@ -138,6 +138,11 @@ export function ApiFindPostsByCategoryDoc() {
       type: PaginatedPostResponseDto,
     }),
     ApiResponse({
+      status: 400,
+      description: 'Parâmetros de paginação inválidos.',
+      type: BadRequestResponseDto,
+    }),
+    ApiResponse({
       status: 404,
       description: 'Categoria não encontrada.',
       type: NotFoundResponseDto,

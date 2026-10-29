@@ -32,6 +32,7 @@ export class AuthController {
 
   @ApiLoginDoc()
   @Post('login')
+  @HttpCode(HttpStatus.OK)
   async login(
     @Body() loginDto: LoginDto,
     @Res({ passthrough: true }) res: Response,

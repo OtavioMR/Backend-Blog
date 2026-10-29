@@ -1,5 +1,6 @@
 import {
   Injectable,
+  Logger,
   UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -22,6 +23,8 @@ export interface TokenPairResult {
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(
     private readonly usersService: UsersService,
     private readonly jwtService: JwtService,
@@ -120,6 +123,7 @@ export class AuthService {
     );
     await this.usersService.updateRefreshTokenHash(user.id, refreshTokenHash);
 
+    this.logger.log(`Login realizado para usuário ${user.id}`);
     return tokens;
   }
 
@@ -174,11 +178,13 @@ export class AuthService {
       newRefreshTokenHash,
     );
 
+    this.logger.log(`Tokens renovados para usuário ${user.id}`);
     return tokens;
   }
 
   async logout(userId: string): Promise<{ message: string }> {
     await this.usersService.updateRefreshTokenHash(userId, null);
+    this.logger.log(`Sessão encerrada para usuário ${userId}`);
     return {
       message: 'Logout realizado com sucesso.',
     };

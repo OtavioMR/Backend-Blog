@@ -5,6 +5,7 @@ import { UsersModule } from './modules/users/users.module.js';
 import { AuthModule } from './modules/auth/auth.module.js';
 import { PostsModule } from './modules/posts/posts.module.js';
 import { CategoriesModule } from './modules/categories/categories.module.js';
+import { TagsModule } from './modules/tags/tags.module.js';
 
 @Module({
   imports: [
@@ -30,6 +31,7 @@ import { CategoriesModule } from './modules/categories/categories.module.js';
     AuthModule,
     PostsModule,
     CategoriesModule,
+    TagsModule,
   ],
   controllers: [],
   providers: [],

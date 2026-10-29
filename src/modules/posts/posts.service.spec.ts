@@ -6,11 +6,13 @@ import { NotFoundException } from '@nestjs/common';
 import { PostsService } from './posts.service.js';
 import { Post } from './entities/post.entity.js';
 import { Category } from '../categories/entities/category.entity.js';
+import { TagsService } from '../tags/tags.service.js';
 
 describe('PostsService', () => {
   let service: PostsService;
   let mockPostsRepository: any;
   let mockCategoriesRepository: any;
+  let mockTagsService: any;
 
   beforeEach(async () => {
     mockPostsRepository = {
@@ -24,6 +26,9 @@ describe('PostsService', () => {
     mockCategoriesRepository = {
       find: vi.fn(),
     };
+    mockTagsService = {
+      resolveNames: vi.fn().mockResolvedValue([]),
+    };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -35,6 +40,10 @@ describe('PostsService', () => {
         {
           provide: getRepositoryToken(Category),
           useValue: mockCategoriesRepository,
+        },
+        {
+          provide: TagsService,
+          useValue: mockTagsService,
         },
       ],
     }).compile();
@@ -64,6 +73,7 @@ describe('PostsService', () => {
       expect(result.data).toHaveLength(2);
       expect(result.data[0].categories).toEqual([]);
       expect(result.data[1].categories).toHaveLength(1);
+      expect(result.data[0].tags).toEqual([]);
     });
 
     it('deve aplicar filtro por categoryId quando informado', async () => {
@@ -97,6 +107,23 @@ describe('PostsService', () => {
             published: true,
             isActive: true,
             categories: { slug: 'tecnologia', isActive: true },
+          },
+        }),
+      );
+    });
+
+    it('deve filtrar por tagSlug junto com a categoria', async () => {
+      mockPostsRepository.findAndCount.mockResolvedValue([[], 0]);
+
+      await service.findAll({ categorySlug: 'tecnologia', tagSlug: 'nestjs' });
+
+      expect(mockPostsRepository.findAndCount).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            published: true,
+            isActive: true,
+            categories: { slug: 'tecnologia', isActive: true },
+            tags: { slug: 'nestjs' },
           },
         }),
       );
@@ -141,5 +168,32 @@ describe('PostsService', () => {
         ),
       ).rejects.toThrow(NotFoundException);
     });
+
+    it('deve associar tags informadas pelo autor', async () => {
+      const tags = [{ id: 'tag-1', name: 'NestJS', slug: 'nestjs' }];
+      mockTagsService.resolveNames.mockResolvedValue(tags);
+
+      await service.create(
+        { title: 'Novo Post', content: 'Conteúdo longo do artigo', tagNames: ['NestJS'] },
+        'author-1',
+      );
+
+      expect(mockTagsService.resolveNames).toHaveBeenCalledWith(['NestJS']);
+      expect(mockPostsRepository.create).toHaveBeenCalledWith(
+        expect.objectContaining({ tags }),
+      );
+    });
+  });
+
+  it('deve substituir as tags ao atualizar o artigo', async () => {
+    const post = { id: 'post-1', authorId: 'author-1', isActive: true, tags: [] };
+    mockPostsRepository.findOne.mockResolvedValue(post);
+    const tags = [{ id: 'tag-1', name: 'NestJS', slug: 'nestjs' }];
+    mockTagsService.resolveNames.mockResolvedValue(tags);
+
+    await service.update('post-1', { tagNames: ['NestJS'] }, { userId: 'author-1', role: 'USER' } as any);
+
+    expect(post.tags).toEqual(tags);
+    expect(mockPostsRepository.save).toHaveBeenCalledWith(post);
   });
 });

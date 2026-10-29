@@ -9,13 +9,13 @@ const logger = new Logger('HTTP');
  */
 export function httpLogger(req: Request, res: Response, next: NextFunction) {
   const start = Date.now();
-  const { method, originalUrl } = req;
+  const { method, path } = req;
 
   res.on('finish', () => {
     const { statusCode } = res;
     const duration = Date.now() - start;
     const hasAuth = req.headers.authorization ? 'com token' : 'sem token';
-    const message = `${method} ${originalUrl} -> ${statusCode} (${duration}ms) [${hasAuth}] ip=${req.ip}`;
+    const message = `${method} ${path} -> ${statusCode} (${duration}ms) [${hasAuth}] ip=${req.ip}`;
 
     if (statusCode >= 500) logger.error(message);
     else if (statusCode >= 400) logger.warn(message);

@@ -1,5 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { CategoryResponseDto } from './category-response.dto.js';
+import { TagResponseDto } from './tag-response.dto.js';
 import { PaginationMetaResponseDto } from './pagination-meta-response.dto.js';
 
 export { PaginationMetaResponseDto };
@@ -75,6 +76,12 @@ export class PostResponseDto {
     required: false,
   })
   categories?: CategoryResponseDto[];
+
+  @ApiProperty({
+    description: 'Tags associadas ao artigo',
+    type: () => [TagResponseDto],
+  })
+  tags: TagResponseDto[];
 }
 
 export class PaginatedPostResponseDto {

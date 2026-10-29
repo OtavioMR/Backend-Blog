@@ -58,6 +58,13 @@ export function ApiFindAllPostsDoc() {
       example: 'noticias',
       description: 'Filtrar artigos pelo slug da categoria',
     }),
+    ApiQuery({
+      name: 'tagSlug',
+      required: false,
+      type: String,
+      example: 'nestjs',
+      description: 'Filtrar artigos pelo slug da tag',
+    }),
     ApiResponse({
       status: 200,
       description: 'Lista paginada de artigos retornada com sucesso.',
@@ -137,6 +144,11 @@ export function ApiCreatePostDoc() {
       type: UnauthorizedResponseDto,
     }),
     ApiResponse({
+      status: 404,
+      description: 'Uma ou mais categorias informadas não existem ou estão inativas.',
+      type: NotFoundResponseDto,
+    }),
+    ApiResponse({
       status: 500,
       description: 'Erro interno ao registrar o artigo no banco.',
       type: InternalServerErrorResponseDto,
@@ -180,7 +192,7 @@ export function ApiUpdatePostDoc() {
     }),
     ApiResponse({
       status: 404,
-      description: 'Artigo não encontrado.',
+      description: 'Artigo não encontrado ou uma das categorias informadas não existe ou está inativa.',
       type: NotFoundResponseDto,
     }),
     ApiResponse({

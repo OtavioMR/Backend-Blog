@@ -1,5 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
+  ArrayMaxSize,
   IsArray,
   IsBoolean,
   IsNotEmpty,
@@ -54,4 +55,18 @@ export class CreatePostDto {
   @IsArray()
   @IsUUID('4', { each: true })
   categoryIds?: string[];
+
+  @ApiPropertyOptional({
+    description: 'Nomes das tags. Tags inexistentes são criadas automaticamente.',
+    example: ['NestJS', 'PostgreSQL'],
+    type: [String],
+    maxItems: 10,
+  })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(10)
+  @IsString({ each: true })
+  @MinLength(1, { each: true })
+  @MaxLength(50, { each: true })
+  tagNames?: string[];
 }

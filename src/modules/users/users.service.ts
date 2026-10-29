@@ -3,6 +3,7 @@ import {
   ConflictException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -21,6 +22,8 @@ export interface UserRequester {
 
 @Injectable()
 export class UsersService {
+  private readonly logger = new Logger(UsersService.name);
+
   constructor(
     @InjectRepository(User) private readonly usersRepository: Repository<User>,
   ) {}
@@ -78,6 +81,7 @@ export class UsersService {
     });
     const savedUser = await this.usersRepository.save(user);
 
+    this.logger.log(`Usuário ${savedUser.id} cadastrado`);
     return this.toPublic(savedUser);
   }
 
@@ -164,6 +168,7 @@ export class UsersService {
 
     const savedUser = await this.usersRepository.save(user);
 
+    this.logger.log(`Usuário ${id} atualizado por ${requester.userId}`);
     return this.toPublic(savedUser);
   }
 
@@ -182,6 +187,7 @@ export class UsersService {
     user.refreshTokenHash = null;
     await this.usersRepository.save(user);
     await this.usersRepository.softRemove(user);
+    this.logger.log(`Usuário ${id} desativado por ${requester.userId}`);
   }
 
   async findByEmailForAuth(email: string): Promise<User | null> {

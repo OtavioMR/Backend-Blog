@@ -1,34 +1,40 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import { Controller, Get, Param, Query } from '@nestjs/common';
+import { ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { TagsService } from './tags.service.js';
-import { CreateTagDto } from './dto/create-tag.dto.js';
-import { UpdateTagDto } from './dto/update-tag.dto.js';
+import {
+  PaginatedTagResponseDto,
+  TagResponseDto,
+} from '../../docs/models/tag-response.dto.js';
+import { ApiPublicRoute } from '../../docs/decorators/public.decorator.js';
+import { FindTagsQueryDto } from './dto/find-tags-query.dto.js';
 
+@ApiTags('Tags')
 @Controller('tags')
 export class TagsController {
   constructor(private readonly tagsService: TagsService) {}
 
-  @Post()
-  create(@Body() createTagDto: CreateTagDto) {
-    return this.tagsService.create(createTagDto);
-  }
-
+  @ApiOperation({ summary: 'Listar tags e buscar sugestões por nome ou slug' })
+  @ApiPublicRoute()
+  @ApiQuery({
+    name: 'search',
+    required: false,
+    example: 'noti',
+    description: 'Texto parcial para autocomplete',
+  })
+  @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
+  @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
+  @ApiResponse({ status: 200, type: PaginatedTagResponseDto })
   @Get()
-  findAll() {
-    return this.tagsService.findAll();
+  findAll(@Query() query: FindTagsQueryDto) {
+    return this.tagsService.findAll(query);
   }
 
-  @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.tagsService.findOne(+id);
-  }
-
-  @Patch(':id')
-  update(@Param('id') id: string, @Body() updateTagDto: UpdateTagDto) {
-    return this.tagsService.update(+id, updateTagDto);
-  }
-
-  @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.tagsService.remove(+id);
+  @ApiOperation({ summary: 'Buscar tag pelo slug' })
+  @ApiPublicRoute()
+  @ApiResponse({ status: 200, type: TagResponseDto })
+  @ApiResponse({ status: 404, description: 'Tag não encontrada.' })
+  @Get(':slug')
+  findOne(@Param('slug') slug: string) {
+    return this.tagsService.findBySlug(slug);
   }
 }
