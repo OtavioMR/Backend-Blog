@@ -3,14 +3,14 @@ import {
   NotFoundException,
   ForbiddenException,
 } from '@nestjs/common';
-
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { FindOptionsWhere, In, Repository } from 'typeorm';
 
 import { Post } from './entities/post.entity.js';
+import { Category } from '../categories/entities/category.entity.js';
 import { CreatePostDto } from './dto/create-post.dto.js';
 import { UpdatePostDto } from './dto/update-post.dto.js';
-import { PaginationQueryDto } from '../../common/dto/pagination-query.dto.js';
+import { FindPostsQueryDto } from './dto/find-posts-query.dto.js';
 import type { PaginatedResult } from '../../common/interfaces/paginated-result.interface.js';
 import { UserRole } from '../users/enums/user.enum.js';
 import type { AuthenticatedUser } from '../auth/interfaces/request-with-user.interface.js';
@@ -20,30 +20,55 @@ export class PostsService {
   constructor(
     @InjectRepository(Post)
     private readonly postsRepository: Repository<Post>,
+    @InjectRepository(Category)
+    private readonly categoriesRepository: Repository<Category>,
   ) {}
 
   async findAll(
-    paginationQuery?: PaginationQueryDto,
+    query?: FindPostsQueryDto,
   ): Promise<PaginatedResult<Post>> {
-    const page = paginationQuery?.page ?? 1;
-    const limit = paginationQuery?.limit ?? 10;
+    const page = query?.page ?? 1;
+    const limit = query?.limit ?? 10;
     const skip = (page - 1) * limit;
 
+    const categoryId = query?.categoryId?.trim();
+    const categorySlug = query?.categorySlug?.trim();
+
+    const where: FindOptionsWhere<Post> = {
+      published: true,
+      isActive: true,
+    };
+
+    // Aplica o filtro de categoria apenas se um ID ou slug foi explicitamente informado
+    if (categoryId) {
+      where.categories = { id: categoryId, isActive: true };
+    } else if (categorySlug) {
+      where.categories = { slug: categorySlug, isActive: true };
+    }
+
     const [data, total] = await this.postsRepository.findAndCount({
-      where: { published: true, isActive: true },
-      relations: { author: true },
+      where,
+      relations: {
+        author: true,
+        categories: true,
+      },
       select: {
         id: true,
         title: true,
         content: true,
         published: true,
         isActive: true,
-        authorId: false,
         createdAt: true,
         updatedAt: true,
         author: {
           id: true,
           name: true,
+        },
+        categories: {
+          id: true,
+          name: true,
+          slug: true,
+          isActive: true,
         },
       },
       order: { createdAt: 'DESC' },
@@ -51,10 +76,16 @@ export class PostsService {
       take: limit,
     });
 
+    // Garante que posts sem categoria retornem array vazio e remove categorias desativadas
+    const formattedData = data.map((post) => ({
+      ...post,
+      categories: (post.categories || []).filter((cat) => cat.isActive),
+    }));
+
     const totalPages = Math.ceil(total / limit);
 
     return {
-      data,
+      data: formattedData,
       meta: {
         page,
         limit,
@@ -73,19 +104,27 @@ export class PostsService {
         published: true,
         isActive: true,
       },
-      relations: { author: true },
+      relations: {
+        author: true,
+        categories: true,
+      },
       select: {
         id: true,
         title: true,
         content: true,
         published: true,
         isActive: true,
-        authorId: false,
         createdAt: true,
         updatedAt: true,
         author: {
           id: true,
           name: true,
+        },
+        categories: {
+          id: true,
+          name: true,
+          slug: true,
+          isActive: true,
         },
       },
     });
@@ -94,6 +133,8 @@ export class PostsService {
       throw new NotFoundException('Artigo não encontrado.');
     }
 
+    post.categories = (post.categories || []).filter((cat) => cat.isActive);
+
     return post;
   }
 
@@ -101,14 +142,32 @@ export class PostsService {
     createPostDto: CreatePostDto,
     authorId: string,
   ): Promise<Post> {
+    const { categoryIds, ...postData } = createPostDto;
+
+    let categories: Category[] = [];
+    if (categoryIds && categoryIds.length > 0) {
+      categories = await this.categoriesRepository.find({
+        where: {
+          id: In(categoryIds),
+          isActive: true,
+        },
+      });
+
+      if (categories.length !== categoryIds.length) {
+        throw new NotFoundException(
+          'Uma ou mais categorias informadas não foram encontradas ou estão inativas.',
+        );
+      }
+    }
+
     const post = this.postsRepository.create({
-      ...createPostDto,
+      ...postData,
       authorId,
       isActive: true,
+      categories,
     });
 
     const savedPost = await this.postsRepository.save(post);
-
     return savedPost;
   }
 
@@ -119,6 +178,7 @@ export class PostsService {
   ): Promise<Post> {
     const post = await this.postsRepository.findOne({
       where: { id, isActive: true },
+      relations: { categories: true },
     });
 
     if (!post) {
@@ -131,12 +191,34 @@ export class PostsService {
       );
     }
 
-    if (updatePostDto.isActive === false) {
+    const { categoryIds, ...postData } = updatePostDto;
+
+    if (postData.isActive === false) {
       post.published = false;
     }
 
-    Object.assign(post, updatePostDto);
+    if (categoryIds !== undefined) {
+      if (categoryIds.length === 0) {
+        post.categories = [];
+      } else {
+        const categories = await this.categoriesRepository.find({
+          where: {
+            id: In(categoryIds),
+            isActive: true,
+          },
+        });
 
+        if (categories.length !== categoryIds.length) {
+          throw new NotFoundException(
+            'Uma ou mais categorias informadas não foram encontradas ou estão inativas.',
+          );
+        }
+
+        post.categories = categories;
+      }
+    }
+
+    Object.assign(post, postData);
     return this.postsRepository.save(post);
   }
 

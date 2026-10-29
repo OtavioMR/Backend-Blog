@@ -1,9 +1,11 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
+  IsArray,
   IsBoolean,
+  IsNotEmpty,
   IsOptional,
   IsString,
-  IsNotEmpty,
+  IsUUID,
   MaxLength,
   MinLength,
 } from 'class-validator';
@@ -23,7 +25,8 @@ export class CreatePostDto {
 
   @ApiProperty({
     description: 'Conteúdo detalhado do artigo',
-    example: 'Neste artigo vamos discutir padrões arquiteturais no NestJS e melhores práticas de organização de código.',
+    example:
+      'Neste artigo vamos discutir padrões arquiteturais no NestJS e melhores práticas de organização de código.',
     minLength: 10,
     maxLength: 50000,
   })
@@ -41,4 +44,14 @@ export class CreatePostDto {
   @IsOptional()
   @IsBoolean()
   published?: boolean;
+
+  @ApiPropertyOptional({
+    description: 'Lista de IDs (UUID) das categorias vinculadas ao artigo',
+    example: ['b1a7d654-2a6c-4876-b9b6-79cf021516e8'],
+    type: [String],
+  })
+  @IsOptional()
+  @IsArray()
+  @IsUUID('4', { each: true })
+  categoryIds?: string[];
 }

@@ -1,4 +1,8 @@
 import { ApiProperty } from '@nestjs/swagger';
+import { CategoryResponseDto } from './category-response.dto.js';
+import { PaginationMetaResponseDto } from './pagination-meta-response.dto.js';
+
+export { PaginationMetaResponseDto };
 
 export class PostAuthorResponseDto {
   @ApiProperty({
@@ -29,7 +33,8 @@ export class PostResponseDto {
 
   @ApiProperty({
     description: 'Conteúdo detalhado do artigo',
-    example: 'O NestJS é um framework Node.js progressivo para a construção de aplicativos eficientes e escaláveis...',
+    example:
+      'O NestJS é um framework Node.js progressivo para a construção de aplicativos eficientes e escaláveis...',
   })
   content: string;
 
@@ -63,56 +68,25 @@ export class PostResponseDto {
     required: false,
   })
   author?: PostAuthorResponseDto;
-}
-
-export class PaginationMetaResponseDto {
-  @ApiProperty({
-    description: 'Página atual retornada',
-    example: 1,
-  })
-  page: number;
 
   @ApiProperty({
-    description: 'Limite de registros por página',
-    example: 10,
+    description: 'Categorias associadas ao artigo',
+    type: () => [CategoryResponseDto],
+    required: false,
   })
-  limit: number;
-
-  @ApiProperty({
-    description: 'Total de itens encontrados',
-    example: 42,
-  })
-  total: number;
-
-  @ApiProperty({
-    description: 'Total de páginas disponíveis',
-    example: 5,
-  })
-  totalPages: number;
-
-  @ApiProperty({
-    description: 'Indica se existe uma próxima página',
-    example: true,
-  })
-  hasNextPage: boolean;
-
-  @ApiProperty({
-    description: 'Indica se existe uma página anterior',
-    example: false,
-  })
-  hasPreviousPage: boolean;
+  categories?: CategoryResponseDto[];
 }
 
 export class PaginatedPostResponseDto {
   @ApiProperty({
     description: 'Lista de artigos da página atual',
-    type: [PostResponseDto],
+    type: () => [PostResponseDto],
   })
   data: PostResponseDto[];
 
   @ApiProperty({
     description: 'Metadados de paginação',
-    type: PaginationMetaResponseDto,
+    type: () => PaginationMetaResponseDto,
   })
   meta: PaginationMetaResponseDto;
 }

@@ -44,6 +44,20 @@ export function ApiFindAllPostsDoc() {
       example: 10,
       description: 'Quantidade máxima de artigos por página (padrão: 10, máx: 100)',
     }),
+    ApiQuery({
+      name: 'categoryId',
+      required: false,
+      type: String,
+      example: 'b1a7d654-2a6c-4876-b9b6-79cf021516e8',
+      description: 'Filtrar artigos pelo UUID da categoria',
+    }),
+    ApiQuery({
+      name: 'categorySlug',
+      required: false,
+      type: String,
+      example: 'noticias',
+      description: 'Filtrar artigos pelo slug da categoria',
+    }),
     ApiResponse({
       status: 200,
       description: 'Lista paginada de artigos retornada com sucesso.',

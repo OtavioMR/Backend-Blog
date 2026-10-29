@@ -17,7 +17,7 @@ import {
 import { PostsService } from './posts.service.js';
 import { CreatePostDto } from './dto/create-post.dto.js';
 import { UpdatePostDto } from './dto/update-post.dto.js';
-import { PaginationQueryDto } from '../../common/dto/pagination-query.dto.js';
+import { FindPostsQueryDto } from './dto/find-posts-query.dto.js';
 
 import { JwtAuthGuard } from '../auth/guard/jwt-auth.guard.js';
 import type { RequestWithUser } from '../auth/interfaces/request-with-user.interface.js';
@@ -37,8 +37,8 @@ export class PostsController {
 
   @ApiFindAllPostsDoc()
   @Get()
-  findAll(@Query() paginationQuery: PaginationQueryDto) {
-    return this.postsService.findAll(paginationQuery);
+  findAll(@Query() findPostsQuery: FindPostsQueryDto) {
+    return this.postsService.findAll(findPostsQuery);
   }
 
   @ApiFindPostByIdDoc()

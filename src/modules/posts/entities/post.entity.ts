@@ -5,10 +5,13 @@ import {
   Entity,
   JoinColumn,
   ManyToOne,
+  ManyToMany,
+  JoinTable,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
 import { User } from '../../users/entities/user.entity.js';
+import { Category } from '../../categories/entities/category.entity.js';
 
 @Entity('posts')
 export class Post {
@@ -33,6 +36,14 @@ export class Post {
   @ManyToOne(() => User, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'author_id' })
   author: User;
+
+  @ManyToMany(() => Category, (category) => category.posts)
+  @JoinTable({
+    name: 'post_categories',
+    joinColumn: { name: 'post_id', referencedColumnName: 'id' },
+    inverseJoinColumn: { name: 'category_id', referencedColumnName: 'id' },
+  })
+  categories: Category[];
 
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;
