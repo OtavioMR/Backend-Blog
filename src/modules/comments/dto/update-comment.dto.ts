@@ -1,4 +1,10 @@
-import { PartialType } from '@nestjs/mapped-types';
-import { CreateCommentDto } from './create-comment.dto.js';
+import { ApiProperty } from '@nestjs/swagger';
+import { IsString, Matches, MaxLength } from 'class-validator';
 
-export class UpdateCommentDto extends PartialType(CreateCommentDto) {}
+export class UpdateCommentDto {
+  @ApiProperty({ maxLength: 1000 })
+  @IsString()
+  @MaxLength(1000)
+  @Matches(/\S/)
+  content: string;
+}

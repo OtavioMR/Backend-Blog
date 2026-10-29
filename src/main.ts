@@ -5,12 +5,19 @@ import cookieParser from 'cookie-parser';
 import { setupSwagger } from './docs/index.js';
 import { httpLogger } from './common/middleware/http-logger.middleware.js';
 import { configureDateSerialization } from './common/utils/date-serializer.js';
+import { NestExpressApplication } from '@nestjs/platform-express';
+import { join } from 'node:path';
 
 async function bootstrap() {
   // Configura serialização de datas com o fuso horário local explícito (ex.: -03:00)
   configureDateSerialization();
 
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  app.useStaticAssets(join(process.cwd(), 'uploads', 'profile-photos'), {
+    prefix: '/uploads/profile-photos/',
+    dotfiles: 'deny',
+    index: false,
+  });
 
   // Parsing de cookies para suporte a tokens HTTP-Only seguros
   app.use(cookieParser());

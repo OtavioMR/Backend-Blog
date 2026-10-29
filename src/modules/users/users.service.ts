@@ -9,6 +9,9 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import bcrypt from 'bcrypt';
+import { randomUUID } from 'node:crypto';
+import { mkdir, writeFile } from 'node:fs/promises';
+import { join } from 'node:path';
 
 import { CreateUserDto } from './dto/create-user.dto.js';
 import { UpdateUserDto } from './dto/update-user.dto.js';
@@ -32,6 +35,7 @@ export class UsersService {
     return {
       id: user.id,
       name: user.name,
+      profilePhoto: user.profilePhoto,
       email: user.email,
       role: user.role,
       isActive: user.isActive,
@@ -48,13 +52,49 @@ export class UsersService {
     }
   }
 
+  async updateProfilePhoto(
+    id: string,
+    buffer: Buffer,
+    requester: UserRequester,
+  ) {
+    this.assertCanManage(id, requester);
+    const user = await this.usersRepository.findOne({
+      where: { id, isActive: true },
+    });
+    if (!user) throw new NotFoundException('Usuário não encontrado.');
+    const jpeg =
+      buffer.length >= 3 &&
+      buffer[0] === 0xff &&
+      buffer[1] === 0xd8 &&
+      buffer[2] === 0xff;
+    const png =
+      buffer.length >= 8 &&
+      buffer
+        .subarray(0, 8)
+        .equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]));
+    const webp =
+      buffer.length >= 12 &&
+      buffer.toString('ascii', 0, 4) === 'RIFF' &&
+      buffer.toString('ascii', 8, 12) === 'WEBP';
+    if (!jpeg && !png && !webp)
+      throw new BadRequestException('A imagem deve ser JPEG, PNG ou WebP.');
+    const directory = join(process.cwd(), 'uploads', 'profile-photos');
+    await mkdir(directory, { recursive: true });
+    const filename = `${randomUUID()}.${jpeg ? 'jpg' : png ? 'png' : 'webp'}`;
+    await writeFile(join(directory, filename), buffer, { flag: 'wx' });
+    user.profilePhoto = `/uploads/profile-photos/${filename}`;
+    return this.toPublic(await this.usersRepository.save(user));
+  }
+
   async create(createUserDto: CreateUserDto) {
     const name = createUserDto.name.trim();
     const email = createUserDto.email.trim().toLowerCase();
     const password = createUserDto.password;
 
     if (name.length < 2) {
-      throw new BadRequestException('O nome precisa ter pelo menos 2 caracteres.');
+      throw new BadRequestException(
+        'O nome precisa ter pelo menos 2 caracteres.',
+      );
     }
 
     if (Buffer.byteLength(password, 'utf8') > 72) {
@@ -67,7 +107,9 @@ export class UsersService {
     });
 
     if (existingUser) {
-      throw new ConflictException('Já existe um usuário cadastrado com este e-mail.');
+      throw new ConflictException(
+        'Já existe um usuário cadastrado com este e-mail.',
+      );
     }
 
     const passwordHash = await bcrypt.hash(password, 12);
@@ -98,7 +140,11 @@ export class UsersService {
     });
   }
 
-  async update(id: string, updateUserDto: UpdateUserDto, requester: UserRequester) {
+  async update(
+    id: string,
+    updateUserDto: UpdateUserDto,
+    requester: UserRequester,
+  ) {
     this.assertCanManage(id, requester);
 
     const user = await this.usersRepository.findOne({
@@ -113,7 +159,9 @@ export class UsersService {
       const name = updateUserDto.name.trim();
 
       if (name.length < 2) {
-        throw new BadRequestException('O nome precisa ter pelo menos 2 caracteres.');
+        throw new BadRequestException(
+          'O nome precisa ter pelo menos 2 caracteres.',
+        );
       }
 
       user.name = name;
@@ -129,7 +177,9 @@ export class UsersService {
         });
 
         if (existingUser) {
-          throw new ConflictException('Já existe um usuário cadastrado com este e-mail.');
+          throw new ConflictException(
+            'Já existe um usuário cadastrado com este e-mail.',
+          );
         }
 
         user.email = email;

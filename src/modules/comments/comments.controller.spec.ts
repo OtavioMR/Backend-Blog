@@ -1,20 +1,17 @@
-import { Test, TestingModule } from '@nestjs/testing';
-import { CommentsController } from './comments.controller.js';
+import { Test } from '@nestjs/testing';
+import {
+  CommentsController,
+  PostCommentsController,
+} from './comments.controller.js';
 import { CommentsService } from './comments.service.js';
 
-describe('CommentsController', () => {
-  let controller: CommentsController;
-
-  beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      controllers: [CommentsController],
-      providers: [CommentsService],
+describe('Comments controllers', () => {
+  it('registers both controllers with the service', async () => {
+    const module = await Test.createTestingModule({
+      controllers: [CommentsController, PostCommentsController],
+      providers: [{ provide: CommentsService, useValue: {} }],
     }).compile();
-
-    controller = module.get<CommentsController>(CommentsController);
-  });
-
-  it('should be defined', () => {
-    expect(controller).toBeDefined();
+    expect(module.get(CommentsController)).toBeDefined();
+    expect(module.get(PostCommentsController)).toBeDefined();
   });
 });

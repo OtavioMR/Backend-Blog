@@ -8,15 +8,27 @@ import { PostsService } from '../modules/posts/posts.service.js';
 import { AuthController } from '../modules/auth/auth.controller.js';
 import { AuthService } from '../modules/auth/auth.service.js';
 import { setupSwagger } from './swagger.config.js';
+import {
+  CommentsController,
+  PostCommentsController,
+} from '../modules/comments/comments.controller.js';
+import { CommentsService } from '../modules/comments/comments.service.js';
 
 describe('Swagger Documentation Configuration', () => {
   it('should generate OpenAPI document containing Auth, Users, and Posts endpoints', async () => {
     const moduleRef = await Test.createTestingModule({
-      controllers: [UsersController, PostsController, AuthController],
+      controllers: [
+        UsersController,
+        PostsController,
+        AuthController,
+        CommentsController,
+        PostCommentsController,
+      ],
       providers: [
         { provide: UsersService, useValue: {} },
         { provide: PostsService, useValue: {} },
         { provide: AuthService, useValue: {} },
+        { provide: CommentsService, useValue: {} },
       ],
     }).compile();
 
@@ -56,7 +68,9 @@ describe('Swagger Documentation Configuration', () => {
 
     // Security definition check
     expect(document.components?.securitySchemes).toBeDefined();
-    const securityScheme = document.components?.securitySchemes?.['JWT-auth'] as any;
+    const securityScheme = document.components?.securitySchemes?.[
+      'JWT-auth'
+    ] as any;
     expect(securityScheme).toBeDefined();
     expect(securityScheme.type).toBe('http');
     expect(securityScheme.scheme).toBe('bearer');
@@ -71,6 +85,28 @@ describe('Swagger Documentation Configuration', () => {
     expect(paths).toContain('/api/v1/users/{id}');
     expect(paths).toContain('/api/v1/posts');
     expect(paths).toContain('/api/v1/posts/{id}');
+    expect(
+      document.paths['/api/v1/posts/{postId}/comments'].post?.security,
+    ).toEqual([{ 'JWT-auth': [] }]);
+    expect(document.paths['/api/v1/comments/{id}'].patch?.security).toEqual([
+      { 'JWT-auth': [] },
+    ]);
+    expect(
+      document.paths['/api/v1/posts/{postId}/comments'].get?.security,
+    ).toEqual([{}]);
+    const createComment =
+      document.paths['/api/v1/posts/{postId}/comments'].post;
+    const requestBody = createComment?.requestBody;
+    expect(
+      requestBody &&
+        'content' in requestBody &&
+        requestBody.content['application/json'].examples,
+    ).toMatchObject({
+      comentario: { value: { content: 'Gostei do post!' } },
+      resposta: {
+        value: { content: 'Também gostei!', replyToId: expect.any(String) },
+      },
+    });
 
     // Verify DTO schemas generated in components
     const schemas = document.components?.schemas;

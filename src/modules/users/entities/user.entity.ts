@@ -17,6 +17,9 @@ export class User {
   @Column({ length: 100 })
   name: string;
 
+  @Column({ name: 'profile_photo', type: 'varchar', nullable: true })
+  profilePhoto: string | null;
+
   @Column({ unique: true, length: 255 })
   email: string;
 

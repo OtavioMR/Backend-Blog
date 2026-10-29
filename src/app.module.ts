@@ -6,6 +6,7 @@ import { AuthModule } from './modules/auth/auth.module.js';
 import { PostsModule } from './modules/posts/posts.module.js';
 import { CategoriesModule } from './modules/categories/categories.module.js';
 import { TagsModule } from './modules/tags/tags.module.js';
+import { CommentsModule } from './modules/comments/comments.module.js';
 
 @Module({
   imports: [
@@ -32,6 +33,7 @@ import { TagsModule } from './modules/tags/tags.module.js';
     PostsModule,
     CategoriesModule,
     TagsModule,
+    CommentsModule,
   ],
   controllers: [],
   providers: [],

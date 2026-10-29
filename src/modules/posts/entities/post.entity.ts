@@ -28,6 +28,9 @@ export class Post {
   @Column({ default: false })
   published: boolean;
 
+  @Column({ name: 'comments_enabled', default: true })
+  commentsEnabled: boolean;
+
   @Column({ name: 'is_active', default: true })
   isActive: boolean;
 

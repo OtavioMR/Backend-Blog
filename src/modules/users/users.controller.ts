@@ -1,5 +1,6 @@
 import {
   Body,
+  BadRequestException,
   Controller,
   Delete,
   Get,
@@ -12,7 +13,11 @@ import {
   Post,
   Req,
   UseGuards,
+  UseInterceptors,
+  UploadedFile,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { ApiBody, ApiConsumes } from '@nestjs/swagger';
 
 import { UsersService } from './users.service.js';
 import { CreateUserDto } from './dto/create-user.dto.js';
@@ -35,6 +40,28 @@ import {
 @Controller('users')
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
+
+  @UseGuards(JwtAuthGuard)
+  @UseInterceptors(
+    FileInterceptor('file', { limits: { fileSize: 5 * 1024 * 1024 } }),
+  )
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: { file: { type: 'string', format: 'binary' } },
+      required: ['file'],
+    },
+  })
+  @Post(':id/profile-photo')
+  uploadPhoto(
+    @Param('id', ParseUUIDPipe) id: string,
+    @UploadedFile() file: { buffer: Buffer } | undefined,
+    @Req() request: RequestWithUser,
+  ) {
+    if (!file) throw new BadRequestException('Envie uma imagem.');
+    return this.usersService.updateProfilePhoto(id, file.buffer, request.user);
+  }
 
   @ApiCreateUserDoc()
   @Post()

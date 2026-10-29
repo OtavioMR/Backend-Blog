@@ -29,9 +29,7 @@ export class PostsService {
     private readonly tagsService: TagsService,
   ) {}
 
-  async findAll(
-    query?: FindPostsQueryDto,
-  ): Promise<PaginatedResult<Post>> {
+  async findAll(query?: FindPostsQueryDto): Promise<PaginatedResult<Post>> {
     const page = query?.page ?? 1;
     const limit = query?.limit ?? 10;
     const skip = (page - 1) * limit;
@@ -67,6 +65,7 @@ export class PostsService {
         title: true,
         content: true,
         published: true,
+        commentsEnabled: true,
         isActive: true,
         createdAt: true,
         updatedAt: true,
@@ -126,6 +125,7 @@ export class PostsService {
         title: true,
         content: true,
         published: true,
+        commentsEnabled: true,
         isActive: true,
         createdAt: true,
         updatedAt: true,
@@ -153,10 +153,7 @@ export class PostsService {
     return post;
   }
 
-  async create(
-    createPostDto: CreatePostDto,
-    authorId: string,
-  ): Promise<Post> {
+  async create(createPostDto: CreatePostDto, authorId: string): Promise<Post> {
     const { categoryIds, tagNames, ...postData } = createPostDto;
 
     let categories: Category[] = [];
