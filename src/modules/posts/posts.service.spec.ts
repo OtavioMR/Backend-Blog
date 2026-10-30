@@ -91,11 +91,11 @@ describe('PostsService', () => {
 
       expect(mockPostsRepository.findAndCount).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: {
+          where: [{
             published: true,
             isActive: true,
             categories: { id: 'cat-uuid-1', isActive: true },
-          },
+          }],
         }),
       );
     });
@@ -107,30 +107,69 @@ describe('PostsService', () => {
 
       expect(mockPostsRepository.findAndCount).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: {
+          where: [{
             published: true,
             isActive: true,
             categories: { slug: 'tecnologia', isActive: true },
-          },
+          }],
         }),
       );
     });
 
-    it('deve filtrar por tagSlug junto com a categoria', async () => {
+    it('deve combinar tag e categoria por OU', async () => {
       mockPostsRepository.findAndCount.mockResolvedValue([[], 0]);
 
       await service.findAll({ categorySlug: 'tecnologia', tagSlug: 'nestjs' });
 
       expect(mockPostsRepository.findAndCount).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: {
+          where: [{
             published: true,
             isActive: true,
             categories: { slug: 'tecnologia', isActive: true },
+          }, {
+            published: true,
+            isActive: true,
             tags: { slug: 'nestjs' },
-          },
+          }],
         }),
       );
+    });
+
+    it('combina busca, autor e filtros mantendo posts publicados e ativos', async () => {
+      mockPostsRepository.findAndCount.mockResolvedValue([[], 0]);
+      await service.findAll({ search: ' Nest%_ ', author: ' José ', categoryId: 'id', categorySlug: 'ignorado', tagSlug: 'tag', page: 2, limit: 5 });
+      const options = mockPostsRepository.findAndCount.mock.calls[0][0];
+      expect(options.where).toHaveLength(5);
+      expect(options.where.every((item: any) => item.published && item.isActive)).toBe(true);
+      expect(options.where[0].title.objectLiteralParameters).toEqual({ searchTerm: '%Nest\\%\\_%' });
+      expect(options.where[2].author.name.objectLiteralParameters).toEqual({ authorTerm: '%José%' });
+      expect(options.where[3].categories).toEqual({ id: 'id', isActive: true });
+      expect(options.skip).toBe(5);
+      expect(options.take).toBe(5);
+    });
+
+    it('ignora texto e autor vazios e retorna paginação vazia', async () => {
+      mockPostsRepository.findAndCount.mockResolvedValue([[], 0]);
+      const result = await service.findAll({ search: '  ', author: ' ' });
+      expect(mockPostsRepository.findAndCount.mock.calls[0][0].where).toEqual({ published: true, isActive: true });
+      expect(result.data).toEqual([]);
+      expect(result.meta.total).toBe(0);
+    });
+
+    it('busca por nome de categoria ativa combinado por OU com os demais filtros', async () => {
+      mockPostsRepository.findAndCount.mockResolvedValue([[], 0]);
+      await service.findAll({ categoryName: ' Educa%_ ', author: 'Maria' });
+      const where = mockPostsRepository.findAndCount.mock.calls[0][0].where;
+      expect(where).toHaveLength(2);
+      expect(where[1]).toMatchObject({ published: true, isActive: true, categories: { isActive: true } });
+      expect(where[1].categories.name.objectLiteralParameters).toEqual({ categoryNameTerm: '%Educa\\%\\_%' });
+    });
+
+    it('ignora nome de categoria vazio', async () => {
+      mockPostsRepository.findAndCount.mockResolvedValue([[], 0]);
+      await service.findAll({ categoryName: '  ' });
+      expect(mockPostsRepository.findAndCount.mock.calls[0][0].where).toEqual({ published: true, isActive: true });
     });
   });
 

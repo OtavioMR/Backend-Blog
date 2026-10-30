@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { RateLimitModule } from './common/rate-limit.module.js';
 import { UsersModule } from './modules/users/users.module.js';
 import { AuthModule } from './modules/auth/auth.module.js';
 import { PostsModule } from './modules/posts/posts.module.js';
@@ -15,6 +16,7 @@ import { MailModule } from './modules/mail/mail.module.js';
       isGlobal: true,
       envFilePath: '.env',
     }),
+    RateLimitModule,
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],

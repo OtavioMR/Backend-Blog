@@ -28,8 +28,11 @@ export function ApiFindAllPostsDoc() {
     ApiOperation({
       summary: 'Listar artigos publicados',
       description:
-        'Retorna uma lista paginada com metadados dos artigos marcados como publicados e ativos no blog.',
+        'Retorna artigos publicados e ativos. Os filtros informados são combinados por OU; categoryId tem prioridade sobre categorySlug.',
     }),
+    ApiQuery({ name: 'search', required: false, type: String, example: 'nestjs', description: 'Trecho literal do título ou conteúdo, sem diferenciar maiúsculas ou acentos.' }),
+    ApiQuery({ name: 'author', required: false, type: String, example: 'maria', description: 'Trecho literal do nome do autor, sem diferenciar maiúsculas ou acentos.' }),
+    ApiQuery({ name: 'categoryName', required: false, type: String, example: 'tecnologia', description: 'Trecho literal do nome de uma categoria ativa, sem diferenciar maiúsculas ou acentos.' }),
     ApiQuery({
       name: 'page',
       required: false,

@@ -5,7 +5,7 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { FindOptionsWhere, In, Repository } from 'typeorm';
+import { FindOptionsWhere, In, Raw, Repository } from 'typeorm';
 
 import { Post } from './entities/post.entity.js';
 import { Category } from '../categories/entities/category.entity.js';
@@ -38,19 +38,34 @@ export class PostsService {
     const categorySlug = query?.categorySlug?.trim();
     const tagSlug = query?.tagSlug?.trim();
 
-    const where: FindOptionsWhere<Post> = {
-      published: true,
-      isActive: true,
-    };
+    const base: FindOptionsWhere<Post> = { published: true, isActive: true };
+    const filters: FindOptionsWhere<Post>[] = [];
+    const search = query?.search?.trim();
+    const author = query?.author?.trim();
+    const categoryName = query?.categoryName?.trim();
+    // Escape LIKE metacharacters so the input is always interpreted literally.
+    const pattern = (value: string) => `%${value.replace(/[\\%_]/g, '\\$&')}%`;
+    const matches = (value: string, key: string) => Raw(
+      (column) => `unaccent(${column}) ILIKE unaccent(:${key}) ESCAPE '\\'`,
+      { [key]: pattern(value) },
+    );
 
-    // Aplica o filtro de categoria apenas se um ID ou slug foi explicitamente informado
-    if (categoryId) {
-      where.categories = { id: categoryId, isActive: true };
-    } else if (categorySlug) {
-      where.categories = { slug: categorySlug, isActive: true };
+    if (search) {
+      filters.push({ ...base, title: matches(search, 'searchTerm') });
+      filters.push({ ...base, content: matches(search, 'searchTerm') });
+    }
+    if (author) filters.push({ ...base, author: { name: matches(author, 'authorTerm') } });
+    if (categoryName) {
+      filters.push({ ...base, categories: { name: matches(categoryName, 'categoryNameTerm'), isActive: true } });
     }
 
-    if (tagSlug) where.tags = { slug: tagSlug };
+    if (categoryId) {
+      filters.push({ ...base, categories: { id: categoryId, isActive: true } });
+    } else if (categorySlug) {
+      filters.push({ ...base, categories: { slug: categorySlug, isActive: true } });
+    }
+    if (tagSlug) filters.push({ ...base, tags: { slug: tagSlug } });
+    const where = filters.length ? filters : base;
 
     const [data, total] = await this.postsRepository.findAndCount({
       where,
@@ -81,7 +96,7 @@ export class PostsService {
         },
         tags: { id: true, name: true, slug: true },
       },
-      order: { createdAt: 'DESC' },
+      order: { createdAt: 'DESC', id: 'DESC' },
       skip,
       take: limit,
     });

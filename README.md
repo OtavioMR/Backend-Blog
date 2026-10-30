@@ -59,6 +59,12 @@ $ npm run test:cov
 
 ## Deployment
 
+### Limitação de requisições
+
+As rotas dos controllers aceitam até 100 requisições por minuto, por IP e por rota. Login aceita 20, recuperação de senha 5 e redefinição de senha 10 por minuto; ao exceder o limite, a API responde com HTTP 429 e o cabeçalho `Retry-After`. Os contadores ficam na memória de cada processo e são reiniciados quando ele reinicia. Em múltiplas instâncias, é necessário um armazenamento compartilhado para aplicar um limite consistente.
+
+O IP usado é o da conexão. Atrás de um proxy reverso, configure `trust proxy` no Express somente para proxies confiáveis da infraestrutura; sem isso, clientes podem compartilhar o mesmo limite, e confiar indiscriminadamente em cabeçalhos permite falsificar o IP. Arquivos estáticos e Swagger não passam pelo guard dos controllers e precisam de proteção no proxy ou na infraestrutura.
+
 When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
 
 If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:

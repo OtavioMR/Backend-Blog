@@ -267,4 +267,163 @@ describe('Auth E2E Test Suite (Secure Cookies, Refresh Token Rotation, Logout)',
       expect(response.status).toBe(401);
     });
   });
+
+  describe('4. Password Recovery Flow (POST /api/v1/auth/forgot-password & POST /api/v1/auth/reset-password)', () => {
+    let rawResetToken: string;
+
+    it('should return 200 generic message when requesting password reset for existing email', async () => {
+      const response = await request(app.getHttpServer())
+        .post('/api/v1/auth/forgot-password')
+        .send({ email: testUser.email });
+
+      expect(response.status).toBe(200);
+      expect(response.body.message).toContain('instruções para redefinição');
+
+      // Fetch user to obtain reset token hash and set a known token for reset verification
+      const user = await usersRepository
+        .createQueryBuilder('user')
+        .addSelect('user.resetPasswordTokenHash')
+        .where('user.email = :email', { email: testUser.email.toLowerCase() })
+        .getOne();
+      expect(user).toBeDefined();
+      expect(user?.resetPasswordTokenHash).toBeTruthy();
+    });
+
+    it('should return 200 generic message even when user does not exist (anti-enumeration)', async () => {
+      const response = await request(app.getHttpServer())
+        .post('/api/v1/auth/forgot-password')
+        .send({ email: 'nonexistent@example.com' });
+
+      expect(response.status).toBe(200);
+      expect(response.body.message).toContain('instruções para redefinição');
+    });
+
+    it('should reset password with valid token and allow login with new password', async () => {
+      const crypto = await import('node:crypto');
+      rawResetToken = crypto.randomBytes(32).toString('hex');
+      const tokenHash = crypto
+        .createHash('sha256')
+        .update(rawResetToken)
+        .digest('hex');
+
+      await usersRepository.update(
+        { email: testUser.email.toLowerCase() },
+        {
+          resetPasswordTokenHash: tokenHash,
+          resetPasswordExpiresAt: new Date(Date.now() + 15 * 60 * 1000),
+        },
+      );
+
+      const resetResponse = await request(app.getHttpServer())
+        .post('/api/v1/auth/reset-password')
+        .send({
+          token: rawResetToken,
+          newPassword: 'BrandNewPassword123!',
+        });
+
+      expect(resetResponse.status).toBe(200);
+      expect(resetResponse.body.message).toMatch(/Senha redefinida com sucesso/i);
+
+      // Verify that old password fails
+      const failedLogin = await request(app.getHttpServer())
+        .post('/api/v1/auth/login')
+        .send({
+          email: testUser.email,
+          password: testUser.password,
+        });
+      expect(failedLogin.status).toBe(401);
+
+      // Verify that new password succeeds
+      const successfulLogin = await request(app.getHttpServer())
+        .post('/api/v1/auth/login')
+        .send({
+          email: testUser.email,
+          password: 'BrandNewPassword123!',
+        });
+      expect([200, 201]).toContain(successfulLogin.status);
+      expect(successfulLogin.body).toHaveProperty('access_token');
+    });
+
+    it('should reject reset-password with expired or invalid token (400 Bad Request)', async () => {
+      const response = await request(app.getHttpServer())
+        .post('/api/v1/auth/reset-password')
+        .send({
+          token: 'invalid_or_expired_token_value',
+          newPassword: 'AnotherPassword123!',
+        });
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toMatch(/inválido ou expirado/i);
+    });
+  });
+
+  describe('5. SQL Injection Resilience (Input Sanitization & Parameterized Queries)', () => {
+    it('should block classic SQL injection payload in login email via ValidationPipe (400 Bad Request)', async () => {
+      const response = await request(app.getHttpServer())
+        .post('/api/v1/auth/login')
+        .send({
+          email: "' OR 1=1 --",
+          password: "password123",
+        });
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBeDefined();
+    });
+
+    it('should safely treat SQL injection in password field as literal string (401 Unauthorized)', async () => {
+      const response = await request(app.getHttpServer())
+        .post('/api/v1/auth/login')
+        .send({
+          email: testUser.email,
+          password: "' OR '1'='1' --",
+        });
+
+      expect(response.status).toBe(401);
+      expect(response.body.message).toMatch(/E-mail ou senha inválidos/i);
+    });
+
+    it('should block SQL injection payload in forgot-password email via ValidationPipe (400 Bad Request)', async () => {
+      const response = await request(app.getHttpServer())
+        .post('/api/v1/auth/forgot-password')
+        .send({
+          email: "admin' OR '1'='1' --",
+        });
+
+      expect(response.status).toBe(400);
+    });
+
+    it('should safely hash and parameterize SQL injection attempt in reset-password token (400 Bad Request)', async () => {
+      const response = await request(app.getHttpServer())
+        .post('/api/v1/auth/reset-password')
+        .send({
+          token: "'; DROP TABLE \"user\"; --",
+          newPassword: 'ValidNewPassword123!',
+        });
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toMatch(/inválido ou expirado/i);
+
+      // Invariant: The users table remains intact and test user exists
+      const user = await usersRepository.findOne({
+        where: { email: testUser.email.toLowerCase() },
+      });
+      expect(user).toBeDefined();
+    });
+
+    it('should safely reject SQL injection in refresh cookie (401 Unauthorized)', async () => {
+      const response = await request(app.getHttpServer())
+        .post('/api/v1/auth/refresh')
+        .set('Cookie', ["refreshToken=' OR 1=1 --; DROP TABLE users;"]);
+
+      expect(response.status).toBe(401);
+    });
+
+    it('should safely reject SQL injection in Authorization Bearer header (401 Unauthorized)', async () => {
+      const response = await request(app.getHttpServer())
+        .post('/api/v1/auth/logout')
+        .set('Authorization', "Bearer ' OR '1'='1' --");
+
+      expect(response.status).toBe(401);
+    });
+  });
 });
