@@ -27,3 +27,21 @@ export class LogoutResponseDto {
   })
   message: string;
 }
+
+export class ForgotPasswordResponseDto {
+  @ApiProperty({
+    description:
+      'Mensagem informando o resultado da solicitação de recuperação de senha',
+    example:
+      'Se o e-mail informado estiver cadastrado, as instruções para redefinição de senha foram enviadas.',
+  })
+  message: string;
+}
+
+export class ResetPasswordResponseDto {
+  @ApiProperty({
+    description: 'Mensagem de confirmação da redefinição de senha',
+    example: 'Senha redefinida com sucesso.',
+  })
+  message: string;
+}

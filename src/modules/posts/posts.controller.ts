@@ -54,10 +54,7 @@ export class PostsController {
     @Body() createPostDto: CreatePostDto,
     @Req() request: RequestWithUser,
   ) {
-    return this.postsService.create(
-      createPostDto,
-      request.user.userId,
-    );
+    return this.postsService.create(createPostDto, request.user.userId);
   }
 
   @ApiUpdatePostDoc()
@@ -68,11 +65,7 @@ export class PostsController {
     @Body() updatePostDto: UpdatePostDto,
     @Req() request: RequestWithUser,
   ) {
-    return this.postsService.update(
-      id,
-      updatePostDto,
-      request.user,
-    );
+    return this.postsService.update(id, updatePostDto, request.user);
   }
 
   @ApiRemovePostDoc()
@@ -83,9 +76,6 @@ export class PostsController {
     @Param('id', ParseUUIDPipe) id: string,
     @Req() request: RequestWithUser,
   ) {
-    return this.postsService.remove(
-      id,
-      request.user,
-    );
+    return this.postsService.remove(id, request.user);
   }
 }

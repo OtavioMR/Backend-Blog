@@ -1,8 +1,6 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
-export class AddCreatorIdToCategories1793245000000
-  implements MigrationInterface
-{
+export class AddCreatorIdToCategories1793245000000 implements MigrationInterface {
   name = 'AddCreatorIdToCategories1793245000000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
@@ -22,6 +20,8 @@ export class AddCreatorIdToCategories1793245000000
     await queryRunner.query(
       `ALTER TABLE "categories" DROP CONSTRAINT "FK_categories_creator_id"`,
     );
-    await queryRunner.query(`ALTER TABLE "categories" DROP COLUMN "creator_id"`);
+    await queryRunner.query(
+      `ALTER TABLE "categories" DROP COLUMN "creator_id"`,
+    );
   }
 }

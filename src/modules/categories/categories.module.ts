@@ -8,10 +8,7 @@ import { Post } from '../posts/entities/post.entity.js';
 import { PostsModule } from '../posts/posts.module.js';
 
 @Module({
-  imports: [
-    TypeOrmModule.forFeature([Category, Post]),
-    PostsModule,
-  ],
+  imports: [TypeOrmModule.forFeature([Category, Post]), PostsModule],
   controllers: [CategoriesController],
   providers: [CategoriesService],
   exports: [CategoriesService, TypeOrmModule],

@@ -36,6 +36,23 @@ export class User {
   refreshTokenHash: string | null;
 
   @Column({
+    name: 'reset_password_token_hash',
+    type: 'varchar',
+    length: 255,
+    nullable: true,
+    select: false,
+  })
+  resetPasswordTokenHash: string | null;
+
+  @Column({
+    name: 'reset_password_expires_at',
+    type: 'timestamptz',
+    nullable: true,
+    select: false,
+  })
+  resetPasswordExpiresAt: Date | null;
+
+  @Column({
     type: 'enum',
     enum: UserRole,
     default: UserRole.READER,

@@ -57,7 +57,8 @@ export class CreatePostDto {
   categoryIds?: string[];
 
   @ApiPropertyOptional({
-    description: 'Nomes das tags. Tags inexistentes são criadas automaticamente.',
+    description:
+      'Nomes das tags. Tags inexistentes são criadas automaticamente.',
     example: ['NestJS', 'PostgreSQL'],
     type: [String],
     maxItems: 10,

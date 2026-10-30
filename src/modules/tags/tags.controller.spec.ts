@@ -9,7 +9,12 @@ describe('TagsController', () => {
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [TagsController],
-      providers: [{ provide: TagsService, useValue: { findAll: vi.fn(), findBySlug: vi.fn() } }],
+      providers: [
+        {
+          provide: TagsService,
+          useValue: { findAll: vi.fn(), findBySlug: vi.fn() },
+        },
+      ],
     }).compile();
 
     controller = module.get<TagsController>(TagsController);

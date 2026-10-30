@@ -42,7 +42,8 @@ export function ApiFindAllPostsDoc() {
       required: false,
       type: Number,
       example: 10,
-      description: 'Quantidade máxima de artigos por página (padrão: 10, máx: 100)',
+      description:
+        'Quantidade máxima de artigos por página (padrão: 10, máx: 100)',
     }),
     ApiQuery({
       name: 'categoryId',
@@ -135,17 +136,20 @@ export function ApiCreatePostDoc() {
     }),
     ApiResponse({
       status: 400,
-      description: 'Dados de validação incorretos (título ou conteúdo inválidos).',
+      description:
+        'Dados de validação incorretos (título ou conteúdo inválidos).',
       type: BadRequestResponseDto,
     }),
     ApiResponse({
       status: 401,
-      description: 'Acesso não autorizado (token JWT ausente, expirado ou usuário inativo).',
+      description:
+        'Acesso não autorizado (token JWT ausente, expirado ou usuário inativo).',
       type: UnauthorizedResponseDto,
     }),
     ApiResponse({
       status: 404,
-      description: 'Uma ou mais categorias informadas não existem ou estão inativas.',
+      description:
+        'Uma ou mais categorias informadas não existem ou estão inativas.',
       type: NotFoundResponseDto,
     }),
     ApiResponse({
@@ -187,12 +191,14 @@ export function ApiUpdatePostDoc() {
     }),
     ApiResponse({
       status: 403,
-      description: 'Ação proibida (usuário autenticado não é o autor deste artigo nem ADMIN).',
+      description:
+        'Ação proibida (usuário autenticado não é o autor deste artigo nem ADMIN).',
       type: ForbiddenResponseDto,
     }),
     ApiResponse({
       status: 404,
-      description: 'Artigo não encontrado ou uma das categorias informadas não existe ou está inativa.',
+      description:
+        'Artigo não encontrado ou uma das categorias informadas não existe ou está inativa.',
       type: NotFoundResponseDto,
     }),
     ApiResponse({
@@ -233,7 +239,8 @@ export function ApiRemovePostDoc() {
     }),
     ApiResponse({
       status: 403,
-      description: 'Ação proibida (usuário autenticado não é o autor deste artigo nem ADMIN).',
+      description:
+        'Ação proibida (usuário autenticado não é o autor deste artigo nem ADMIN).',
       type: ForbiddenResponseDto,
     }),
     ApiResponse({

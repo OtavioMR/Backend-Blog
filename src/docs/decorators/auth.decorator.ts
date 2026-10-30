@@ -8,6 +8,8 @@ import {
 import {
   AuthTokensResponseDto,
   LogoutResponseDto,
+  ForgotPasswordResponseDto,
+  ResetPasswordResponseDto,
   BadRequestResponseDto,
   UnauthorizedResponseDto,
   InternalServerErrorResponseDto,
@@ -56,7 +58,8 @@ export function ApiLoginDoc() {
     }),
     ApiResponse({
       status: 500,
-      description: 'Erro interno inesperado no servidor durante a autenticação.',
+      description:
+        'Erro interno inesperado no servidor durante a autenticação.',
       type: InternalServerErrorResponseDto,
     }),
   );
@@ -139,6 +142,64 @@ export function ApiLogoutDoc() {
     ApiResponse({
       status: 500,
       description: 'Erro interno inesperado no servidor durante o logout.',
+      type: InternalServerErrorResponseDto,
+    }),
+  );
+}
+
+export function ApiForgotPasswordDoc() {
+  return applyDecorators(
+    ApiPublicRoute(),
+    ApiOperation({
+      summary: 'Solicitar recuperação de senha',
+      description:
+        'Gera um token seguro de recuperação de senha com validade de 30 minutos e envia o link de redefinição para o e-mail cadastrado. Retorna uma mensagem genérica mesmo se o e-mail não existir para mitigar ataques de enumeração.',
+    }),
+    ApiResponse({
+      status: 200,
+      description:
+        'Solicitação de recuperação processada. Se o e-mail estiver cadastrado e ativo, as instruções foram enviadas.',
+      type: ForgotPasswordResponseDto,
+    }),
+    ApiResponse({
+      status: 400,
+      description:
+        'Requisição inválida. Os dados enviados não atendem às regras de validação (ex.: formato de e-mail inválido).',
+      type: BadRequestResponseDto,
+    }),
+    ApiResponse({
+      status: 500,
+      description:
+        'Erro interno inesperado no servidor durante a solicitação de recuperação.',
+      type: InternalServerErrorResponseDto,
+    }),
+  );
+}
+
+export function ApiResetPasswordDoc() {
+  return applyDecorators(
+    ApiPublicRoute(),
+    ApiOperation({
+      summary: 'Redefinir senha com token de recuperação',
+      description:
+        'Valida o token criptográfico de recuperação de senha e, caso esteja dentro do prazo de validade de 30 minutos, atualiza a senha do usuário com a nova senha informada. Revoga imediatamente todas as sessões ativas (refresh tokens) do usuário.',
+    }),
+    ApiResponse({
+      status: 200,
+      description:
+        'Senha redefinida com sucesso. Todas as sessões ativas anteriores foram revogadas.',
+      type: ResetPasswordResponseDto,
+    }),
+    ApiResponse({
+      status: 400,
+      description:
+        'Token inválido, expirado ou formato da nova senha não atende aos requisitos mínimos (8 a 72 caracteres).',
+      type: BadRequestResponseDto,
+    }),
+    ApiResponse({
+      status: 500,
+      description:
+        'Erro interno inesperado no servidor durante a redefinição de senha.',
       type: InternalServerErrorResponseDto,
     }),
   );

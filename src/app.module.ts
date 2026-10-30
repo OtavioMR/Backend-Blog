@@ -7,6 +7,7 @@ import { PostsModule } from './modules/posts/posts.module.js';
 import { CategoriesModule } from './modules/categories/categories.module.js';
 import { TagsModule } from './modules/tags/tags.module.js';
 import { CommentsModule } from './modules/comments/comments.module.js';
+import { MailModule } from './modules/mail/mail.module.js';
 
 @Module({
   imports: [
@@ -34,6 +35,7 @@ import { CommentsModule } from './modules/comments/comments.module.js';
     CategoriesModule,
     TagsModule,
     CommentsModule,
+    MailModule,
   ],
   controllers: [],
   providers: [],

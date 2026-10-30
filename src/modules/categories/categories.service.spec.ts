@@ -90,7 +90,9 @@ describe('CategoriesService', () => {
       expect(inactiveCategory.deletedAt).toBeNull();
       expect(inactiveCategory.description).toBe('Nova descrição');
       expect(inactiveCategory.creatorId).toBe('admin-new-id');
-      expect(mockCategoryRepository.save).toHaveBeenCalledWith(inactiveCategory);
+      expect(mockCategoryRepository.save).toHaveBeenCalledWith(
+        inactiveCategory,
+      );
     });
 
     it('deve lançar ConflictException se já existir categoria ativa com o mesmo nome', async () => {
@@ -100,9 +102,9 @@ describe('CategoriesService', () => {
         isActive: true,
       });
 
-      await expect(
-        service.create({ name: 'Tecnologia' }),
-      ).rejects.toThrow(ConflictException);
+      await expect(service.create({ name: 'Tecnologia' })).rejects.toThrow(
+        ConflictException,
+      );
     });
 
     it('deve lançar ConflictException se já existir categoria ativa com o mesmo slug', async () => {
@@ -114,9 +116,9 @@ describe('CategoriesService', () => {
           isActive: true,
         }); // slug check fails
 
-      await expect(
-        service.create({ name: 'Tecnologia' }),
-      ).rejects.toThrow(ConflictException);
+      await expect(service.create({ name: 'Tecnologia' })).rejects.toThrow(
+        ConflictException,
+      );
     });
   });
 
@@ -128,10 +130,12 @@ describe('CategoriesService', () => {
         orderBy: vi.fn().mockReturnThis(),
         skip: vi.fn().mockReturnThis(),
         take: vi.fn().mockReturnThis(),
-        getManyAndCount: vi.fn().mockResolvedValue([
-          [{ id: '1', name: 'Notícias', slug: 'noticias' }],
-          1,
-        ]),
+        getManyAndCount: vi
+          .fn()
+          .mockResolvedValue([
+            [{ id: '1', name: 'Notícias', slug: 'noticias' }],
+            1,
+          ]),
       };
       mockCategoryRepository.createQueryBuilder.mockReturnValue(qb);
 
@@ -152,10 +156,12 @@ describe('CategoriesService', () => {
         orderBy: vi.fn().mockReturnThis(),
         skip: vi.fn().mockReturnThis(),
         take: vi.fn().mockReturnThis(),
-        getManyAndCount: vi.fn().mockResolvedValue([
-          [{ id: '1', name: 'Notícias', slug: 'noticias' }],
-          1,
-        ]),
+        getManyAndCount: vi
+          .fn()
+          .mockResolvedValue([
+            [{ id: '1', name: 'Notícias', slug: 'noticias' }],
+            1,
+          ]),
       };
       mockCategoryRepository.createQueryBuilder.mockReturnValue(qb);
 

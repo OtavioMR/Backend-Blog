@@ -34,7 +34,8 @@ export class CategoryResponseDto {
   isActive: boolean;
 
   @ApiPropertyOptional({
-    description: 'Identificador do administrador que criou a categoria (UUID v4)',
+    description:
+      'Identificador do administrador que criou a categoria (UUID v4)',
     example: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
     nullable: true,
   })

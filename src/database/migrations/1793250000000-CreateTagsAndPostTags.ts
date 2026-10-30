@@ -30,15 +30,23 @@ export class CreateTagsAndPostTags1793250000000 implements MigrationInterface {
       ALTER TABLE "post_tags" ADD CONSTRAINT "FK_post_tags_tag_id"
       FOREIGN KEY ("tag_id") REFERENCES "tags"("id") ON DELETE CASCADE ON UPDATE NO ACTION
     `);
-    await queryRunner.query(`CREATE INDEX "IDX_post_tags_post_id" ON "post_tags" ("post_id")`);
-    await queryRunner.query(`CREATE INDEX "IDX_post_tags_tag_id" ON "post_tags" ("tag_id")`);
+    await queryRunner.query(
+      `CREATE INDEX "IDX_post_tags_post_id" ON "post_tags" ("post_id")`,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "IDX_post_tags_tag_id" ON "post_tags" ("tag_id")`,
+    );
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`DROP INDEX "IDX_post_tags_tag_id"`);
     await queryRunner.query(`DROP INDEX "IDX_post_tags_post_id"`);
-    await queryRunner.query(`ALTER TABLE "post_tags" DROP CONSTRAINT "FK_post_tags_tag_id"`);
-    await queryRunner.query(`ALTER TABLE "post_tags" DROP CONSTRAINT "FK_post_tags_post_id"`);
+    await queryRunner.query(
+      `ALTER TABLE "post_tags" DROP CONSTRAINT "FK_post_tags_tag_id"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "post_tags" DROP CONSTRAINT "FK_post_tags_post_id"`,
+    );
     await queryRunner.query(`DROP TABLE "post_tags"`);
     await queryRunner.query(`DROP TABLE "tags"`);
   }

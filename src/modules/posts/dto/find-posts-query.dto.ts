@@ -16,7 +16,8 @@ export class FindPostsQueryDto extends PaginationQueryDto {
   categoryId?: string;
 
   @ApiPropertyOptional({
-    description: 'Filtrar artigos pelo slug da categoria (ex: "noticias") (opcional)',
+    description:
+      'Filtrar artigos pelo slug da categoria (ex: "noticias") (opcional)',
     example: 'noticias',
     required: false,
   })
@@ -25,7 +26,10 @@ export class FindPostsQueryDto extends PaginationQueryDto {
   @IsString()
   categorySlug?: string;
 
-  @ApiPropertyOptional({ description: 'Filtrar artigos pelo slug da tag', example: 'nestjs' })
+  @ApiPropertyOptional({
+    description: 'Filtrar artigos pelo slug da tag',
+    example: 'nestjs',
+  })
   @IsOptional()
   @Transform(({ value }) => (value === '' ? undefined : value))
   @IsString()

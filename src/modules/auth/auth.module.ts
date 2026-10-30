@@ -4,6 +4,7 @@ import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 
 import { UsersModule } from '../users/users.module.js';
+import { MailModule } from '../mail/mail.module.js';
 import { AuthController } from './auth.controller.js';
 import { AuthService } from './auth.service.js';
 import { JwtStrategy } from './strategies/jwt.strategy.js';
@@ -11,6 +12,7 @@ import { JwtStrategy } from './strategies/jwt.strategy.js';
 @Module({
   imports: [
     UsersModule,
+    MailModule,
     PassportModule.register({
       defaultStrategy: 'jwt',
     }),
@@ -20,9 +22,7 @@ import { JwtStrategy } from './strategies/jwt.strategy.js';
       useFactory: (configService: ConfigService) => ({
         secret: configService.getOrThrow<string>('JWT_SECRET'),
         signOptions: {
-          expiresIn: Number(
-            configService.get('JWT_EXPIRES_IN') ?? 3600,
-          ),
+          expiresIn: Number(configService.get('JWT_EXPIRES_IN') ?? 3600),
         },
       }),
     }),

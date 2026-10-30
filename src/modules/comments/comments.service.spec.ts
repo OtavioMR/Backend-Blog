@@ -20,13 +20,11 @@ describe('CommentsService', () => {
       save: vi.fn(async (x) => x),
     };
     posts = {
-      findOne: vi
-        .fn()
-        .mockResolvedValue({
-          id: 'post',
-          authorId: 'owner',
-          commentsEnabled: true,
-        }),
+      findOne: vi.fn().mockResolvedValue({
+        id: 'post',
+        authorId: 'owner',
+        commentsEnabled: true,
+      }),
     };
     service = new CommentsService(comments, posts);
   });

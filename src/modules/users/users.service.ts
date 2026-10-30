@@ -264,4 +264,43 @@ export class UsersService {
       .andWhere('user.isActive = true')
       .getOne();
   }
+
+  async setResetPasswordToken(
+    email: string,
+    tokenHash: string,
+    expiresAt: Date,
+  ): Promise<User | null> {
+    const user = await this.usersRepository.findOne({
+      where: { email, isActive: true },
+    });
+
+    if (!user) {
+      return null;
+    }
+
+    user.resetPasswordTokenHash = tokenHash;
+    user.resetPasswordExpiresAt = expiresAt;
+    return this.usersRepository.save(user);
+  }
+
+  async findByResetPasswordToken(tokenHash: string): Promise<User | null> {
+    return this.usersRepository
+      .createQueryBuilder('user')
+      .addSelect(['user.resetPasswordTokenHash', 'user.resetPasswordExpiresAt'])
+      .where('user.resetPasswordTokenHash = :tokenHash', { tokenHash })
+      .andWhere('user.isActive = true')
+      .getOne();
+  }
+
+  async resetPassword(userId: string, newPasswordHash: string): Promise<void> {
+    await this.usersRepository.update(userId, {
+      passwordHash: newPasswordHash,
+      resetPasswordTokenHash: null,
+      resetPasswordExpiresAt: null,
+      refreshTokenHash: null,
+    });
+    this.logger.log(
+      `Senha redefinida e sessões invalidadas para o usuário ${userId}`,
+    );
+  }
 }

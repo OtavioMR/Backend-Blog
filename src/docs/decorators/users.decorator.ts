@@ -35,7 +35,8 @@ export function ApiCreateUserDoc() {
     }),
     ApiResponse({
       status: 400,
-      description: 'Dados de validação incorretos (ex.: senha curta, e-mail inválido).',
+      description:
+        'Dados de validação incorretos (ex.: senha curta, e-mail inválido).',
       type: BadRequestResponseDto,
     }),
     ApiResponse({
@@ -87,7 +88,8 @@ export function ApiFindUserByIdDoc() {
     ApiBearerAuth('JWT-auth'),
     ApiOperation({
       summary: 'Buscar usuário por ID',
-      description: 'Retorna os detalhes de um usuário ativo específico identificado por UUID.',
+      description:
+        'Retorna os detalhes de um usuário ativo específico identificado por UUID.',
     }),
     ApiParam({
       name: 'id',
@@ -154,7 +156,8 @@ export function ApiUpdateUserDoc() {
     }),
     ApiResponse({
       status: 403,
-      description: 'Ação proibida (sem permissão para alterar dados de outro usuário).',
+      description:
+        'Ação proibida (sem permissão para alterar dados de outro usuário).',
       type: ForbiddenResponseDto,
     }),
     ApiResponse({
@@ -205,7 +208,8 @@ export function ApiRemoveUserDoc() {
     }),
     ApiResponse({
       status: 403,
-      description: 'Ação proibida (sem permissão para desativar outro usuário).',
+      description:
+        'Ação proibida (sem permissão para desativar outro usuário).',
       type: ForbiddenResponseDto,
     }),
     ApiResponse({

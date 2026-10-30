@@ -52,7 +52,8 @@ export function ApiFindAllCategoriesDoc() {
       required: false,
       type: Number,
       example: 10,
-      description: 'Quantidade máxima de categorias por página (padrão: 10, máx: 100)',
+      description:
+        'Quantidade máxima de categorias por página (padrão: 10, máx: 100)',
     }),
     ApiResponse({
       status: 200,
@@ -130,7 +131,8 @@ export function ApiFindPostsByCategoryDoc() {
       required: false,
       type: Number,
       example: 10,
-      description: 'Quantidade máxima de artigos por página (padrão: 10, máx: 100)',
+      description:
+        'Quantidade máxima de artigos por página (padrão: 10, máx: 100)',
     }),
     ApiResponse({
       status: 200,

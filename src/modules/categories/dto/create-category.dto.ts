@@ -22,7 +22,8 @@ export class CreateCategoryDto {
 
   @ApiPropertyOptional({
     description: 'Breve descrição sobre a categoria',
-    example: 'Artigos sobre as últimas novidades do mundo da tecnologia e software.',
+    example:
+      'Artigos sobre as últimas novidades do mundo da tecnologia e software.',
     maxLength: 255,
   })
   @IsOptional()

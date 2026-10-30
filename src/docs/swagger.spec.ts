@@ -5,6 +5,8 @@ import { UsersController } from '../modules/users/users.controller.js';
 import { UsersService } from '../modules/users/users.service.js';
 import { PostsController } from '../modules/posts/posts.controller.js';
 import { PostsService } from '../modules/posts/posts.service.js';
+import { PostInteractionsController } from '../modules/posts/post-interactions.controller.js';
+import { PostInteractionsService } from '../modules/posts/post-interactions.service.js';
 import { AuthController } from '../modules/auth/auth.controller.js';
 import { AuthService } from '../modules/auth/auth.service.js';
 import { setupSwagger } from './swagger.config.js';
@@ -20,6 +22,7 @@ describe('Swagger Documentation Configuration', () => {
       controllers: [
         UsersController,
         PostsController,
+        PostInteractionsController,
         AuthController,
         CommentsController,
         PostCommentsController,
@@ -27,6 +30,7 @@ describe('Swagger Documentation Configuration', () => {
       providers: [
         { provide: UsersService, useValue: {} },
         { provide: PostsService, useValue: {} },
+        { provide: PostInteractionsService, useValue: {} },
         { provide: AuthService, useValue: {} },
         { provide: CommentsService, useValue: {} },
       ],
@@ -81,10 +85,33 @@ describe('Swagger Documentation Configuration', () => {
     expect(paths).toContain('/api/v1/auth/login');
     expect(paths).toContain('/api/v1/auth/refresh');
     expect(paths).toContain('/api/v1/auth/logout');
+    expect(paths).toContain('/api/v1/auth/forgot-password');
+    expect(paths).toContain('/api/v1/auth/reset-password');
     expect(paths).toContain('/api/v1/users');
     expect(paths).toContain('/api/v1/users/{id}');
     expect(paths).toContain('/api/v1/posts');
     expect(paths).toContain('/api/v1/posts/{id}');
+    for (const [path, method] of [
+      ['/api/v1/posts/saved', 'get'],
+      ['/api/v1/posts/{id}/interaction', 'get'],
+      ['/api/v1/posts/{id}/like', 'put'],
+      ['/api/v1/posts/{id}/like', 'delete'],
+      ['/api/v1/posts/{id}/save', 'put'],
+      ['/api/v1/posts/{id}/save', 'delete'],
+    ] as const) {
+      const operation = document.paths[path]?.[method];
+      expect(operation?.security).toEqual([{ 'JWT-auth': [] }]);
+      expect(operation?.responses).toHaveProperty(
+        method === 'get' ? '200' : '204',
+      );
+      expect(operation?.responses).toHaveProperty('401');
+    }
+    expect(document.components?.schemas).toHaveProperty(
+      'PostInteractionResponseDto',
+    );
+    expect(document.components?.schemas).toHaveProperty(
+      'PaginatedSavedPostsResponseDto',
+    );
     expect(
       document.paths['/api/v1/posts/{postId}/comments'].post?.security,
     ).toEqual([{ 'JWT-auth': [] }]);
@@ -112,6 +139,8 @@ describe('Swagger Documentation Configuration', () => {
     const schemas = document.components?.schemas;
     expect(schemas).toBeDefined();
     expect(schemas).toHaveProperty('LoginDto');
+    expect(schemas).toHaveProperty('ForgotPasswordDto');
+    expect(schemas).toHaveProperty('ResetPasswordDto');
     expect(schemas).toHaveProperty('CreateUserDto');
     expect(schemas).toHaveProperty('CreatePostDto');
 

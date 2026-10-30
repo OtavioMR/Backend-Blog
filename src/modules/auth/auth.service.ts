@@ -1,17 +1,21 @@
 import {
+  BadRequestException,
   Injectable,
   Logger,
   UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
-import { createHash, randomUUID } from 'node:crypto';
+import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import bcrypt from 'bcrypt';
 import type { CookieOptions } from 'express';
 
 import { UsersService } from '../users/users.service.js';
+import { MailService } from '../mail/mail.service.js';
 import { UserRole } from '../users/enums/user.enum.js';
 import { LoginDto } from './dto/login.dto.js';
+import { ForgotPasswordDto } from './dto/forgot-password.dto.js';
+import { ResetPasswordDto } from './dto/reset-password.dto.js';
 
 export interface TokenPairResult {
   accessToken: string;
@@ -29,6 +33,7 @@ export class AuthService {
     private readonly usersService: UsersService,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
+    private readonly mailService: MailService,
   ) {}
 
   private hashToken(token: string): string {
@@ -154,7 +159,9 @@ export class AuthService {
     const user = await this.usersService.findByIdForAuth(payload.sub);
 
     if (!user || !user.isActive || !user.refreshTokenHash) {
-      throw new UnauthorizedException('Refresh token revogado, usuário inativo ou inválido.');
+      throw new UnauthorizedException(
+        'Refresh token revogado, usuário inativo ou inválido.',
+      );
     }
 
     const isMatch = await bcrypt.compare(
@@ -187,6 +194,65 @@ export class AuthService {
     this.logger.log(`Sessão encerrada para usuário ${userId}`);
     return {
       message: 'Logout realizado com sucesso.',
+    };
+  }
+
+  async forgotPassword(
+    forgotPasswordDto: ForgotPasswordDto,
+  ): Promise<{ message: string }> {
+    const email = forgotPasswordDto.email.trim().toLowerCase();
+    const token = randomBytes(32).toString('hex');
+    const tokenHash = this.hashToken(token);
+    const expiresAt = new Date(Date.now() + 30 * 60 * 1000); // 30 minutos
+
+    const user = await this.usersService.setResetPasswordToken(
+      email,
+      tokenHash,
+      expiresAt,
+    );
+
+    if (user) {
+      const frontendUrl = this.configService.get<string>(
+        'FRONTEND_URL',
+        'http://localhost:3000',
+      );
+      const resetLink = `${frontendUrl}/reset-password?token=${token}`;
+      await this.mailService.sendPasswordResetEmail(
+        user.email,
+        resetLink,
+        user.name,
+      );
+    }
+
+    return {
+      message:
+        'Se o e-mail informado estiver cadastrado, as instruções para redefinição de senha foram enviadas.',
+    };
+  }
+
+  async resetPassword(
+    resetPasswordDto: ResetPasswordDto,
+  ): Promise<{ message: string }> {
+    const token = resetPasswordDto.token.trim();
+    const tokenHash = this.hashToken(token);
+
+    const user = await this.usersService.findByResetPasswordToken(tokenHash);
+
+    if (
+      !user ||
+      !user.resetPasswordExpiresAt ||
+      new Date() > new Date(user.resetPasswordExpiresAt)
+    ) {
+      throw new BadRequestException(
+        'Token de recuperação inválido ou expirado.',
+      );
+    }
+
+    const passwordHash = await bcrypt.hash(resetPasswordDto.newPassword, 10);
+    await this.usersService.resetPassword(user.id, passwordHash);
+
+    return {
+      message: 'Senha redefinida com sucesso.',
     };
   }
 }

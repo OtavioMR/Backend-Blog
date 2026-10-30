@@ -37,4 +37,3 @@ export class PaginationMetaResponseDto {
   })
   hasPreviousPage: boolean;
 }
-

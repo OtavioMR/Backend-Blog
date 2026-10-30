@@ -25,4 +25,3 @@ export class AddSoftDeleteAndIsActiveToUsersAndPosts1793235000000 implements Mig
     await queryRunner.query(`ALTER TABLE "users" DROP COLUMN "is_active"`);
   }
 }
-

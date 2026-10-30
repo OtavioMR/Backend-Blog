@@ -59,7 +59,11 @@ describe('PostsService', () => {
     it('deve listar todos os artigos mesmo sem categoria associada', async () => {
       const postsFromDb = [
         { id: 'p1', title: 'Post sem categoria', categories: null },
-        { id: 'p2', title: 'Post com categoria', categories: [{ id: 'c1', name: 'Tech', isActive: true }] },
+        {
+          id: 'p2',
+          title: 'Post com categoria',
+          categories: [{ id: 'c1', name: 'Tech', isActive: true }],
+        },
       ];
       mockPostsRepository.findAndCount.mockResolvedValue([postsFromDb, 2]);
 
@@ -174,7 +178,11 @@ describe('PostsService', () => {
       mockTagsService.resolveNames.mockResolvedValue(tags);
 
       await service.create(
-        { title: 'Novo Post', content: 'Conteúdo longo do artigo', tagNames: ['NestJS'] },
+        {
+          title: 'Novo Post',
+          content: 'Conteúdo longo do artigo',
+          tagNames: ['NestJS'],
+        },
         'author-1',
       );
 
@@ -186,12 +194,20 @@ describe('PostsService', () => {
   });
 
   it('deve substituir as tags ao atualizar o artigo', async () => {
-    const post = { id: 'post-1', authorId: 'author-1', isActive: true, tags: [] };
+    const post = {
+      id: 'post-1',
+      authorId: 'author-1',
+      isActive: true,
+      tags: [],
+    };
     mockPostsRepository.findOne.mockResolvedValue(post);
     const tags = [{ id: 'tag-1', name: 'NestJS', slug: 'nestjs' }];
     mockTagsService.resolveNames.mockResolvedValue(tags);
 
-    await service.update('post-1', { tagNames: ['NestJS'] }, { userId: 'author-1', role: 'USER' } as any);
+    await service.update('post-1', { tagNames: ['NestJS'] }, {
+      userId: 'author-1',
+      role: 'USER',
+    } as any);
 
     expect(post.tags).toEqual(tags);
     expect(mockPostsRepository.save).toHaveBeenCalledWith(post);

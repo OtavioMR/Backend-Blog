@@ -13,6 +13,8 @@ import type { Request, Response } from 'express';
 
 import { AuthService } from './auth.service.js';
 import { LoginDto } from './dto/login.dto.js';
+import { ForgotPasswordDto } from './dto/forgot-password.dto.js';
+import { ResetPasswordDto } from './dto/reset-password.dto.js';
 import { AuthResponseDto } from './dto/auth-response.dto.js';
 import { JwtAuthGuard } from './guard/jwt-auth.guard.js';
 import type { RequestWithUser } from './interfaces/request-with-user.interface.js';
@@ -21,6 +23,8 @@ import {
   ApiLoginDoc,
   ApiRefreshDoc,
   ApiLogoutDoc,
+  ApiForgotPasswordDoc,
+  ApiResetPasswordDoc,
 } from '../../docs/index.js';
 
 const REFRESH_COOKIE_NAME = 'refreshToken';
@@ -100,5 +104,23 @@ export class AuthController {
     });
 
     return this.authService.logout(request.user.userId);
+  }
+
+  @ApiForgotPasswordDoc()
+  @Post('forgot-password')
+  @HttpCode(HttpStatus.OK)
+  async forgotPassword(
+    @Body() forgotPasswordDto: ForgotPasswordDto,
+  ): Promise<{ message: string }> {
+    return this.authService.forgotPassword(forgotPasswordDto);
+  }
+
+  @ApiResetPasswordDoc()
+  @Post('reset-password')
+  @HttpCode(HttpStatus.OK)
+  async resetPassword(
+    @Body() resetPasswordDto: ResetPasswordDto,
+  ): Promise<{ message: string }> {
+    return this.authService.resetPassword(resetPasswordDto);
   }
 }

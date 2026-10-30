@@ -127,10 +127,7 @@ export class CategoriesService {
       );
     }
 
-    queryBuilder
-      .orderBy('category.name', 'ASC')
-      .skip(skip)
-      .take(limit);
+    queryBuilder.orderBy('category.name', 'ASC').skip(skip).take(limit);
 
     const [data, total] = await queryBuilder.getManyAndCount();
     const totalPages = Math.ceil(total / limit);
