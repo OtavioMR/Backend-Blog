@@ -5,6 +5,7 @@
 - As seis sprints são sequenciais: não avance para a próxima sem concluir a atual. A Sprint 3 é o próximo foco; consulte o backlog para tarefas e status atualizados.
 
 ## Desenvolvimento
+- Ao alterar o esquema do banco, crie e aplique as migrations necessárias no banco configurado e informe o resultado; se não for possível aplicá-las, informe a limitação.
 - Respeite a arquitetura modular NestJS (controllers, services e DTOs com `class-validator`) e limite as alterações ao necessário para a tarefa.
 - Para mudanças de código, crie ou atualize testes unitários quando forem úteis para verificar o comportamento alterado. Execute testes direcionados e validações proporcionais ao risco e ao escopo.
 - Execute `npm.cmd run test` e `npm.cmd run lint` completos quando a mudança justificar, antes de uma entrega que exija essa validação ou quando solicitado. Informe o que foi executado e eventuais limitações.
