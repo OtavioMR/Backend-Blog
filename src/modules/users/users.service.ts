@@ -17,6 +17,8 @@ import { CreateUserDto } from './dto/create-user.dto.js';
 import { UpdateUserDto } from './dto/update-user.dto.js';
 import { User } from './entities/user.entity.js';
 import { UserRole } from './enums/user.enum.js';
+import { PaginationQueryDto } from '../../common/dto/pagination-query.dto.js';
+import type { PaginatedResult } from '../../common/interfaces/paginated-result.interface.js';
 
 export interface UserRequester {
   userId: string;
@@ -41,6 +43,15 @@ export class UsersService {
       isActive: user.isActive,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
+    };
+  }
+
+  private toPublicProfile(user: User) {
+    return {
+      id: user.id,
+      name: user.name,
+      profilePhoto: user.profilePhoto,
+      createdAt: user.createdAt,
     };
   }
 
@@ -127,17 +138,55 @@ export class UsersService {
     return this.toPublic(savedUser);
   }
 
-  async findAll(): Promise<User[]> {
-    return this.usersRepository.find({
+  async findAll(
+    query?: PaginationQueryDto,
+  ): Promise<PaginatedResult<ReturnType<typeof this.toPublic>>> {
+    const page = query?.page ?? 1;
+    const limit = query?.limit ?? 10;
+    const skip = (page - 1) * limit;
+
+    const [users, total] = await this.usersRepository.findAndCount({
       where: { isActive: true },
       order: { createdAt: 'DESC' },
+      skip,
+      take: limit,
     });
+
+    const totalPages = Math.ceil(total / limit);
+
+    return {
+      data: users.map((u) => this.toPublic(u)),
+      meta: {
+        page,
+        limit,
+        total,
+        totalPages,
+        hasNextPage: page < totalPages,
+        hasPreviousPage: page > 1,
+      },
+    };
   }
 
   async findById(id: string): Promise<User | null> {
     return this.usersRepository.findOne({
       where: { id, isActive: true },
     });
+  }
+
+  async findByIdForRequester(id: string, requester: UserRequester) {
+    const user = await this.usersRepository.findOne({
+      where: { id, isActive: true },
+    });
+
+    if (!user) {
+      throw new NotFoundException('Usuário não encontrado.');
+    }
+
+    if (requester.userId === id || requester.role === UserRole.ADMIN) {
+      return this.toPublic(user);
+    }
+
+    return this.toPublicProfile(user);
   }
 
   async update(

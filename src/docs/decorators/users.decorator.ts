@@ -3,6 +3,7 @@ import {
   ApiBearerAuth,
   ApiOperation,
   ApiParam,
+  ApiQuery,
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
@@ -56,14 +57,27 @@ export function ApiFindAllUsersDoc() {
   return applyDecorators(
     ApiBearerAuth('JWT-auth'),
     ApiOperation({
-      summary: 'Listar todos os usuários (Admin)',
+      summary: 'Listar usuários paginado (Admin)',
       description:
-        'Retorna a lista completa de usuários ativos cadastrados no sistema. Acesso restrito a administradores (ADMIN).',
+        'Retorna a lista paginada de usuários ativos cadastrados no sistema. Acesso restrito a administradores (ADMIN).',
+    }),
+    ApiQuery({
+      name: 'page',
+      required: false,
+      type: Number,
+      example: 1,
+      description: 'Número da página a ser retornada (padrão: 1, mínimo: 1)',
+    }),
+    ApiQuery({
+      name: 'limit',
+      required: false,
+      type: Number,
+      example: 10,
+      description: 'Quantidade de usuários por página (padrão: 10, máx: 100)',
     }),
     ApiResponse({
       status: 200,
-      description: 'Lista de usuários obtida com sucesso.',
-      type: [UserResponseDto],
+      description: 'Lista paginada de usuários obtida com sucesso.',
     }),
     ApiResponse({
       status: 401,
@@ -89,7 +103,7 @@ export function ApiFindUserByIdDoc() {
     ApiOperation({
       summary: 'Buscar usuário por ID',
       description:
-        'Retorna os detalhes de um usuário ativo específico identificado por UUID.',
+        'Retorna os dados cadastrais do usuário caso seja o próprio solicitante ou ADMIN, ou apenas o perfil público (sem e-mail) para outros usuários.',
     }),
     ApiParam({
       name: 'id',

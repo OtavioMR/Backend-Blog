@@ -6,11 +6,11 @@ import {
   Get,
   HttpCode,
   HttpStatus,
-  NotFoundException,
   Param,
   ParseUUIDPipe,
   Patch,
   Post,
+  Query,
   Req,
   UseGuards,
   UseInterceptors,
@@ -23,6 +23,7 @@ import { UsersService } from './users.service.js';
 import { CreateUserDto } from './dto/create-user.dto.js';
 import { UpdateUserDto } from './dto/update-user.dto.js';
 import { UserRole } from './enums/user.enum.js';
+import { PaginationQueryDto } from '../../common/dto/pagination-query.dto.js';
 import { JwtAuthGuard } from '../auth/guard/jwt-auth.guard.js';
 import { RolesGuard } from '../auth/guard/roles.guard.js';
 import { Roles } from '../../common/decorators/roles.decorator.js';
@@ -73,21 +74,18 @@ export class UsersController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
   @Get()
-  findAll() {
-    return this.usersService.findAll();
+  findAll(@Query() query: PaginationQueryDto) {
+    return this.usersService.findAll(query);
   }
 
   @ApiFindUserByIdDoc()
   @UseGuards(JwtAuthGuard)
   @Get(':id')
-  async findById(@Param('id', new ParseUUIDPipe()) id: string) {
-    const user = await this.usersService.findById(id);
-
-    if (!user) {
-      throw new NotFoundException('Usuário não encontrado');
-    }
-
-    return user;
+  async findById(
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Req() request: RequestWithUser,
+  ) {
+    return this.usersService.findByIdForRequester(id, request.user);
   }
 
   @ApiUpdateUserDoc()
