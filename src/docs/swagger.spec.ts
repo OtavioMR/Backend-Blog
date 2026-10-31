@@ -15,6 +15,8 @@ import {
   PostCommentsController,
 } from '../modules/comments/comments.controller.js';
 import { CommentsService } from '../modules/comments/comments.service.js';
+import { HealthController } from '../common/health.controller.js';
+import { HealthCheckService, TypeOrmHealthIndicator } from '@nestjs/terminus';
 
 describe('Swagger Documentation Configuration', () => {
   it('does not register Swagger routes in production', () => {
@@ -35,6 +37,7 @@ describe('Swagger Documentation Configuration', () => {
         AuthController,
         CommentsController,
         PostCommentsController,
+        HealthController,
       ],
       providers: [
         { provide: UsersService, useValue: {} },
@@ -42,6 +45,8 @@ describe('Swagger Documentation Configuration', () => {
         { provide: PostInteractionsService, useValue: {} },
         { provide: AuthService, useValue: {} },
         { provide: CommentsService, useValue: {} },
+        { provide: HealthCheckService, useValue: {} },
+        { provide: TypeOrmHealthIndicator, useValue: {} },
       ],
     }).compile();
 
@@ -99,6 +104,23 @@ describe('Swagger Documentation Configuration', () => {
     expect(paths).toContain('/api/v1/users');
     expect(paths).toContain('/api/v1/users/{id}');
     expect(paths).toContain('/api/v1/users/confirm-email-change');
+    for (const path of ['/api/v1/users/confirm-email', '/api/v1/users/resend-verification']) {
+      const operation = document.paths[path].post;
+      expect(operation?.security).toEqual([{}]);
+      expect(operation?.summary).toBeTruthy();
+      expect(operation?.requestBody).toBeDefined();
+      expect(operation?.responses).toHaveProperty('200');
+      expect(operation?.responses).toHaveProperty('400');
+    }
+    expect(document.paths['/api/v1/users/{id}/profile-photo'].post?.security).toEqual([{ 'JWT-auth': [] }]);
+    expect(document.paths['/api/v1/users/{id}/profile-photo'].post?.responses).toHaveProperty('201');
+    expect(document.paths['/api/v1/health'].get?.security).toEqual([{}]);
+    expect(document.paths['/api/v1/health'].get?.responses).toHaveProperty('503');
+    expect(document.paths['/api/v1/posts/{postId}/comments'].get?.responses).toHaveProperty('200');
+    expect(document.components?.schemas).toHaveProperty('PaginatedCommentsResponseDto');
+    expect(document.components?.schemas).toHaveProperty('PaginatedRepliesResponseDto');
+    expect(document.components?.schemas?.PostSummaryResponseDto).toHaveProperty('properties.excerpt');
+    expect(document.components?.schemas?.PostSummaryResponseDto).not.toHaveProperty('properties.content');
     expect(document.components?.schemas?.UpdateUserDto).toHaveProperty('properties.currentPassword');
     expect(paths).toContain('/api/v1/posts');
     expect(paths).toContain('/api/v1/posts/{id}');
@@ -158,7 +180,12 @@ describe('Swagger Documentation Configuration', () => {
     expect(schemas).toHaveProperty('CreatePostDto');
 
     // Verify setupSwagger executes without error
-    expect(() => setupSwagger(app)).not.toThrow();
+    const createDocument = vi.spyOn(SwaggerModule, 'createDocument');
+    expect(() => setupSwagger(app, 'development')).not.toThrow();
+    const setupConfig = createDocument.mock.calls[0][1];
+    expect(setupConfig.info.description).toContain('/api/v1/users/confirm-email');
+    expect(setupConfig.info.description).toContain('excerpt');
+    createDocument.mockRestore();
 
     await app.close();
   });

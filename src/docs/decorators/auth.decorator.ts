@@ -26,7 +26,7 @@ export function ApiLoginDoc() {
     ApiOperation({
       summary: 'Autenticar usuário e emitir tokens',
       description:
-        'Realiza login com email e senha válidos. Retorna o access_token no corpo da resposta JSON (curta duração, 15m) e define o refreshToken em um Cookie seguro HTTP-Only (`Path=/api/v1/auth`, `SameSite=Strict`).',
+        'Realiza login com e-mail verificado e senha válidos. Após cinco tentativas incorretas a conta é temporariamente bloqueada, com prazo progressivo. Retorna access_token e define o refreshToken em cookie HTTP-Only (`Path=/api/v1/auth`, `SameSite=Strict`).',
     }),
     ApiResponse({
       status: 200,
@@ -53,7 +53,7 @@ export function ApiLoginDoc() {
     }),
     ApiResponse({
       status: 401,
-      description: 'Credenciais inválidas (e-mail ou senha incorretos).',
+      description: 'Credenciais inválidas, e-mail não verificado ou conta temporariamente bloqueada.',
       type: UnauthorizedResponseDto,
     }),
     ApiResponse({

@@ -28,7 +28,7 @@ export function ApiFindAllPostsDoc() {
     ApiOperation({
       summary: 'Listar artigos publicados',
       description:
-        'Retorna artigos publicados e ativos. Os filtros são combinados por E; a busca corresponde ao título ou conteúdo. categoryId tem prioridade sobre categorySlug.',
+        'Retorna resumos de artigos publicados e ativos, ordenados pela data de publicação. Para obter content, consulte o detalhe. Os filtros são combinados por E; a busca corresponde ao título ou conteúdo. categoryId tem prioridade sobre categorySlug.',
     }),
     ApiQuery({ name: 'search', required: false, type: String, example: 'nestjs', description: 'Trecho literal do título ou conteúdo, sem diferenciar maiúsculas ou acentos.' }),
     ApiQuery({ name: 'author', required: false, type: String, example: 'maria', description: 'Trecho literal do nome do autor, sem diferenciar maiúsculas ou acentos.' }),

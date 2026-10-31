@@ -29,6 +29,7 @@ import { UpdateCommentDto } from './dto/update-comment.dto.js';
 import { JwtAuthGuard } from '../auth/guard/jwt-auth.guard.js';
 import { ApiPublicRoute } from '../../docs/decorators/public.decorator.js';
 import type { RequestWithUser } from '../auth/interfaces/request-with-user.interface.js';
+import { CommentResponseDto, PaginatedCommentsResponseDto, PaginatedRepliesResponseDto } from '../../docs/models/comment-response.dto.js';
 
 class PageQuery {
   @IsOptional() @Type(() => Number) @IsInt() @Min(1) page?: number;
@@ -60,6 +61,8 @@ export class PostCommentsController {
     description: 'Comentários principais por página; padrão 20, máximo 100.',
   })
   @ApiResponse({ status: 403, description: 'Comentários desativados no post.' })
+  @ApiResponse({ status: 200, description: 'Comentários e primeiras respostas, com metadados de paginação.', type: PaginatedCommentsResponseDto })
+  @ApiResponse({ status: 404, description: 'Post não encontrado ou indisponível.' })
   @Get()
   list(
     @Param('postId', ParseUUIDPipe) postId: string,
@@ -88,6 +91,8 @@ export class PostCommentsController {
     description: 'Respostas por página; padrão 5, máximo 100.',
   })
   @ApiResponse({ status: 403, description: 'Comentários desativados no post.' })
+  @ApiResponse({ status: 200, description: 'Respostas paginadas.', type: PaginatedRepliesResponseDto })
+  @ApiResponse({ status: 404, description: 'Post ou conversa não encontrado.' })
   @Get(':id/replies')
   replies(
     @Param('postId', ParseUUIDPipe) postId: string,
@@ -123,6 +128,7 @@ export class PostCommentsController {
       'Texto inválido, UUID inválido ou comentário respondido indisponível.',
   })
   @ApiResponse({ status: 401, description: 'Token ausente ou inválido.' })
+  @ApiResponse({ status: 201, description: 'Comentário criado.', type: CommentResponseDto })
   @ApiResponse({ status: 403, description: 'Comentários desativados no post.' })
   @ApiBearerAuth('JWT-auth')
   @UseGuards(JwtAuthGuard)
@@ -151,6 +157,7 @@ export class CommentsController {
     status: 403,
     description: 'Sem permissão ou comentários desativados no post.',
   })
+  @ApiResponse({ status: 200, description: 'Comentário atualizado.', type: CommentResponseDto })
   @Patch(':id')
   update(
     @Param('id', ParseUUIDPipe) id: string,
@@ -167,7 +174,7 @@ export class CommentsController {
   @ApiResponse({ status: 204, description: 'Comentário desativado.' })
   @ApiResponse({
     status: 403,
-    description: 'Sem permissão ou comentários desativados no post.',
+    description: 'Sem permissão para desativar o comentário.',
   })
   @HttpCode(204)
   @Delete(':id')

@@ -27,7 +27,7 @@ export function ApiCreateUserDoc() {
     ApiPublicRoute(),
     ApiOperation({
       summary: 'Cadastrar novo usuário',
-      description: 'Cria uma nova conta de usuário com role inicial READER.',
+      description: 'Cria uma conta READER não verificada e envia um token por e-mail. Confirme-o em POST /api/v1/users/confirm-email antes de fazer login; use /users/resend-verification para solicitar outro.',
     }),
     ApiResponse({
       status: 201,

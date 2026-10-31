@@ -17,14 +17,14 @@ import {
   UploadedFile,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { ApiBody, ApiConsumes } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiBody, ApiConsumes, ApiParam } from '@nestjs/swagger';
 
 import { UsersService } from './users.service.js';
 import { CreateUserDto } from './dto/create-user.dto.js';
 import { UpdateUserDto } from './dto/update-user.dto.js';
 import { UserRole } from './enums/user.enum.js';
 import { PaginationQueryDto } from '../../common/dto/pagination-query.dto.js';
-import { ForgotPasswordDto } from '../auth/dto/forgot-password.dto.js';
+import { ResendVerificationDto } from './dto/resend-verification.dto.js';
 import { ConfirmEmailChangeDto } from './dto/confirm-email-change.dto.js';
 import { ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
@@ -40,6 +40,7 @@ import {
   ApiUpdateUserDoc,
   ApiRemoveUserDoc,
   ApiPublicRoute,
+  UserResponseDto,
 } from '../../docs/index.js';
 
 @ApiUsersTag()
@@ -49,15 +50,23 @@ export class UsersController {
 
   @Post('confirm-email')
   @ApiPublicRoute()
+  @ApiOperation({ summary: 'Confirmar e-mail de cadastro', description: 'Envie o token recebido por e-mail. Ele é válido por 24 horas, pode ser usado uma vez e é necessário para fazer login.' })
+  @ApiResponse({ status: 200, description: 'E-mail confirmado.', schema: { example: { message: 'E-mail confirmado com sucesso.' } } })
+  @ApiResponse({ status: 400, description: 'Token inválido, expirado ou já utilizado.' })
+  @ApiResponse({ status: 429, description: 'Limite de tentativas excedido.' })
   @HttpCode(HttpStatus.OK)
   @Throttle({ default: { limit: 10, ttl: 60_000 } })
   confirmEmail(@Body() dto: ConfirmEmailChangeDto) { return this.usersService.confirmEmail(dto.token); }
 
   @Post('resend-verification')
   @ApiPublicRoute()
+  @ApiOperation({ summary: 'Reenviar confirmação de cadastro', description: 'Envia um novo token e invalida o anterior. A resposta é genérica mesmo quando não existe conta pendente; o envio depende do SMTP configurado.' })
+  @ApiResponse({ status: 200, description: 'Solicitação processada.', schema: { example: { message: 'Se a conta precisar de verificação, as instruções serão enviadas.' } } })
+  @ApiResponse({ status: 400, description: 'E-mail inválido.' })
+  @ApiResponse({ status: 429, description: 'Limite de solicitações excedido.' })
   @HttpCode(HttpStatus.OK)
   @Throttle({ default: { limit: 5, ttl: 60_000 } })
-  resendVerification(@Body() dto: ForgotPasswordDto) { return this.usersService.resendVerification(dto.email); }
+  resendVerification(@Body() dto: ResendVerificationDto) { return this.usersService.resendVerification(dto.email); }
 
   @Post('confirm-email-change')
   @ApiPublicRoute()
@@ -72,6 +81,16 @@ export class UsersController {
   }
 
   @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Atualizar foto de perfil', description: 'O próprio usuário ou um administrador envia JPEG, PNG ou WebP de até 5 MB. A imagem é convertida em WebP e redimensionada para até 512 × 512 pixels.' })
+  @ApiParam({ name: 'id', format: 'uuid', description: 'Identificador do usuário.' })
+  @ApiResponse({ status: 201, description: 'Foto atualizada.', type: UserResponseDto })
+  @ApiResponse({ status: 400, description: 'Imagem ausente, inválida ou em formato não aceito.' })
+  @ApiResponse({ status: 401, description: 'Token ausente ou inválido.' })
+  @ApiResponse({ status: 403, description: 'Sem permissão para alterar este usuário.' })
+  @ApiResponse({ status: 404, description: 'Usuário não encontrado.' })
+  @ApiResponse({ status: 409, description: 'Foto alterada simultaneamente; tente novamente.' })
+  @ApiResponse({ status: 413, description: 'Arquivo maior que 5 MB.' })
   @UseInterceptors(
     FileInterceptor('file', { limits: { fileSize: 5 * 1024 * 1024 } }),
   )

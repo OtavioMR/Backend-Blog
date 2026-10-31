@@ -42,7 +42,7 @@ export class PostResponseDto {
   @ApiProperty({ description: 'Resumo do artigo', maxLength: 200 })
   excerpt: string;
 
-  @ApiProperty({ description: 'Data da publicacao', nullable: true })
+  @ApiProperty({ description: 'Data da última publicação; nula para rascunhos.', type: String, format: 'date-time', nullable: true })
   publishedAt: Date | null;
 
   @ApiProperty({
@@ -58,7 +58,7 @@ export class PostResponseDto {
   isActive: boolean;
 
   @ApiProperty({
-    description: 'Data e hora de publicação ou criação',
+    description: 'Data e hora de criação',
     example: '2026-10-28T14:30:00.000Z',
   })
   createdAt: Date;
@@ -97,7 +97,7 @@ export class PaginatedPostResponseDto {
     description: 'Lista de artigos da página atual',
     type: () => [PostSummaryResponseDto],
   })
-  data: PostResponseDto[];
+  data: PostSummaryResponseDto[];
 
   @ApiProperty({
     description: 'Metadados de paginação',
