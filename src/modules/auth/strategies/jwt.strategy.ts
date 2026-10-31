@@ -10,6 +10,7 @@ interface JwtPayload {
   sub: string;
   email: string;
   role: UserRole;
+  authVersion: number;
 }
 
 @Injectable()
@@ -28,7 +29,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   async validate(payload: JwtPayload) {
     const user = await this.usersService.findById(payload.sub);
 
-    if (!user || !user.isActive) {
+    if (!user || !user.isActive || payload.authVersion !== user.authVersion) {
       throw new UnauthorizedException('Usuário desativado ou não encontrado.');
     }
 

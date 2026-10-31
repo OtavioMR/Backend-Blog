@@ -59,6 +59,10 @@ $ npm run test:cov
 
 ## Deployment
 
+### Alteração de e-mail
+
+Execute as migrations antes de iniciar a versão atual. Os tokens de acesso emitidos antes desta atualização deixarão de funcionar e exigirão novo login ou renovação. A solicitação de alteração em `PATCH /api/v1/users/:id` exige `currentPassword` e envia um link ao novo endereço usando o SMTP configurado. O e-mail anterior permanece ativo até a confirmação. O frontend em `FRONTEND_URL` deve implementar `/confirm-email-change?token=...` e enviar o token em `POST /api/v1/users/confirm-email-change`. O token expira em 30 minutos e é de uso único; após confirmar, o usuário deve autenticar novamente. Se o envio falhar, solicite um novo link.
+
 ### Limitação de requisições
 
 As rotas dos controllers aceitam até 100 requisições por minuto, por IP e por rota. Login aceita 20, recuperação de senha 5 e redefinição de senha 10 por minuto; ao exceder o limite, a API responde com HTTP 429 e o cabeçalho `Retry-After`. Os contadores ficam na memória de cada processo e são reiniciados quando ele reinicia. Em múltiplas instâncias, é necessário um armazenamento compartilhado para aplicar um limite consistente.

@@ -36,7 +36,7 @@ Status conferidos no GitHub em 31/10/2026: **5 concluídos e 50 abertos**. Para 
 | **S4** | #4 | [Segurança] Implementar validação estrita de variáveis de ambiente com schema | P0 — Crítica | S | 🟢 Concluído |
 | **S5** | #5 | [Segurança] Configurar Helmet, CORS com whitelist e Trust Proxy | P0 — Crítica | S | 🟢 Concluído |
 | **S6** | #6 | [Segurança] Restringir ou desativar interface do Swagger em ambiente de produção | P1 — Alta | XS | Backlog |
-| **S7** | #7 | [Segurança] Exigir senha atual para alteração de credenciais e confirmar novo e-mail | P0 — Crítica | M | Pronto para iniciar |
+| **S7** | #7 | [Segurança] Exigir senha atual para alteração de credenciais e confirmar novo e-mail | P0 — Crítica | M | Implementado; aguardando revisão e integração |
 | **S8** | #8 | [Segurança] Mitigar ataques de temporização (Timing Attacks) na autenticação | P1 — Alta | S | Backlog |
 | **S9** | #9 | [Segurança] Padronizar custo e limites de hashing de senhas com bcrypt | P1 — Alta | S | Backlog |
 | **S10** | #10 | [Segurança] Implementar bloqueio progressivo por tentativas falhas de login | P1 — Alta | M | Backlog |
@@ -49,8 +49,8 @@ Status conferidos no GitHub em 31/10/2026: **5 concluídos e 50 abertos**. Para 
 #### 🛠️ 2. Melhorias e Bugs (M1 a M14)
 | Código | Issue | Título | Prioridade | Esforço | Status |
 |---|---|---|---|---|---|
-| **M1** | #16 | [Bug] Corrigir operador lógico na consulta filtrada de artigos (trocar OR por AND) | P0 — Crítica | XS | Pronto para iniciar |
-| **M2** | #17 | [Melhoria] Permitir que autores visualizem e gerenciem seus próprios rascunhos (GET /posts/me) | P0 — Crítica | S | Pronto para iniciar |
+| **M1** | #16 | [Bug] Corrigir operador lógico na consulta filtrada de artigos (trocar OR por AND) | P0 — Crítica | XS | Implementado; aguardando revisão e integração |
+| **M2** | #17 | [Melhoria] Permitir que autores visualizem e gerenciem seus próprios rascunhos (GET /posts/me) | P0 — Crítica | S | Implementado; aguardando revisão e integração |
 | **M3** | #18 | [Melhoria] Adicionar campo publishedAt e ordenar artigos pela data real de publicação | P1 — Alta | S | Backlog |
 | **M4** | #19 | [Melhoria] Otimizar listagem de artigos com resumo (excerpt) e exclusão de payload pesado | P1 — Alta | S | Backlog |
 | **M5** | #20 | [Performance] Eliminar problema de query N+1 na listagem de comentários e respostas | P1 — Alta | M | Backlog |
@@ -108,7 +108,7 @@ Status conferidos no GitHub em 31/10/2026: **5 concluídos e 50 abertos**. Para 
    - #16 (Corrigir operador lógico OR/AND na busca de posts)
    - #17 (Visualização de rascunhos pelo autor `GET /posts/me`)
 
-2. **Sprint 2 — Robustez, Qualidade & Dados (P1):**
+2. **Sprint 2 — Robustez, Qualidade & Dados (P1; planejada após a integração da Sprint 1):**
    - #6, #8, #9, #10, #11, #12, #13
    - #18, #19, #20, #22, #24, #25, #26, #27, #28
    - #45 (Verificação de e-mail no cadastro)

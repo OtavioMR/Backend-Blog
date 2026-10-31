@@ -52,6 +52,18 @@ export class User {
   })
   resetPasswordExpiresAt: Date | null;
 
+  @Column({ name: 'pending_email', type: 'varchar', length: 255, nullable: true, select: false })
+  pendingEmail: string | null;
+
+  @Column({ name: 'email_change_token_hash', type: 'varchar', length: 64, nullable: true, select: false })
+  emailChangeTokenHash: string | null;
+
+  @Column({ name: 'email_change_expires_at', type: 'timestamptz', nullable: true, select: false })
+  emailChangeExpiresAt: Date | null;
+
+  @Column({ name: 'auth_version', type: 'integer', default: 0 })
+  authVersion: number;
+
   @Column({
     type: 'enum',
     enum: UserRole,

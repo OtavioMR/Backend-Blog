@@ -14,6 +14,7 @@ import { CreatePostDto } from './dto/create-post.dto.js';
 import { UpdatePostDto } from './dto/update-post.dto.js';
 import { FindPostsQueryDto } from './dto/find-posts-query.dto.js';
 import type { PaginatedResult } from '../../common/interfaces/paginated-result.interface.js';
+import { PaginationQueryDto } from '../../common/dto/pagination-query.dto.js';
 import { UserRole } from '../users/enums/user.enum.js';
 import type { AuthenticatedUser } from '../auth/interfaces/request-with-user.interface.js';
 
@@ -39,7 +40,7 @@ export class PostsService {
     const tagSlug = query?.tagSlug?.trim();
 
     const base: FindOptionsWhere<Post> = { published: true, isActive: true };
-    const filters: FindOptionsWhere<Post>[] = [];
+
     const search = query?.search?.trim();
     const author = query?.author?.trim();
     const categoryName = query?.categoryName?.trim();
@@ -50,22 +51,18 @@ export class PostsService {
       { [key]: pattern(value) },
     );
 
-    if (search) {
-      filters.push({ ...base, title: matches(search, 'searchTerm') });
-      filters.push({ ...base, content: matches(search, 'searchTerm') });
+    if (author) base.author = { name: matches(author, 'authorTerm') };
+    if (categoryName || categoryId || categorySlug) {
+      base.categories = {
+        isActive: true,
+        ...(categoryName ? { name: matches(categoryName, 'categoryNameTerm') } : {}),
+        ...(categoryId ? { id: categoryId } : categorySlug ? { slug: categorySlug } : {}),
+      };
     }
-    if (author) filters.push({ ...base, author: { name: matches(author, 'authorTerm') } });
-    if (categoryName) {
-      filters.push({ ...base, categories: { name: matches(categoryName, 'categoryNameTerm'), isActive: true } });
-    }
-
-    if (categoryId) {
-      filters.push({ ...base, categories: { id: categoryId, isActive: true } });
-    } else if (categorySlug) {
-      filters.push({ ...base, categories: { slug: categorySlug, isActive: true } });
-    }
-    if (tagSlug) filters.push({ ...base, tags: { slug: tagSlug } });
-    const where = filters.length ? filters : base;
+    if (tagSlug) base.tags = { slug: tagSlug };
+    const where = search
+      ? [{ ...base, title: matches(search, 'searchTerm') }, { ...base, content: matches(search, 'searchTerm') }]
+      : base;
 
     const [data, total] = await this.postsRepository.findAndCount({
       where,
@@ -102,11 +99,11 @@ export class PostsService {
     });
 
     // Garante que posts sem categoria retornem array vazio e remove categorias desativadas
-    const formattedData = data.map((post) => ({
-      ...post,
-      categories: (post.categories || []).filter((cat) => cat.isActive),
-      tags: post.tags || [],
-    }));
+    const formattedData = data.map((post) => {
+      post.categories = (post.categories || []).filter((cat) => cat.isActive);
+      post.tags = post.tags || [];
+      return post;
+    });
 
     const totalPages = Math.ceil(total / limit);
 
@@ -123,11 +120,35 @@ export class PostsService {
     };
   }
 
-  async findById(id: string): Promise<Post> {
+  async findMine(authorId: string, query: PaginationQueryDto): Promise<PaginatedResult<Post>> {
+    const page = query.page ?? 1;
+    const limit = query.limit ?? 10;
+    const [data, total] = await this.postsRepository.findAndCount({
+      where: { authorId, isActive: true },
+      relations: { author: true, categories: true, tags: true },
+      select: {
+        id: true, title: true, content: true, published: true, commentsEnabled: true,
+        isActive: true, createdAt: true, updatedAt: true,
+        author: { id: true, name: true },
+        categories: { id: true, name: true, slug: true, isActive: true },
+        tags: { id: true, name: true, slug: true },
+      },
+      order: { createdAt: 'DESC', id: 'DESC' },
+      skip: (page - 1) * limit,
+      take: limit,
+    });
+    const totalPages = Math.ceil(total / limit);
+    return { data: data.map(post => {
+      post.categories = (post.categories || []).filter(cat => cat.isActive);
+      post.tags = post.tags || [];
+      return post;
+    }), meta: { page, limit, total, totalPages, hasNextPage: page < totalPages, hasPreviousPage: page > 1 } };
+  }
+
+  async findById(id: string, user?: AuthenticatedUser | null): Promise<Post> {
     const post = await this.postsRepository.findOne({
       where: {
         id,
-        published: true,
         isActive: true,
       },
       relations: {
@@ -137,6 +158,7 @@ export class PostsService {
       },
       select: {
         id: true,
+        authorId: true,
         title: true,
         content: true,
         published: true,
@@ -158,7 +180,7 @@ export class PostsService {
       },
     });
 
-    if (!post) {
+    if (!post || (!post.published && (!user || (user.role !== UserRole.ADMIN && post.authorId !== user.userId)))) {
       throw new NotFoundException('Artigo não encontrado.');
     }
 

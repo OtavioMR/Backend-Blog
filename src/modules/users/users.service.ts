@@ -5,11 +5,13 @@ import {
   Injectable,
   Logger,
   NotFoundException,
+  UnauthorizedException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import bcrypt from 'bcrypt';
-import { randomUUID } from 'node:crypto';
+import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
@@ -19,6 +21,7 @@ import { User } from './entities/user.entity.js';
 import { UserRole } from './enums/user.enum.js';
 import { PaginationQueryDto } from '../../common/dto/pagination-query.dto.js';
 import type { PaginatedResult } from '../../common/interfaces/paginated-result.interface.js';
+import { MailService } from '../mail/mail.service.js';
 
 export interface UserRequester {
   userId: string;
@@ -31,6 +34,8 @@ export class UsersService {
 
   constructor(
     @InjectRepository(User) private readonly usersRepository: Repository<User>,
+    private readonly mailService: MailService,
+    private readonly configService: ConfigService,
   ) {}
 
   private toPublic(user: User) {
@@ -195,6 +200,7 @@ export class UsersService {
     requester: UserRequester,
   ) {
     this.assertCanManage(id, requester);
+    let confirmation: { email: string; link: string } | undefined;
 
     const user = await this.usersRepository.findOne({
       where: { id, isActive: true },
@@ -202,6 +208,24 @@ export class UsersService {
 
     if (!user) {
       throw new NotFoundException('Usuário não encontrado.');
+    }
+
+    if ((updateUserDto.role !== undefined || updateUserDto.isActive !== undefined) && requester.role !== UserRole.ADMIN) {
+      throw new ForbiddenException('Apenas administradores podem alterar permissões ou status.');
+    }
+    if (updateUserDto.password !== undefined && Buffer.byteLength(updateUserDto.password, 'utf8') > 72) {
+      throw new BadRequestException('A senha é muito longa.');
+    }
+
+    if (updateUserDto.password !== undefined || updateUserDto.email !== undefined) {
+      if (requester.userId !== id) {
+        throw new ForbiddenException('Apenas o titular pode alterar suas credenciais.');
+      }
+      if (!updateUserDto.currentPassword) throw new BadRequestException('Informe a senha atual.');
+      const authUser = await this.findByEmailForAuth(user.email);
+      if (!authUser || !(await bcrypt.compare(updateUserDto.currentPassword, authUser.passwordHash))) {
+        throw new UnauthorizedException('Senha atual inválida.');
+      }
     }
 
     if (updateUserDto.name !== undefined) {
@@ -231,7 +255,12 @@ export class UsersService {
           );
         }
 
-        user.email = email;
+        const token = randomBytes(32).toString('hex');
+        user.pendingEmail = email;
+        user.emailChangeTokenHash = createHash('sha256').update(token).digest('hex');
+        user.emailChangeExpiresAt = new Date(Date.now() + 30 * 60 * 1000);
+        const frontendUrl = this.configService.getOrThrow<string>('FRONTEND_URL').replace(/\/$/, '');
+        confirmation = { email, link: `${frontendUrl}/confirm-email-change?token=${token}` };
       }
     }
 
@@ -241,7 +270,15 @@ export class UsersService {
       }
 
       user.passwordHash = await bcrypt.hash(updateUserDto.password, 12);
+      user.authVersion += 1;
       user.refreshTokenHash = null;
+      user.resetPasswordTokenHash = null;
+      user.resetPasswordExpiresAt = null;
+      if (updateUserDto.email === undefined || updateUserDto.email.trim().toLowerCase() === user.email) {
+        user.pendingEmail = null;
+        user.emailChangeTokenHash = null;
+        user.emailChangeExpiresAt = null;
+      }
     }
 
     if (updateUserDto.role !== undefined) {
@@ -266,6 +303,9 @@ export class UsersService {
     }
 
     const savedUser = await this.usersRepository.save(user);
+    if (confirmation) {
+      await this.mailService.sendEmailChangeConfirmation(confirmation.email, confirmation.link);
+    }
 
     this.logger.log(`Usuário ${id} atualizado por ${requester.userId}`);
     return this.toPublic(savedUser);
@@ -287,6 +327,35 @@ export class UsersService {
     await this.usersRepository.save(user);
     await this.usersRepository.softRemove(user);
     this.logger.log(`Usuário ${id} desativado por ${requester.userId}`);
+  }
+
+  async confirmEmailChange(token: string): Promise<{ message: string }> {
+    const tokenHash = createHash('sha256').update(token).digest('hex');
+    try {
+      const result = await this.usersRepository.createQueryBuilder()
+        .update(User)
+        .set({
+          email: () => 'pending_email',
+          pendingEmail: null,
+          emailChangeTokenHash: null,
+          emailChangeExpiresAt: null,
+          refreshTokenHash: null,
+          resetPasswordTokenHash: null,
+          resetPasswordExpiresAt: null,
+          authVersion: () => 'auth_version + 1',
+        })
+        .where('email_change_token_hash = :tokenHash', { tokenHash })
+        .andWhere('email_change_expires_at > CURRENT_TIMESTAMP')
+        .andWhere('pending_email IS NOT NULL AND is_active = true AND deleted_at IS NULL')
+        .execute();
+      if (!result.affected) throw new BadRequestException('Token inválido ou expirado.');
+    } catch (error) {
+      if ((error as { code?: string }).code === '23505') {
+        throw new ConflictException('O novo e-mail já está em uso.');
+      }
+      throw error;
+    }
+    return { message: 'E-mail confirmado com sucesso.' };
   }
 
   async findByEmailForAuth(email: string): Promise<User | null> {
@@ -347,6 +416,10 @@ export class UsersService {
       resetPasswordTokenHash: null,
       resetPasswordExpiresAt: null,
       refreshTokenHash: null,
+      pendingEmail: null,
+      emailChangeTokenHash: null,
+      emailChangeExpiresAt: null,
+      authVersion: () => 'auth_version + 1',
     });
     this.logger.log(
       `Senha redefinida e sessões invalidadas para o usuário ${userId}`,

@@ -60,11 +60,13 @@ export class AuthService {
     userId: string,
     email: string,
     role: UserRole,
+    authVersion: number,
   ): Promise<TokenPairResult> {
     const payload = {
       sub: userId,
       email,
       role,
+      authVersion,
     };
 
     const refreshPayload = {
@@ -120,7 +122,7 @@ export class AuthService {
       throw new UnauthorizedException('E-mail ou senha inválidos.');
     }
 
-    const tokens = await this.generateTokens(user.id, user.email, user.role);
+    const tokens = await this.generateTokens(user.id, user.email, user.role, user.authVersion);
 
     const refreshTokenHash = await bcrypt.hash(
       this.hashToken(tokens.refreshToken),
@@ -174,7 +176,7 @@ export class AuthService {
     }
 
     // Rotação estrita: gera novo par e substitui o hash anterior no banco
-    const tokens = await this.generateTokens(user.id, user.email, user.role);
+    const tokens = await this.generateTokens(user.id, user.email, user.role, user.authVersion);
 
     const newRefreshTokenHash = await bcrypt.hash(
       this.hashToken(tokens.refreshToken),

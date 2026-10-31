@@ -17,7 +17,7 @@ export function setupSwagger(app: INestApplication): void {
         '3. Para renovar a sessão, envie o cookie `refreshToken` em `POST /api/v1/auth/refresh`. O token de renovação é rotacionado a cada uso.\n' +
         '4. Encerre a sessão em `POST /api/v1/auth/logout`.\n\n' +
         '### Recursos e respostas\n' +
-        '- Rotas públicas de posts retornam apenas artigos publicados e ativos. Categorias desativadas não aparecem nas listagens públicas.\n' +
+        '- Visitantes acessam posts publicados e ativos; autores e administradores também podem consultar rascunhos autorizados. Categorias desativadas não aparecem nas listagens públicas.\n' +
         '- Listagens paginadas aceitam `page` e `limit` (padrão 1 e 10; limite máximo 100) e retornam `data` e `meta`.\n' +
         '- Respostas `400` indicam parâmetros inválidos; `401`, autenticação ausente ou inválida; `403`, permissão insuficiente; `404`, recurso indisponível; `409`, conflito de unicidade; `500`, erro interno.\n' +
         '- Exclusões retornam `204 No Content` e desativam o registro logicamente.',
