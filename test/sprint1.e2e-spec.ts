@@ -65,8 +65,7 @@ describe('Sprint 1 com PostgreSQL', () => {
     const response = await supertest(app.getHttpServer()).patch(`/api/v1/users/${userId}`)
       .set('Authorization', `Bearer ${token}`).send({ email: nextEmail, currentPassword: 'Password123!' }).expect(200);
     expect(response.body.email).toBe(email);
-    const link = mail.sendEmailChangeConfirmation.mock.calls[0][1] as string;
-    const confirmationToken = new URL(link).searchParams.get('token');
+    const confirmationToken = mail.sendEmailChangeConfirmation.mock.calls[0][1] as string;
     await supertest(app.getHttpServer()).post('/api/v1/users/confirm-email-change').send({ token: confirmationToken }).expect(200);
     expect((await users.findOneByOrFail({ id: userId })).email).toBe(nextEmail);
     await supertest(app.getHttpServer()).get('/api/v1/posts/me').set('Authorization', `Bearer ${token}`).expect(401);

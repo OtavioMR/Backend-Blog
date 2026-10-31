@@ -2,7 +2,6 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { ConfigService } from '@nestjs/config';
 import bcrypt from 'bcrypt';
 import supertest from 'supertest';
 import { UsersController } from './users.controller.js';
@@ -29,8 +28,7 @@ describe('Atualização de credenciais HTTP', () => {
     const module = await Test.createTestingModule({
       controllers: [UsersController],
       providers: [UsersService, { provide: getRepositoryToken(User), useValue: repository },
-        { provide: MailService, useValue: mail },
-        { provide: ConfigService, useValue: { getOrThrow: () => 'https://example.com' } }],
+        { provide: MailService, useValue: mail }],
     }).overrideGuard(JwtAuthGuard).useValue({ canActivate: (context: any) => {
       context.switchToHttp().getRequest().user = { userId: id, role: UserRole.READER };
       return true;
@@ -51,7 +49,7 @@ describe('Atualização de credenciais HTTP', () => {
     const response = await supertest(app.getHttpServer()).patch(`/users/${id}`)
       .send({ email: 'novo@example.com', currentPassword: 'senha-atual' }).expect(200);
     expect(response.body.email).toBe('antigo@example.com');
-    expect(mail.sendEmailChangeConfirmation).toHaveBeenCalledWith('novo@example.com', expect.stringContaining('/confirm-email-change?token='));
+    expect(mail.sendEmailChangeConfirmation).toHaveBeenCalledWith('novo@example.com', expect.stringMatching(/^[a-f0-9]{64}$/));
   });
 
   it('recusa formato inválido de token', async () => {

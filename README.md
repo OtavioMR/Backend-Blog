@@ -61,7 +61,7 @@ $ npm run test:cov
 
 ### Alteração de e-mail
 
-Execute as migrations antes de iniciar a versão atual. Os tokens de acesso emitidos antes desta atualização deixarão de funcionar e exigirão novo login ou renovação. A solicitação de alteração em `PATCH /api/v1/users/:id` exige `currentPassword` e envia um link ao novo endereço usando o SMTP configurado. O e-mail anterior permanece ativo até a confirmação. O frontend em `FRONTEND_URL` deve implementar `/confirm-email-change?token=...` e enviar o token em `POST /api/v1/users/confirm-email-change`. O token expira em 30 minutos e é de uso único; após confirmar, o usuário deve autenticar novamente. Se o envio falhar, solicite um novo link.
+Execute as migrations antes de iniciar a versão atual. Os tokens de acesso emitidos antes desta atualização deixarão de funcionar e exigirão novo login ou renovação. A solicitação de alteração em `PATCH /api/v1/users/:id` exige `currentPassword` e envia um token ao novo endereço usando o SMTP configurado. O e-mail anterior permanece ativo até a confirmação. Para confirmar sem frontend, envie `{"token":"TOKEN_RECEBIDO"}` para `POST /api/v1/users/confirm-email-change`, por exemplo usando o Swagger em `/api/docs`. O token expira em 30 minutos e é de uso único; após confirmar, o usuário deve autenticar novamente. Se o envio falhar, solicite um novo token.
 
 ### Limitação de requisições
 

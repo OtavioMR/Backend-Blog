@@ -6,6 +6,20 @@ import { MailService } from './mail.service.js';
 describe('MailService', () => {
   afterEach(() => vi.restoreAllMocks());
 
+  it('envia o token e as instruções de confirmação pela API', async () => {
+    const sendMail = vi.fn().mockResolvedValue({});
+    vi.spyOn(nodemailer, 'createTransport').mockReturnValue({ sendMail } as never);
+    const config = { get: (key: string) => ({ SMTP_HOST: 'localhost', SMTP_PORT: 25 }[key]) };
+    const service = new MailService(config as ConfigService);
+    const token = 'a'.repeat(64);
+    await service.sendEmailChangeConfirmation('novo@example.com', token);
+    const message = sendMail.mock.calls[0][0] as { to: string; text: string; html: string };
+    expect(message.to).toBe('novo@example.com');
+    expect(message.text).toContain(token);
+    expect(message.text).toContain('POST /api/v1/users/confirm-email-change');
+    expect(message.html).toContain(token);
+  });
+
   it('escapes markup in the user name in the HTML email', async () => {
     const sendMail = vi.fn().mockResolvedValue({});
     vi.spyOn(nodemailer, 'createTransport').mockReturnValue({ sendMail } as never);

@@ -7,7 +7,6 @@ import {
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import bcrypt from 'bcrypt';
@@ -35,7 +34,6 @@ export class UsersService {
   constructor(
     @InjectRepository(User) private readonly usersRepository: Repository<User>,
     private readonly mailService: MailService,
-    private readonly configService: ConfigService,
   ) {}
 
   private toPublic(user: User) {
@@ -200,7 +198,7 @@ export class UsersService {
     requester: UserRequester,
   ) {
     this.assertCanManage(id, requester);
-    let confirmation: { email: string; link: string } | undefined;
+    let confirmation: { email: string; token: string } | undefined;
 
     const user = await this.usersRepository.findOne({
       where: { id, isActive: true },
@@ -259,8 +257,7 @@ export class UsersService {
         user.pendingEmail = email;
         user.emailChangeTokenHash = createHash('sha256').update(token).digest('hex');
         user.emailChangeExpiresAt = new Date(Date.now() + 30 * 60 * 1000);
-        const frontendUrl = this.configService.getOrThrow<string>('FRONTEND_URL').replace(/\/$/, '');
-        confirmation = { email, link: `${frontendUrl}/confirm-email-change?token=${token}` };
+        confirmation = { email, token };
       }
     }
 
@@ -304,7 +301,7 @@ export class UsersService {
 
     const savedUser = await this.usersRepository.save(user);
     if (confirmation) {
-      await this.mailService.sendEmailChangeConfirmation(confirmation.email, confirmation.link);
+      await this.mailService.sendEmailChangeConfirmation(confirmation.email, confirmation.token);
     }
 
     this.logger.log(`Usuário ${id} atualizado por ${requester.userId}`);

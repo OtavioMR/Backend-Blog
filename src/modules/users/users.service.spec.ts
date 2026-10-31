@@ -7,7 +7,6 @@ import { UsersService } from './users.service.js';
 import { User } from './entities/user.entity.js';
 import { UserRole } from './enums/user.enum.js';
 import { MailService } from '../mail/mail.service.js';
-import { ConfigService } from '@nestjs/config';
 import { createHash } from 'node:crypto';
 
 describe('UsersService', () => {
@@ -29,7 +28,6 @@ describe('UsersService', () => {
       providers: [
         UsersService,
         { provide: MailService, useValue: mockMailService },
-        { provide: ConfigService, useValue: { getOrThrow: () => 'https://blog.example' } },
         {
           provide: getRepositoryToken(User),
           useValue: mockUsersRepository,
@@ -123,8 +121,8 @@ describe('UsersService', () => {
       vi.spyOn(service, 'findByEmailForAuth').mockResolvedValue({ ...user, passwordHash: await bcrypt.hash('senha-atual', 4) } as User);
       const result = await service.update('user-1', { email: 'novo@example.com', currentPassword: 'senha-atual' }, requester);
       const saved = mockUsersRepository.save.mock.calls[0][0];
-      const link = mockMailService.sendEmailChangeConfirmation.mock.calls[0][1];
-      const token = new URL(link).searchParams.get('token')!;
+      const token = mockMailService.sendEmailChangeConfirmation.mock.calls[0][1];
+      expect(token).toMatch(/^[a-f0-9]{64}$/);
       expect(result.email).toBe(user.email);
       expect(saved.pendingEmail).toBe('novo@example.com');
       expect(saved.emailChangeTokenHash).toBe(createHash('sha256').update(token).digest('hex'));
