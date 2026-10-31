@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { Test } from '@nestjs/testing';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { UsersController } from '../modules/users/users.controller.js';
@@ -17,6 +17,15 @@ import {
 import { CommentsService } from '../modules/comments/comments.service.js';
 
 describe('Swagger Documentation Configuration', () => {
+  it('does not register Swagger routes in production', () => {
+    const createDocument = vi.spyOn(SwaggerModule, 'createDocument');
+    const setup = vi.spyOn(SwaggerModule, 'setup');
+    setupSwagger({} as any, 'production');
+    expect(createDocument).not.toHaveBeenCalled();
+    expect(setup).not.toHaveBeenCalled();
+    vi.restoreAllMocks();
+  });
+
   it('should generate OpenAPI document containing Auth, Users, and Posts endpoints', async () => {
     const moduleRef = await Test.createTestingModule({
       controllers: [

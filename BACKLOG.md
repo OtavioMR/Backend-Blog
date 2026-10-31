@@ -35,7 +35,7 @@ Status conferidos no GitHub em 31/10/2026: **8 concluídos e 47 abertos**. Para 
 | **S3** | #3 | [Segurança] Sanitizar interpolação de HTML em templates de e-mail de recuperação | P0 — Crítica | XS | 🟢 Concluído |
 | **S4** | #4 | [Segurança] Implementar validação estrita de variáveis de ambiente com schema | P0 — Crítica | S | 🟢 Concluído |
 | **S5** | #5 | [Segurança] Configurar Helmet, CORS com whitelist e Trust Proxy | P0 — Crítica | S | 🟢 Concluído |
-| **S6** | #6 | [Segurança] Restringir ou desativar interface do Swagger em ambiente de produção | P1 — Alta | XS | Pronto para iniciar |
+| **S6** | #6 | [Segurança] Restringir ou desativar interface do Swagger em ambiente de produção | P1 — Alta | XS | ?? Conclu?do |
 | **S7** | #7 | [Segurança] Exigir senha atual para alteração de credenciais e confirmar novo e-mail | P0 — Crítica | M | 🟢 Concluído |
 | **S8** | #8 | [Segurança] Mitigar ataques de temporização (Timing Attacks) na autenticação | P1 — Alta | S | Pronto para iniciar |
 | **S9** | #9 | [Segurança] Padronizar custo e limites de hashing de senhas com bcrypt | P1 — Alta | S | Pronto para iniciar |
@@ -55,7 +55,7 @@ Status conferidos no GitHub em 31/10/2026: **8 concluídos e 47 abertos**. Para 
 | **M4** | #19 | [Melhoria] Otimizar listagem de artigos com resumo (excerpt) e exclusão de payload pesado | P1 — Alta | S | Pronto para iniciar |
 | **M5** | #20 | [Performance] Eliminar problema de query N+1 na listagem de comentários e respostas | P1 — Alta | M | Pronto para iniciar |
 | **M6** | #21 | [Melhoria] Implementar busca textual Full-Text nativa com PostgreSQL (tsvector e GIN) | P2 — Média | M | Backlog |
-| **M7** | #22 | [Bug] Permitir moderação e remoção de comentários mesmo com comentários desativados no post | P1 — Alta | XS | Pronto para iniciar |
+| **M7** | #22 | [Bug] Permitir moderação e remoção de comentários mesmo com comentários desativados no post | P1 — Alta | XS | ?? Conclu?do |
 | **M8** | #23 | [Melhoria] Enriquecer resposta de artigos salvos com autor, categorias e tags | P2 — Média | XS | Backlog |
 | **M9** | #24 | [Refatoração] Padronizar estrutura de metadados de paginação com utilitário compartilhado | P2 — Média | S | Pronto para iniciar |
 | **M10** | #25 | [Melhoria] Padronizar busca de categorias e tags com escape e unaccent | P2 — Média | XS | Pronto para iniciar |

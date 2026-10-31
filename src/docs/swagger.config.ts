@@ -1,7 +1,9 @@
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import type { INestApplication } from '@nestjs/common';
 
-export function setupSwagger(app: INestApplication): void {
+export function setupSwagger(app: INestApplication, nodeEnv = process.env.NODE_ENV): void {
+  if (nodeEnv === 'production') return;
+
   const config = new DocumentBuilder()
     .setTitle('Backend Blog API')
     .setDescription(

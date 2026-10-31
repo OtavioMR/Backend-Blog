@@ -48,6 +48,8 @@ async function bootstrap() {
   const port = process.env.PORT ?? 3000;
   await app.listen(port);
   console.log(`A aplicação está rodando em: http://localhost:${port}/api/v1`);
-  console.log(`Swagger docs running at: http://localhost:${port}/api/docs`);
+  if (process.env.NODE_ENV !== 'production') {
+    console.log(`Swagger docs running at: http://localhost:${port}/api/docs`);
+  }
 }
 await bootstrap();

@@ -86,6 +86,13 @@ describe('CommentsService', () => {
     );
   });
 
+  it('allows moderation when comments are disabled', async () => {
+    posts.findOne.mockResolvedValue({ authorId: 'owner', commentsEnabled: false });
+    comments.findOne.mockResolvedValue({ postId: 'post', authorId: 'author', isActive: true });
+    await service.remove('c', { ...user, userId: 'owner' });
+    expect(comments.save).toHaveBeenCalledWith(expect.objectContaining({ isActive: false }));
+  });
+
   it('blocks editing by unrelated users', async () => {
     comments.findOne.mockResolvedValue({
       postId: 'post',

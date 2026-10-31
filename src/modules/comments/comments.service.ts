@@ -19,12 +19,12 @@ export class CommentsService {
     @InjectRepository(Post) private readonly posts: Repository<Post>,
   ) {}
 
-  private async availablePost(id: string): Promise<Post> {
+  private async availablePost(id: string, requireComments = true): Promise<Post> {
     const post = await this.posts.findOne({
       where: { id, isActive: true, published: true },
     });
     if (!post) throw new NotFoundException('Post não encontrado.');
-    if (!post.commentsEnabled)
+    if (requireComments && !post.commentsEnabled)
       throw new ForbiddenException('Comentários desativados neste post.');
     return post;
   }
@@ -146,7 +146,7 @@ export class CommentsService {
 
   async remove(id: string, user: AuthenticatedUser) {
     const comment = await this.getComment(id);
-    const post = await this.availablePost(comment.postId);
+    const post = await this.availablePost(comment.postId, false);
     if (!comment.isActive)
       throw new BadRequestException('Comentário já desativado.');
     if (
