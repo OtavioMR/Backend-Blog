@@ -57,7 +57,7 @@ export class PostsController {
   @ApiFindPostByIdDoc()
   @UseGuards(OptionalJwtAuthGuard)
   @Get(':id')
-  findById(@Param('id', ParseUUIDPipe) id: string, @Req() request: RequestWithUser) {
+  findById(@Param('id') id: string, @Req() request: RequestWithUser) {
     return this.postsService.findById(id, request.user);
   }
 

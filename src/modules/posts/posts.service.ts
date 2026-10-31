@@ -1,3 +1,6 @@
+import { randomUUID } from 'node:crypto';
+import { isUUID } from 'class-validator';
+import { postSlug } from './post-slug.js';
 import { paginationMeta } from '../../common/utils/pagination.js';
 import { sanitizePostContent, sanitizePlainText } from '../../common/utils/sanitize-content.js';
 import { likePattern } from '../../common/utils/like-pattern.js';
@@ -82,6 +85,7 @@ export class PostsService {
       },
       select: {
         id: true,
+        slug: true,
         title: true,
         content: true,
         excerpt: true,
@@ -133,7 +137,7 @@ export class PostsService {
       where: { authorId, isActive: true },
       relations: { author: true, categories: true, tags: true },
       select: {
-        id: true, title: true, content: true, excerpt: true, publishedAt: true, published: true, commentsEnabled: true,
+        id: true, slug: true, title: true, content: true, excerpt: true, publishedAt: true, published: true, commentsEnabled: true,
         isActive: true, createdAt: true, updatedAt: true,
         author: { id: true, name: true },
         categories: { id: true, name: true, slug: true, isActive: true },
@@ -157,7 +161,7 @@ export class PostsService {
   async findById(id: string, user?: AuthenticatedUser | null): Promise<Post> {
     const post = await this.postsRepository.findOne({
       where: {
-        id,
+        ...(isUUID(id) ? { id } : { slug: id }),
         isActive: true,
       },
       relations: {
@@ -167,6 +171,7 @@ export class PostsService {
       },
       select: {
         id: true,
+        slug: true,
         publishedAt: true,
         excerpt: true,
         authorId: true,
@@ -228,8 +233,11 @@ export class PostsService {
 
     const tags = await this.tagsService.resolveNames(tagNames ?? []);
 
+    const id = randomUUID();
     const post = this.postsRepository.create({
       ...postData,
+      id,
+      slug: postSlug(postData.title, id),
       excerpt: sanitizePlainText(postData.content).slice(0, 200),
       publishedAt: postData.published ? new Date() : null,
       authorId,

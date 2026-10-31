@@ -101,25 +101,19 @@ export function ApiFindPostByIdDoc() {
     ApiPublicRoute(),
     ApiBearerAuth('JWT-auth'),
     ApiOperation({
-      summary: 'Buscar artigo por ID',
+      summary: 'Buscar artigo por ID ou slug',
       description:
         'Retorna artigo ativo publicado; rascunhos são visíveis somente ao autor autenticado ou administrador.',
     }),
     ApiParam({
       name: 'id',
-      description: 'Identificador único (UUID) do artigo',
-      example: 'b1ffcd88-8b1a-4ce7-aa5c-5cc8ac271b22',
-      format: 'uuid',
+      description: 'UUID ou slug do artigo',
+      example: 'introducao-ao-nestjs-b1ffcd88-8b1a-4ce7-aa5c-5cc8ac271b22',
     }),
     ApiResponse({
       status: 200,
       description: 'Artigo encontrado com sucesso.',
       type: PostResponseDto,
-    }),
-    ApiResponse({
-      status: 400,
-      description: 'Formato de UUID inválido fornecido no parâmetro.',
-      type: BadRequestResponseDto,
     }),
     ApiResponse({
       status: 404,
@@ -140,7 +134,7 @@ export function ApiCreatePostDoc() {
     ApiOperation({
       summary: 'Criar novo artigo',
       description:
-        'Cria um novo artigo no blog associado automaticamente ao usuário autenticado. Exige perfil AUTHOR ou ADMIN. Requer envio do header `Authorization: Bearer <access_token>`.',
+        'Gera um slug único e estável a partir do título. Cria um novo artigo no blog associado automaticamente ao usuário autenticado. Exige perfil AUTHOR ou ADMIN. Requer envio do header `Authorization: Bearer <access_token>`.',
     }),
     ApiResponse({
       status: 201,
@@ -185,11 +179,11 @@ export function ApiUpdatePostDoc() {
     ApiOperation({
       summary: 'Atualizar artigo existente',
       description:
-        'Atualiza campos específicos de um artigo (título, conteúdo, status de publicação ou ativação). Apenas o autor do artigo ou administradores podem executar esta alteração.',
+        'O slug permanece estável quando o título muda. Atualiza campos específicos de um artigo (título, conteúdo, status de publicação ou ativação). Apenas o autor do artigo ou administradores podem executar esta alteração.',
     }),
     ApiParam({
       name: 'id',
-      description: 'Identificador único (UUID) do artigo a ser atualizado',
+      description: 'UUID ou slug do artigo a ser atualizado',
       example: 'b1ffcd88-8b1a-4ce7-aa5c-5cc8ac271b22',
       format: 'uuid',
     }),
@@ -238,7 +232,7 @@ export function ApiRemovePostDoc() {
     }),
     ApiParam({
       name: 'id',
-      description: 'Identificador único (UUID) do artigo a ser desativado',
+      description: 'UUID ou slug do artigo a ser desativado',
       example: 'b1ffcd88-8b1a-4ce7-aa5c-5cc8ac271b22',
       format: 'uuid',
     }),
