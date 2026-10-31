@@ -180,6 +180,14 @@ describe('PostsService', () => {
     }
   });
 
+  it('estima seis minutos para um artigo com 1200 palavras', async () => {
+    const content = Array(1200).fill('palavra').join(' ');
+    const result = await service.create({ title: 'Artigo longo', content }, 'autor');
+    expect(result).toHaveProperty('readingTimeMinutes', 6);
+    mockPostsRepository.findAndCount.mockResolvedValue([[{ title: 'Artigo longo', content }], 1]);
+    expect((await service.findAll()).data[0]).toHaveProperty('readingTimeMinutes', 6);
+  });
+
   it('recalcula leitura ao criar, consultar e editar o conteúdo', async () => {
     const content = Array(201).fill('palavra').join(' ');
     const created = await service.create({ title: 'Título', content }, 'autor');
