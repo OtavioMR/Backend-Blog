@@ -20,6 +20,9 @@ import { UpdatePostDto } from './dto/update-post.dto.js';
 import { FindPostsQueryDto } from './dto/find-posts-query.dto.js';
 
 import { JwtAuthGuard } from '../auth/guard/jwt-auth.guard.js';
+import { RolesGuard } from '../auth/guard/roles.guard.js';
+import { Roles } from '../../common/decorators/roles.decorator.js';
+import { UserRole } from '../users/enums/user.enum.js';
 import type { RequestWithUser } from '../auth/interfaces/request-with-user.interface.js';
 import {
   ApiPostsTag,
@@ -48,7 +51,8 @@ export class PostsController {
   }
 
   @ApiCreatePostDoc()
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.AUTHOR, UserRole.ADMIN)
   @HttpPost()
   create(
     @Body() createPostDto: CreatePostDto,

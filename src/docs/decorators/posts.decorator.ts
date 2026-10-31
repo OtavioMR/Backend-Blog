@@ -130,7 +130,7 @@ export function ApiCreatePostDoc() {
     ApiOperation({
       summary: 'Criar novo artigo',
       description:
-        'Cria um novo artigo no blog associado automaticamente ao usuário autenticado. Requer envio do header `Authorization: Bearer <access_token>`.',
+        'Cria um novo artigo no blog associado automaticamente ao usuário autenticado. Exige perfil AUTHOR ou ADMIN. Requer envio do header `Authorization: Bearer <access_token>`.',
     }),
     ApiResponse({
       status: 201,
@@ -148,6 +148,12 @@ export function ApiCreatePostDoc() {
       description:
         'Acesso não autorizado (token JWT ausente, expirado ou usuário inativo).',
       type: UnauthorizedResponseDto,
+    }),
+    ApiResponse({
+      status: 403,
+      description:
+        'Acesso proibido (apenas usuários com perfil AUTHOR ou ADMIN podem criar artigos).',
+      type: ForbiddenResponseDto,
     }),
     ApiResponse({
       status: 404,
