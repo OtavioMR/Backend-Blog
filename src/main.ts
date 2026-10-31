@@ -7,12 +7,18 @@ import { httpLogger } from './common/middleware/http-logger.middleware.js';
 import { configureDateSerialization } from './common/utils/date-serializer.js';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { join } from 'node:path';
+import { ConfigService } from '@nestjs/config';
+import { configureHttpSecurity } from './common/http-security.js';
 
 async function bootstrap() {
   // Configura serialização de datas com o fuso horário local explícito (ex.: -03:00)
   configureDateSerialization();
 
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  configureHttpSecurity(
+    app,
+    app.get(ConfigService).getOrThrow<string>('FRONTEND_URL'),
+  );
   app.useStaticAssets(join(process.cwd(), 'uploads', 'profile-photos'), {
     prefix: '/uploads/profile-photos/',
     dotfiles: 'deny',
