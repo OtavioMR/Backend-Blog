@@ -24,6 +24,9 @@ import { CreateUserDto } from './dto/create-user.dto.js';
 import { UpdateUserDto } from './dto/update-user.dto.js';
 import { UserRole } from './enums/user.enum.js';
 import { PaginationQueryDto } from '../../common/dto/pagination-query.dto.js';
+import { ConfirmEmailChangeDto } from './dto/confirm-email-change.dto.js';
+import { ApiOperation, ApiResponse } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
 import { JwtAuthGuard } from '../auth/guard/jwt-auth.guard.js';
 import { RolesGuard } from '../auth/guard/roles.guard.js';
 import { Roles } from '../../common/decorators/roles.decorator.js';
@@ -35,12 +38,25 @@ import {
   ApiFindUserByIdDoc,
   ApiUpdateUserDoc,
   ApiRemoveUserDoc,
+  ApiPublicRoute,
 } from '../../docs/index.js';
 
 @ApiUsersTag()
 @Controller('users')
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
+
+  @Post('confirm-email-change')
+  @ApiPublicRoute()
+  @HttpCode(HttpStatus.OK)
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  @ApiOperation({ summary: 'Confirmar alteração de e-mail', description: 'Confirma o token de uso único enviado ao novo endereço; o token expira em 30 minutos.' })
+  @ApiResponse({ status: 200, description: 'E-mail confirmado.' })
+  @ApiResponse({ status: 400, description: 'Token inválido ou expirado.' })
+  @ApiResponse({ status: 409, description: 'O endereço já está em uso.' })
+  confirmEmailChange(@Body() dto: ConfirmEmailChangeDto) {
+    return this.usersService.confirmEmailChange(dto.token);
+  }
 
   @UseGuards(JwtAuthGuard)
   @UseInterceptors(

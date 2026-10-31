@@ -136,7 +136,7 @@ describe('Auth E2E Test Suite (Secure Cookies, Refresh Token Rotation, Logout)',
       const cookies = response.headers['set-cookie'];
       expect(cookies).toBeDefined();
 
-      const refreshCookie = (cookies as string[]).find((c) =>
+      const refreshCookie = (cookies as unknown as string[]).find((c) =>
         c.startsWith('refreshToken='),
       );
       expect(refreshCookie).toBeDefined();
@@ -198,7 +198,7 @@ describe('Auth E2E Test Suite (Secure Cookies, Refresh Token Rotation, Logout)',
       expect(response.body.token_type).toBe('Bearer');
 
       // Verify new Set-Cookie header contains rotated refreshToken
-      const cookies = response.headers['set-cookie'] as string[];
+      const cookies = response.headers['set-cookie'] as unknown as string[];
       expect(cookies).toBeDefined();
 
       const newRefreshCookie = cookies.find((c) =>
@@ -251,7 +251,7 @@ describe('Auth E2E Test Suite (Secure Cookies, Refresh Token Rotation, Logout)',
       }
 
       // Verify Set-Cookie clears the refreshToken cookie
-      const cookies = response.headers['set-cookie'] as string[];
+      const cookies = response.headers['set-cookie'] as unknown as string[];
       expect(cookies).toBeDefined();
       const clearedCookie = cookies.find((c) => c.startsWith('refreshToken=;'));
       expect(clearedCookie).toBeDefined();

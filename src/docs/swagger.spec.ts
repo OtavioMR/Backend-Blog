@@ -89,8 +89,12 @@ describe('Swagger Documentation Configuration', () => {
     expect(paths).toContain('/api/v1/auth/reset-password');
     expect(paths).toContain('/api/v1/users');
     expect(paths).toContain('/api/v1/users/{id}');
+    expect(paths).toContain('/api/v1/users/confirm-email-change');
+    expect(document.components?.schemas?.UpdateUserDto).toHaveProperty('properties.currentPassword');
     expect(paths).toContain('/api/v1/posts');
     expect(paths).toContain('/api/v1/posts/{id}');
+    expect(paths).toContain('/api/v1/posts/me');
+    expect(document.paths['/api/v1/posts/me'].get?.security).toEqual([{ 'JWT-auth': [] }]);
     for (const [path, method] of [
       ['/api/v1/posts/saved', 'get'],
       ['/api/v1/posts/{id}/interaction', 'get'],

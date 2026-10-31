@@ -30,6 +30,19 @@ export class MailService {
     }
   }
 
+  async sendEmailChangeConfirmation(email: string, token: string): Promise<void> {
+    if (!this.transporter) {
+      throw new Error('SMTP não configurado para confirmação de e-mail.');
+    }
+    await this.transporter.sendMail({
+      from: this.configService.get<string>('SMTP_FROM', 'noreply@blog.com'),
+      to: email,
+      subject: 'Confirme seu novo e-mail',
+      text: `Para confirmar seu novo e-mail, envie este token no campo token de POST /api/v1/users/confirm-email-change em até 30 minutos:\n\n${token}\n\nSe você não solicitou esta alteração, ignore esta mensagem.`,
+      html: `<p>Para confirmar seu novo e-mail, envie este token no campo <code>token</code> de <code>POST /api/v1/users/confirm-email-change</code> em até 30 minutos:</p><p><code>${escapeHtml(token)}</code></p><p>Se você não solicitou esta alteração, ignore esta mensagem.</p>`,
+    });
+  }
+
   async sendPasswordResetEmail(
     email: string,
     resetLink: string,

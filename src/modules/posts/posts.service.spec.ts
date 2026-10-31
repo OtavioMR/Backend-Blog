@@ -7,6 +7,7 @@ import { PostsService } from './posts.service.js';
 import { Post } from './entities/post.entity.js';
 import { Category } from '../categories/entities/category.entity.js';
 import { TagsService } from '../tags/tags.service.js';
+import { UserRole } from '../users/enums/user.enum.js';
 
 describe('PostsService', () => {
   let service: PostsService;
@@ -91,11 +92,11 @@ describe('PostsService', () => {
 
       expect(mockPostsRepository.findAndCount).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: [{
+          where: {
             published: true,
             isActive: true,
             categories: { id: 'cat-uuid-1', isActive: true },
-          }],
+          },
         }),
       );
     });
@@ -107,44 +108,26 @@ describe('PostsService', () => {
 
       expect(mockPostsRepository.findAndCount).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: [{
+          where: {
             published: true,
             isActive: true,
             categories: { slug: 'tecnologia', isActive: true },
-          }],
+          },
         }),
       );
     });
 
-    it('deve combinar tag e categoria por OU', async () => {
-      mockPostsRepository.findAndCount.mockResolvedValue([[], 0]);
-
-      await service.findAll({ categorySlug: 'tecnologia', tagSlug: 'nestjs' });
-
-      expect(mockPostsRepository.findAndCount).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: [{
-            published: true,
-            isActive: true,
-            categories: { slug: 'tecnologia', isActive: true },
-          }, {
-            published: true,
-            isActive: true,
-            tags: { slug: 'nestjs' },
-          }],
-        }),
-      );
-    });
-
-    it('combina busca, autor e filtros mantendo posts publicados e ativos', async () => {
+    it('combina filtros por E, mantendo a busca por título ou conteúdo', async () => {
       mockPostsRepository.findAndCount.mockResolvedValue([[], 0]);
       await service.findAll({ search: ' Nest%_ ', author: ' José ', categoryId: 'id', categorySlug: 'ignorado', tagSlug: 'tag', page: 2, limit: 5 });
       const options = mockPostsRepository.findAndCount.mock.calls[0][0];
-      expect(options.where).toHaveLength(5);
-      expect(options.where.every((item: any) => item.published && item.isActive)).toBe(true);
+      expect(options.where).toHaveLength(2);
+      for (const branch of options.where) {
+        expect(branch).toMatchObject({ published: true, isActive: true, categories: { id: 'id', isActive: true }, tags: { slug: 'tag' } });
+        expect(branch.author.name.objectLiteralParameters).toEqual({ authorTerm: '%José%' });
+      }
       expect(options.where[0].title.objectLiteralParameters).toEqual({ searchTerm: '%Nest\\%\\_%' });
-      expect(options.where[2].author.name.objectLiteralParameters).toEqual({ authorTerm: '%José%' });
-      expect(options.where[3].categories).toEqual({ id: 'id', isActive: true });
+      expect(options.where[1].content).toBeDefined();
       expect(options.skip).toBe(5);
       expect(options.take).toBe(5);
     });
@@ -157,13 +140,12 @@ describe('PostsService', () => {
       expect(result.meta.total).toBe(0);
     });
 
-    it('busca por nome de categoria ativa combinado por OU com os demais filtros', async () => {
+    it('combina nome de categoria com autor', async () => {
       mockPostsRepository.findAndCount.mockResolvedValue([[], 0]);
-      await service.findAll({ categoryName: ' Educa%_ ', author: 'Maria' });
+      await service.findAll({ categoryName: ' Educação ', author: 'Maria' });
       const where = mockPostsRepository.findAndCount.mock.calls[0][0].where;
-      expect(where).toHaveLength(2);
-      expect(where[1]).toMatchObject({ published: true, isActive: true, categories: { isActive: true } });
-      expect(where[1].categories.name.objectLiteralParameters).toEqual({ categoryNameTerm: '%Educa\\%\\_%' });
+      expect(where.categories.name.objectLiteralParameters).toEqual({ categoryNameTerm: '%Educação%' });
+      expect(where.author.name.objectLiteralParameters).toEqual({ authorTerm: '%Maria%' });
     });
 
     it('ignora nome de categoria vazio', async () => {
@@ -171,6 +153,21 @@ describe('PostsService', () => {
       await service.findAll({ categoryName: '  ' });
       expect(mockPostsRepository.findAndCount.mock.calls[0][0].where).toEqual({ published: true, isActive: true });
     });
+  });
+
+  it('lista apenas artigos ativos do próprio usuário, incluindo rascunhos', async () => {
+    mockPostsRepository.findAndCount.mockResolvedValue([[{ id: 'p1', published: false }], 1]);
+    const result = await service.findMine('author-1', { page: 2, limit: 5 });
+    expect(mockPostsRepository.findAndCount).toHaveBeenCalledWith(expect.objectContaining({ where: { authorId: 'author-1', isActive: true }, skip: 5, take: 5 }));
+    expect(result.data[0].published).toBe(false);
+  });
+
+  it('restringe rascunhos ao autor e a administradores', async () => {
+    mockPostsRepository.findOne.mockResolvedValue({ id: 'p1', authorId: 'author-1', published: false, categories: [], tags: [] });
+    await expect(service.findById('p1')).rejects.toThrow(NotFoundException);
+    await expect(service.findById('p1', { userId: 'other', role: UserRole.READER } as any)).rejects.toThrow(NotFoundException);
+    await expect(service.findById('p1', { userId: 'author-1', role: UserRole.AUTHOR } as any)).resolves.toHaveProperty('id', 'p1');
+    await expect(service.findById('p1', { userId: 'admin', role: UserRole.ADMIN } as any)).resolves.toHaveProperty('id', 'p1');
   });
 
   describe('create', () => {

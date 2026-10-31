@@ -145,7 +145,7 @@ export function ApiUpdateUserDoc() {
     ApiOperation({
       summary: 'Atualizar dados de um usuário',
       description:
-        'Atualiza informações cadastrais de um usuário. Requer autenticação JWT (`Authorization: Bearer <access_token>`). Apenas o próprio usuário ou administradores podem atualizar o registro.',
+        'Atualiza informações cadastrais. Alterações de senha ou e-mail exigem senha atual e devem ser solicitadas pelo titular. O novo e-mail só é efetivado após confirmação do token enviado ao novo endereço.',
     }),
     ApiParam({
       name: 'id',

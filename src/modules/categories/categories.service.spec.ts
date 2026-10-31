@@ -78,10 +78,11 @@ describe('CategoriesService', () => {
         isActive: false,
         deletedAt: new Date(),
         creatorId: null,
+        description: 'Antiga descrição',
       };
       mockCategoryRepository.findOne.mockResolvedValueOnce(inactiveCategory);
 
-      const result = await service.create(
+      await service.create(
         { name: 'Tecnologia', description: 'Nova descrição' },
         'admin-new-id',
       );

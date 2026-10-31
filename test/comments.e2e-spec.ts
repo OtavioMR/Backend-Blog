@@ -83,6 +83,14 @@ describe('Comentários e foto: fluxo completo', () => {
     const other = await register('Other');
     const admin = await register('Admin');
     await db.query('UPDATE users SET role = $1 WHERE id = $2', [
+      'AUTHOR',
+      owner.id,
+    ]);
+    await db.query('UPDATE users SET role = $1 WHERE id = $2', [
+      'AUTHOR',
+      other.id,
+    ]);
+    await db.query('UPDATE users SET role = $1 WHERE id = $2', [
       'ADMIN',
       admin.id,
     ]);

@@ -99,9 +99,9 @@ describe('PostsController', () => {
       const post = { id: 'post-1', title: 'Post 1' };
       mockPostsService.findById.mockResolvedValue(post);
 
-      const result = await controller.findById('post-1');
+      const result = await controller.findById('post-1', { user: undefined } as any);
 
-      expect(mockPostsService.findById).toHaveBeenCalledWith('post-1');
+      expect(mockPostsService.findById).toHaveBeenCalledWith('post-1', undefined);
       expect(result).toEqual(post);
     });
   });

@@ -28,7 +28,7 @@ export function ApiFindAllPostsDoc() {
     ApiOperation({
       summary: 'Listar artigos publicados',
       description:
-        'Retorna artigos publicados e ativos. Os filtros informados são combinados por OU; categoryId tem prioridade sobre categorySlug.',
+        'Retorna artigos publicados e ativos. Os filtros são combinados por E; a busca corresponde ao título ou conteúdo. categoryId tem prioridade sobre categorySlug.',
     }),
     ApiQuery({ name: 'search', required: false, type: String, example: 'nestjs', description: 'Trecho literal do título ou conteúdo, sem diferenciar maiúsculas ou acentos.' }),
     ApiQuery({ name: 'author', required: false, type: String, example: 'maria', description: 'Trecho literal do nome do autor, sem diferenciar maiúsculas ou acentos.' }),
@@ -87,13 +87,23 @@ export function ApiFindAllPostsDoc() {
   );
 }
 
+export function ApiFindMinePostsDoc() {
+  return applyDecorators(
+    ApiBearerAuth('JWT-auth'),
+    ApiOperation({ summary: 'Listar meus artigos', description: 'Lista artigos ativos do usuário autenticado, incluindo rascunhos.' }),
+    ApiResponse({ status: 200, description: 'Artigos do usuário.', type: PaginatedPostResponseDto }),
+    ApiResponse({ status: 401, description: 'Acesso não autorizado.', type: UnauthorizedResponseDto }),
+  );
+}
+
 export function ApiFindPostByIdDoc() {
   return applyDecorators(
     ApiPublicRoute(),
+    ApiBearerAuth('JWT-auth'),
     ApiOperation({
       summary: 'Buscar artigo por ID',
       description:
-        'Retorna as informações completas de um artigo publicado e ativo a partir do seu identificador UUID.',
+        'Retorna artigo ativo publicado; rascunhos são visíveis somente ao autor autenticado ou administrador.',
     }),
     ApiParam({
       name: 'id',
