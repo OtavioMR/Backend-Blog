@@ -1,3 +1,4 @@
+import { Exclude } from 'class-transformer';
 import {
   Entity,
   PrimaryGeneratedColumn,
@@ -24,6 +25,7 @@ export class User {
   email: string;
 
   @Column({ name: 'password_hash', select: false })
+  @Exclude()
   passwordHash: string;
 
   @Column({
@@ -33,6 +35,7 @@ export class User {
     nullable: true,
     select: false,
   })
+  @Exclude()
   refreshTokenHash: string | null;
 
   @Column({
@@ -42,6 +45,7 @@ export class User {
     nullable: true,
     select: false,
   })
+  @Exclude()
   resetPasswordTokenHash: string | null;
 
   @Column({
@@ -50,16 +54,37 @@ export class User {
     nullable: true,
     select: false,
   })
+  @Exclude()
   resetPasswordExpiresAt: Date | null;
 
   @Column({ name: 'pending_email', type: 'varchar', length: 255, nullable: true, select: false })
+  @Exclude()
   pendingEmail: string | null;
 
   @Column({ name: 'email_change_token_hash', type: 'varchar', length: 64, nullable: true, select: false })
+  @Exclude()
   emailChangeTokenHash: string | null;
 
   @Column({ name: 'email_change_expires_at', type: 'timestamptz', nullable: true, select: false })
+  @Exclude()
   emailChangeExpiresAt: Date | null;
+
+  @Column({ name: 'failed_login_attempts', type: 'integer', default: 0 })
+  failedLoginAttempts: number;
+
+  @Column({ name: 'login_locked_until', type: 'timestamptz', nullable: true })
+  loginLockedUntil: Date | null;
+
+  @Column({ name: 'email_verified', default: false })
+  emailVerified: boolean;
+
+  @Column({ name: 'email_verification_token_hash', type: 'varchar', length: 64, nullable: true, select: false })
+  @Exclude()
+  emailVerificationTokenHash: string | null;
+
+  @Column({ name: 'email_verification_expires_at', type: 'timestamptz', nullable: true, select: false })
+  @Exclude()
+  emailVerificationExpiresAt: Date | null;
 
   @Column({ name: 'auth_version', type: 'integer', default: 0 })
   authVersion: number;

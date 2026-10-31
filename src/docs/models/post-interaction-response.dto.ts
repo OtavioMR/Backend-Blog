@@ -28,8 +28,11 @@ export class SavedPostResponseDto {
   @ApiProperty({ example: 'Introdução ao NestJS' })
   title: string;
 
-  @ApiProperty({ example: 'Conteúdo do artigo' })
-  content: string;
+  @ApiProperty({ description: 'Resumo do artigo', maxLength: 200 })
+  excerpt: string;
+
+  @ApiProperty({ type: String, format: 'date-time', nullable: true })
+  publishedAt: Date | null;
 
   @ApiProperty({ example: true })
   published: boolean;

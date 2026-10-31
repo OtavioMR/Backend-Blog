@@ -23,6 +23,8 @@ describe('AuthService', () => {
     mockUsersService = {
       findByEmailForAuth: vi.fn(),
       findByIdForAuth: vi.fn(),
+      recordFailedLogin: vi.fn(),
+      clearFailedLogins: vi.fn().mockResolvedValue(true),
       updateRefreshTokenHash: vi.fn(),
       setResetPasswordToken: vi.fn(),
       findByResetPasswordToken: vi.fn(),

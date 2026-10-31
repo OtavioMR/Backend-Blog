@@ -7,6 +7,8 @@ import { AppModule } from '../src/app.module.js';
 import { Repository } from 'typeorm';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { User } from '../src/modules/users/entities/user.entity.js';
+import { MailService } from '../src/modules/mail/mail.service.js';
+import { vi } from 'vitest';
 import { configureDateSerialization } from '../src/common/utils/date-serializer.js';
 
 // ESM / CJS interop for supertest in NodeNext environment
@@ -16,6 +18,7 @@ const request =
     : (supertest as unknown as { default: typeof supertest }).default;
 
 describe('Auth E2E Test Suite (Secure Cookies, Refresh Token Rotation, Logout)', () => {
+  const mail = { sendEmailVerification: vi.fn(), sendPasswordResetEmail: vi.fn(), sendEmailChangeConfirmation: vi.fn() };
   let app: INestApplication;
   let usersRepository: Repository<User>;
 
@@ -34,7 +37,7 @@ describe('Auth E2E Test Suite (Secure Cookies, Refresh Token Rotation, Logout)',
     configureDateSerialization();
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
-    }).compile();
+    }).overrideProvider(MailService).useValue(mail).compile();
 
     app = moduleFixture.createNestApplication();
 
@@ -63,6 +66,10 @@ describe('Auth E2E Test Suite (Secure Cookies, Refresh Token Rotation, Logout)',
     expect(registerResponse.status).toBe(201);
     expect(registerResponse.body).toHaveProperty('id');
     expect(registerResponse.body.email).toBe(testUser.email.toLowerCase());
+    await request(app.getHttpServer()).post('/api/v1/auth/login').send({ email: testUser.email, password: testUser.password }).expect(401);
+    const verificationToken = mail.sendEmailVerification.mock.calls[0][1] as string;
+    await request(app.getHttpServer()).post('/api/v1/users/confirm-email').send({ token: verificationToken }).expect(200);
+    await request(app.getHttpServer()).post('/api/v1/users/confirm-email').send({ token: verificationToken }).expect(400);
   });
 
   afterAll(async () => {

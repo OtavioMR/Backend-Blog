@@ -25,6 +25,12 @@ export class Post {
   @Column({ type: 'text' })
   content: string;
 
+  @Column({ type: 'varchar', length: 200, default: '' })
+  excerpt: string;
+
+  @Column({ name: 'published_at', type: 'timestamptz', nullable: true })
+  publishedAt: Date | null;
+
   @Column({ default: false })
   published: boolean;
 

@@ -1,4 +1,9 @@
-import { Module } from '@nestjs/common';
+import { TerminusModule } from '@nestjs/terminus';
+import { APP_FILTER, APP_INTERCEPTOR } from '@nestjs/core';
+import { HealthController } from './common/health.controller.js';
+import { GlobalExceptionFilter } from './common/global-exception.filter.js';
+import { TracingInterceptor } from './common/tracing.interceptor.js';
+import { ClassSerializerInterceptor, Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { RateLimitModule } from './common/rate-limit.module.js';
@@ -19,6 +24,7 @@ import { validate } from './config/env.validation.js';
       validate,
     }),
     RateLimitModule,
+    TerminusModule,
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
@@ -41,7 +47,11 @@ import { validate } from './config/env.validation.js';
     CommentsModule,
     MailModule,
   ],
-  controllers: [],
-  providers: [],
+  controllers: [HealthController],
+  providers: [
+    { provide: APP_FILTER, useClass: GlobalExceptionFilter },
+    { provide: APP_INTERCEPTOR, useClass: TracingInterceptor },
+    { provide: APP_INTERCEPTOR, useClass: ClassSerializerInterceptor },
+  ],
 })
 export class AppModule {}

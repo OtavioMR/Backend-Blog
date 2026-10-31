@@ -1,5 +1,5 @@
+import 'dotenv/config';
 import { NestFactory } from '@nestjs/core';
-import { AppModule } from './app.module.js';
 import { ValidationPipe } from '@nestjs/common';
 import cookieParser from 'cookie-parser';
 import { setupSwagger } from './docs/index.js';
@@ -14,7 +14,12 @@ async function bootstrap() {
   // Configura serialização de datas com o fuso horário local explícito (ex.: -03:00)
   configureDateSerialization();
 
+  const { NodeSDK } = await import('@opentelemetry/sdk-node');
+  const sdk = new NodeSDK();
+  if (process.env.OTEL_EXPORTER_OTLP_ENDPOINT || process.env.OTEL_EXPORTER_OTLP_TRACES_ENDPOINT) sdk.start();
+  const { AppModule } = await import('./app.module.js');
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  app.enableShutdownHooks();
   configureHttpSecurity(
     app,
     app.get(ConfigService).getOrThrow<string>('FRONTEND_URL'),
@@ -47,6 +52,7 @@ async function bootstrap() {
 
   const port = process.env.PORT ?? 3000;
   await app.listen(port);
+  app.getHttpServer().once('close', () => { void sdk.shutdown(); });
   console.log(`A aplicação está rodando em: http://localhost:${port}/api/v1`);
   if (process.env.NODE_ENV !== 'production') {
     console.log(`Swagger docs running at: http://localhost:${port}/api/docs`);

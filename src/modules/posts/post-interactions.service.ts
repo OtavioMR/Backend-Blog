@@ -1,3 +1,5 @@
+import { sanitizePlainText } from '../../common/utils/sanitize-content.js';
+import { paginationMeta } from '../../common/utils/pagination.js';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -67,7 +69,8 @@ export class PostInteractionsService {
       .select([
         'post.id',
         'post.title',
-        'post.content',
+        'post.excerpt',
+        'post.publishedAt',
         'post.published',
         'post.commentsEnabled',
         'post.isActive',
@@ -79,17 +82,13 @@ export class PostInteractionsService {
       .skip((page - 1) * limit)
       .take(limit)
       .getManyAndCount();
-    const totalPages = Math.ceil(total / limit);
     return {
-      data,
-      meta: {
-        page,
-        limit,
-        total,
-        totalPages,
-        hasNextPage: page < totalPages,
-        hasPreviousPage: page > 1,
-      },
+      data: data.map(post => {
+        post.title = sanitizePlainText(post.title);
+        post.excerpt = sanitizePlainText(post.excerpt ?? '');
+        return post;
+      }),
+      meta: paginationMeta(page, limit, total),
     };
   }
 }

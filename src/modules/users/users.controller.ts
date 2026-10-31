@@ -24,6 +24,7 @@ import { CreateUserDto } from './dto/create-user.dto.js';
 import { UpdateUserDto } from './dto/update-user.dto.js';
 import { UserRole } from './enums/user.enum.js';
 import { PaginationQueryDto } from '../../common/dto/pagination-query.dto.js';
+import { ForgotPasswordDto } from '../auth/dto/forgot-password.dto.js';
 import { ConfirmEmailChangeDto } from './dto/confirm-email-change.dto.js';
 import { ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
@@ -45,6 +46,18 @@ import {
 @Controller('users')
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
+
+  @Post('confirm-email')
+  @ApiPublicRoute()
+  @HttpCode(HttpStatus.OK)
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  confirmEmail(@Body() dto: ConfirmEmailChangeDto) { return this.usersService.confirmEmail(dto.token); }
+
+  @Post('resend-verification')
+  @ApiPublicRoute()
+  @HttpCode(HttpStatus.OK)
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  resendVerification(@Body() dto: ForgotPasswordDto) { return this.usersService.resendVerification(dto.email); }
 
   @Post('confirm-email-change')
   @ApiPublicRoute()

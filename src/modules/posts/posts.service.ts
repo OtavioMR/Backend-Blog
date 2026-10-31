@@ -1,5 +1,8 @@
+import { paginationMeta } from '../../common/utils/pagination.js';
+import { sanitizePostContent, sanitizePlainText } from '../../common/utils/sanitize-content.js';
 import { likePattern } from '../../common/utils/like-pattern.js';
 import {
+  BadRequestException,
   Injectable,
   Logger,
   NotFoundException,
@@ -75,7 +78,8 @@ export class PostsService {
       select: {
         id: true,
         title: true,
-        content: true,
+        excerpt: true,
+        publishedAt: true,
         published: true,
         commentsEnabled: true,
         isActive: true,
@@ -93,30 +97,24 @@ export class PostsService {
         },
         tags: { id: true, name: true, slug: true },
       },
-      order: { createdAt: 'DESC', id: 'DESC' },
+      order: { publishedAt: 'DESC', id: 'DESC' },
       skip,
       take: limit,
     });
 
     // Garante que posts sem categoria retornem array vazio e remove categorias desativadas
     const formattedData = data.map((post) => {
+      post.title = sanitizePlainText(post.title);
+      post.excerpt = sanitizePlainText(post.excerpt ?? '');
       post.categories = (post.categories || []).filter((cat) => cat.isActive);
       post.tags = post.tags || [];
       return post;
     });
 
-    const totalPages = Math.ceil(total / limit);
 
     return {
       data: formattedData,
-      meta: {
-        page,
-        limit,
-        total,
-        totalPages,
-        hasNextPage: page < totalPages,
-        hasPreviousPage: page > 1,
-      },
+      meta: paginationMeta(page, limit, total),
     };
   }
 
@@ -127,7 +125,7 @@ export class PostsService {
       where: { authorId, isActive: true },
       relations: { author: true, categories: true, tags: true },
       select: {
-        id: true, title: true, content: true, published: true, commentsEnabled: true,
+        id: true, title: true, excerpt: true, publishedAt: true, published: true, commentsEnabled: true,
         isActive: true, createdAt: true, updatedAt: true,
         author: { id: true, name: true },
         categories: { id: true, name: true, slug: true, isActive: true },
@@ -137,12 +135,13 @@ export class PostsService {
       skip: (page - 1) * limit,
       take: limit,
     });
-    const totalPages = Math.ceil(total / limit);
     return { data: data.map(post => {
+      post.title = sanitizePlainText(post.title);
+      post.excerpt = sanitizePlainText(post.excerpt ?? '');
       post.categories = (post.categories || []).filter(cat => cat.isActive);
       post.tags = post.tags || [];
       return post;
-    }), meta: { page, limit, total, totalPages, hasNextPage: page < totalPages, hasPreviousPage: page > 1 } };
+    }), meta: paginationMeta(page, limit, total) };
   }
 
   async findById(id: string, user?: AuthenticatedUser | null): Promise<Post> {
@@ -158,6 +157,8 @@ export class PostsService {
       },
       select: {
         id: true,
+        publishedAt: true,
+        excerpt: true,
         authorId: true,
         title: true,
         content: true,
@@ -186,12 +187,17 @@ export class PostsService {
 
     post.categories = (post.categories || []).filter((cat) => cat.isActive);
     post.tags = post.tags || [];
+    post.title = sanitizePlainText(post.title);
+    post.content = sanitizePostContent(post.content);
 
     return post;
   }
 
   async create(createPostDto: CreatePostDto, authorId: string): Promise<Post> {
     const { categoryIds, tagNames, ...postData } = createPostDto;
+    postData.title = sanitizePlainText(postData.title);
+    postData.content = sanitizePostContent(postData.content);
+    if (!postData.title || !sanitizePlainText(postData.content)) throw new BadRequestException('Conte\u00fado inv\u00e1lido.');
 
     let categories: Category[] = [];
     if (categoryIds && categoryIds.length > 0) {
@@ -213,6 +219,8 @@ export class PostsService {
 
     const post = this.postsRepository.create({
       ...postData,
+      excerpt: sanitizePlainText(postData.content).slice(0, 200),
+      publishedAt: postData.published ? new Date() : null,
       authorId,
       isActive: true,
       categories,
@@ -245,9 +253,12 @@ export class PostsService {
     }
 
     const { categoryIds, tagNames, ...postData } = updatePostDto;
+    if (postData.title !== undefined) postData.title = sanitizePlainText(postData.title);
+    if (postData.content !== undefined) postData.content = sanitizePostContent(postData.content);
+    if (postData.title === '' || (postData.content !== undefined && !sanitizePlainText(postData.content))) throw new BadRequestException('Conte\u00fado inv\u00e1lido.');
 
     if (postData.isActive === false) {
-      post.published = false;
+      postData.published = false;
     }
 
     if (categoryIds !== undefined) {
@@ -275,6 +286,9 @@ export class PostsService {
       post.tags = await this.tagsService.resolveNames(tagNames);
     }
 
+    if (postData.content !== undefined) post.excerpt = sanitizePlainText(postData.content).slice(0, 200);
+    if (postData.published === true && !post.published) post.publishedAt = new Date();
+    if (postData.published === false || postData.isActive === false) post.publishedAt = null;
     Object.assign(post, postData);
     const savedPost = await this.postsRepository.save(post);
     this.logger.log(`Artigo ${id} atualizado pelo usuário ${user.userId}`);

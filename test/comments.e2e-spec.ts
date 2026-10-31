@@ -6,13 +6,12 @@ import { DataSource } from 'typeorm';
 import { unlink } from 'node:fs/promises';
 import { join, basename } from 'node:path';
 import { randomUUID } from 'node:crypto';
+import { MailService } from '../src/modules/mail/mail.service.js';
+import sharp from 'sharp';
 import { AppModule } from '../src/app.module.js';
 
 const request = supertest;
-const png = Buffer.from(
-  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/aZkAAAAASUVORK5CYII=',
-  'base64',
-);
+let png: Buffer;
 
 describe('Comentários e foto: fluxo completo', () => {
   let app: NestExpressApplication;
@@ -26,7 +25,8 @@ describe('Comentários e foto: fluxo completo', () => {
   beforeAll(async () => {
     const module = await Test.createTestingModule({
       imports: [AppModule],
-    }).compile();
+    }).overrideProvider(MailService).useValue({ sendEmailVerification: async () => undefined }).compile();
+    png = await sharp({ create: { width: 2, height: 2, channels: 3, background: '#fff' } }).png().toBuffer();
     app = module.createNestApplication<NestExpressApplication>();
     app.useStaticAssets(join(process.cwd(), 'uploads', 'profile-photos'), {
       prefix: '/uploads/profile-photos/',
@@ -69,6 +69,7 @@ describe('Comentários e foto: fluxo completo', () => {
         .send({ name, email, password })
         .expect(201);
       userIds.push(created.body.id);
+      await db.query('UPDATE users SET email_verified = true WHERE id = $1', [created.body.id]);
       const login = await request(app.getHttpServer())
         .post('/api/v1/auth/login')
         .send({ email, password })
@@ -112,13 +113,17 @@ describe('Comentários e foto: fluxo completo', () => {
       .attach('file', png, 'photo.png')
       .expect(201);
     expect(photo.body.profilePhoto).toMatch(
-      /^\/uploads\/profile-photos\/.+\.png$/,
+      /^\/uploads\/profile-photos\/.+\.webp$/,
     );
     photos.push(basename(photo.body.profilePhoto));
     const image = await request(app.getHttpServer())
       .get(photo.body.profilePhoto)
       .expect(200);
-    expect(image.body.equals(png)).toBe(true);
+    expect((await sharp(image.body).metadata()).format).toBe('webp');
+    const replacement = await request(app.getHttpServer()).post(`/api/v1/users/${owner.id}/profile-photo`).set('Authorization', auth(owner.token)).attach('file', png, 'photo.png').expect(201);
+    photos.pop();
+    photos.push(basename(replacement.body.profilePhoto));
+    await request(app.getHttpServer()).get(photo.body.profilePhoto).expect(404);
 
     const post = await request(app.getHttpServer())
       .post('/api/v1/posts')
@@ -153,7 +158,7 @@ describe('Comentários e foto: fluxo completo', () => {
       .send({ content: 'Comentário original' })
       .expect(201);
     commentIds.push(root.body.id);
-    expect(root.body.author.profilePhoto).toBe(photo.body.profilePhoto);
+    expect(root.body.author.profilePhoto).toBe(replacement.body.profilePhoto);
     const reply = await request(app.getHttpServer())
       .post(`/api/v1/posts/${postId}/comments`)
       .set('Authorization', auth(reader.token))

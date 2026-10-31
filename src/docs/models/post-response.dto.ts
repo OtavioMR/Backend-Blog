@@ -1,4 +1,4 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, OmitType } from '@nestjs/swagger';
 import { CategoryResponseDto } from './category-response.dto.js';
 import { TagResponseDto } from './tag-response.dto.js';
 import { PaginationMetaResponseDto } from './pagination-meta-response.dto.js';
@@ -38,6 +38,12 @@ export class PostResponseDto {
       'O NestJS é um framework Node.js progressivo para a construção de aplicativos eficientes e escaláveis...',
   })
   content: string;
+
+  @ApiProperty({ description: 'Resumo do artigo', maxLength: 200 })
+  excerpt: string;
+
+  @ApiProperty({ description: 'Data da publicacao', nullable: true })
+  publishedAt: Date | null;
 
   @ApiProperty({
     description: 'Indica se o artigo está publicado',
@@ -84,10 +90,12 @@ export class PostResponseDto {
   tags: TagResponseDto[];
 }
 
+export class PostSummaryResponseDto extends OmitType(PostResponseDto, ['content'] as const) {}
+
 export class PaginatedPostResponseDto {
   @ApiProperty({
     description: 'Lista de artigos da página atual',
-    type: () => [PostResponseDto],
+    type: () => [PostSummaryResponseDto],
   })
   data: PostResponseDto[];
 

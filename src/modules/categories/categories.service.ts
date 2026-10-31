@@ -1,3 +1,4 @@
+import { paginationMeta } from '../../common/utils/pagination.js';
 import { likePattern } from '../../common/utils/like-pattern.js';
 import {
   ConflictException,
@@ -131,18 +132,10 @@ export class CategoriesService {
     queryBuilder.orderBy('category.name', 'ASC').skip(skip).take(limit);
 
     const [data, total] = await queryBuilder.getManyAndCount();
-    const totalPages = Math.ceil(total / limit);
 
     return {
       data,
-      meta: {
-        page,
-        limit,
-        total,
-        totalPages,
-        hasNextPage: page < totalPages,
-        hasPreviousPage: page > 1,
-      },
+      meta: paginationMeta(page, limit, total),
     };
   }
 

@@ -19,7 +19,7 @@ describe('Sprint 1 com PostgreSQL', () => {
   let draftId: string;
   const email = `sprint1-${Date.now()}@example.com`;
   const nextEmail = `novo-${email}`;
-  const mail = { sendEmailChangeConfirmation: vi.fn(), sendPasswordResetEmail: vi.fn() };
+  const mail = { sendEmailVerification: vi.fn(), sendEmailChangeConfirmation: vi.fn(), sendPasswordResetEmail: vi.fn() };
 
   beforeAll(async () => {
     const module = await Test.createTestingModule({ imports: [AppModule] })
@@ -33,7 +33,7 @@ describe('Sprint 1 com PostgreSQL', () => {
     const created = await supertest(app.getHttpServer()).post('/api/v1/users')
       .send({ name: 'Maria Sprint', email, password: 'Password123!' }).expect(201);
     userId = created.body.id;
-    await users.update(userId, { role: UserRole.AUTHOR });
+    await users.update(userId, { role: UserRole.AUTHOR, emailVerified: true });
     const login = await supertest(app.getHttpServer()).post('/api/v1/auth/login')
       .send({ email, password: 'Password123!' }).expect(200);
     token = login.body.access_token;

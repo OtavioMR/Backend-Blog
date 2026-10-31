@@ -2,7 +2,7 @@
 
 Este documento consolida e rastreia todos os **55 itens acionáveis** originados do relatório técnico `analise_blog.md`, categorizados em 6 Milestones e divididos por prioridades, estimativas de esforço e status de execução.
 
-Status conferidos no GitHub em 31/10/2026: **8 concluídos e 47 abertos**. Para issues fechadas como concluídas, o estado de fechamento prevalece sobre a etiqueta de status.
+Status local dos 55 itens originais: **25 concluídos e 30 pendentes**. A issue adicional #57 permanece pendente.
 
 **Decisão de produto — comunidade e autoria:** visitantes leem artigos públicos; contas começam como `READER`. Após verificar o e-mail (#45) e aceitar as regras de publicação, o leitor pode solicitar promoção automática a `AUTHOR`. O primeiro artigo requer aprovação administrativa; depois, novos artigos e edições são publicados imediatamente. Administradores podem revogar a autoria ou suspender a conta e decidir quais artigos publicados ocultar. A moderação posterior deve tratar abusos, inclusive alterações feitas após a aprovação.
 
@@ -39,10 +39,10 @@ Status conferidos no GitHub em 31/10/2026: **8 concluídos e 47 abertos**. Para 
 | **S7** | #7 | [Segurança] Exigir senha atual para alteração de credenciais e confirmar novo e-mail | P0 — Crítica | M | 🟢 Concluído |
 | **S8** | #8 | [Segurança] Mitigar ataques de temporização (Timing Attacks) na autenticação | P1 — Alta | S | 🟢 Concluído |
 | **S9** | #9 | [Segurança] Padronizar custo e limites de hashing de senhas com bcrypt | P1 — Alta | S | 🟢 Concluído |
-| **S10** | #10 | [Segurança] Implementar bloqueio progressivo por tentativas falhas de login | P1 — Alta | M | Pronto para iniciar |
+| **S10** | #10 | [Segurança] Implementar bloqueio progressivo por tentativas falhas de login | P1 — Alta | M | 🟢 Concluído |
 | **S11** | #11 | [Segurança] Definir limites de tamanho (MaxLength) e sanitização em parâmetros de busca | P1 — Alta | XS | 🟢 Concluído |
-| **S12** | #12 | [Segurança] Sanitizar payloads de conteúdo de posts e comentários contra XSS | P1 — Alta | S | Pronto para iniciar |
-| **S13** | #13 | [Segurança] Processamento seguro de upload de fotos de perfil com Sharp e limpeza de órfãos | P1 — Alta | M | Pronto para iniciar |
+| **S12** | #12 | [Segurança] Sanitizar payloads de conteúdo de posts e comentários contra XSS | P1 — Alta | S | 🟢 Concluído |
+| **S13** | #13 | [Segurança] Processamento seguro de upload de fotos de perfil com Sharp e limpeza de órfãos | P1 — Alta | M | 🟢 Concluído |
 | **S14** | #14 | [Segurança/Épico] Modelagem de tabela de sessões ativas com rotação de refresh token por dispositivo | P2 — Média | L | Backlog |
 | **S15** | #15 | [Segurança] Rate limiting granular para criação de comentários, reações e tags | P2 — Média | S | Backlog |
 
@@ -51,17 +51,17 @@ Status conferidos no GitHub em 31/10/2026: **8 concluídos e 47 abertos**. Para 
 |---|---|---|---|---|---|
 | **M1** | #16 | [Bug] Corrigir operador lógico na consulta filtrada de artigos (trocar OR por AND) | P0 — Crítica | XS | 🟢 Concluído |
 | **M2** | #17 | [Melhoria] Permitir que autores visualizem e gerenciem seus próprios rascunhos (GET /posts/me) | P0 — Crítica | S | 🟢 Concluído |
-| **M3** | #18 | [Melhoria] Adicionar campo publishedAt e ordenar artigos pela data real de publicação | P1 — Alta | S | Pronto para iniciar |
-| **M4** | #19 | [Melhoria] Otimizar listagem de artigos com resumo (excerpt) e exclusão de payload pesado | P1 — Alta | S | Pronto para iniciar |
-| **M5** | #20 | [Performance] Eliminar problema de query N+1 na listagem de comentários e respostas | P1 — Alta | M | Pronto para iniciar |
+| **M3** | #18 | [Melhoria] Adicionar campo publishedAt e ordenar artigos pela data real de publicação | P1 — Alta | S | 🟢 Concluído |
+| **M4** | #19 | [Melhoria] Otimizar listagem de artigos com resumo (excerpt) e exclusão de payload pesado | P1 — Alta | S | 🟢 Concluído |
+| **M5** | #20 | [Performance] Eliminar problema de query N+1 na listagem de comentários e respostas | P1 — Alta | M | 🟢 Concluído |
 | **M6** | #21 | [Melhoria] Implementar busca textual Full-Text nativa com PostgreSQL (tsvector e GIN) | P2 — Média | M | Backlog |
 | **M7** | #22 | [Bug] Permitir moderação e remoção de comentários mesmo com comentários desativados no post | P1 — Alta | XS | ?? Conclu?do |
 | **M8** | #23 | [Melhoria] Enriquecer resposta de artigos salvos com autor, categorias e tags | P2 — Média | XS | Backlog |
-| **M9** | #24 | [Refatoração] Padronizar estrutura de metadados de paginação com utilitário compartilhado | P2 — Média | S | Pronto para iniciar |
+| **M9** | #24 | [Refatoração] Padronizar estrutura de metadados de paginação com utilitário compartilhado | P2 — Média | S | 🟢 Concluído |
 | **M10** | #25 | [Melhoria] Padronizar busca de categorias e tags com escape e unaccent | P2 — Média | XS | 🟢 Concluído |
-| **M11** | #26 | [Refatoração] Centralizar serialização de DTOs com ClassSerializerInterceptor e @Exclude | P2 — Média | M | Pronto para iniciar |
-| **M12** | #27 | [Melhoria] Ativar e configurar módulo de monitoramento e tracing (NestJS Observe / OpenTelemetry) | P1 — Alta | XS | Pronto para iniciar |
-| **M13** | #28 | [Infraestrutura] Implementar health check com Terminus, shutdown hooks e filtro global de exceções | P2 — Média | S | Pronto para iniciar |
+| **M11** | #26 | [Refatoração] Centralizar serialização de DTOs com ClassSerializerInterceptor e @Exclude | P2 — Média | M | 🟢 Concluído |
+| **M12** | #27 | [Melhoria] Ativar e configurar módulo de monitoramento e tracing (NestJS Observe / OpenTelemetry) | P1 — Alta | XS | 🟢 Concluído |
+| **M13** | #28 | [Infraestrutura] Implementar health check com Terminus, shutdown hooks e filtro global de exceções | P2 — Média | S | 🟢 Concluído |
 | **M14** | #29 | [Infraestrutura] Implementar processamento assíncrono de e-mails em fila com BullMQ e Redis | P2 — Média | M | Backlog |
 
 #### ✨ 3. Novas Funcionalidades (F1 a F26)
@@ -82,7 +82,7 @@ Status conferidos no GitHub em 31/10/2026: **8 concluídos e 47 abertos**. Para 
 | **F13** | #42 | [Feature] Organização de artigos salvos em coleções/pastas personalizadas | P3 — Baixa | M | Backlog |
 | **F14** | #43 | [Feature/Épico] Sistema centralizado de notificações in-app (notificações de interações) | P2 — Média | L | Backlog |
 | **F15** | #44 | [Feature] Sistema de Newsletter com double opt-in e disparo automático em novas publicações | P2 — Média | M | Backlog |
-| **F16** | #45 | [Feature] Verificação obrigatória de e-mail no cadastro de novos usuários | P1 — Alta | S | Pronto para iniciar |
+| **F16** | #45 | [Feature] Verificação obrigatória de e-mail no cadastro de novos usuários | P1 — Alta | S | 🟢 Concluído |
 | **F17** | #46 | [Feature] Sistema de denúncias (reports) de posts e comentários com painel de moderação | P2 — Média | M | Backlog |
 | **F18** | #47 | [Feature] Promoção de READER a AUTHOR após verificação de e-mail e aceite das regras | P2 — Média | S | Backlog |
 | **F19** | #48 | [Feature] Dashboard de métricas analíticas e estatísticas da plataforma para administradores | P2 — Média | M | Backlog |
@@ -108,12 +108,12 @@ Status conferidos no GitHub em 31/10/2026: **8 concluídos e 47 abertos**. Para 
    - #16 (Corrigir operador lógico OR/AND na busca de posts)
    - #17 (Visualização de rascunhos pelo autor `GET /posts/me`)
 
-2. **Sprint 2 — Robustez, Qualidade & Dados (P1; atual):**
+2. **Sprint 2 — Robustez, Qualidade & Dados (P1; concluída):**
    - #6, #8, #9, #10, #11, #12, #13
    - #18, #19, #20, #22, #24, #25, #26, #27, #28
    - #45 (Verificação de e-mail no cadastro)
 
-3. **Sprint 3 — Conteúdo, SEO & Autoria (P1/P2):**
+3. **Sprint 3 — Conteúdo, SEO & Autoria (P1/P2; próxima):**
    - #30 (Slugs amigáveis)
    - #31 (Imagem de capa)
    - #33 (Tempo de leitura estimado)

@@ -67,7 +67,7 @@ Execute as migrations antes de iniciar a versão atual. Os tokens de acesso emit
 
 As rotas dos controllers aceitam até 100 requisições por minuto, por IP e por rota. Login aceita 20, recuperação de senha 5 e redefinição de senha 10 por minuto; ao exceder o limite, a API responde com HTTP 429 e o cabeçalho `Retry-After`. Os contadores ficam na memória de cada processo e são reiniciados quando ele reinicia. Em múltiplas instâncias, é necessário um armazenamento compartilhado para aplicar um limite consistente.
 
-O IP usado é o da conexão. Atrás de um proxy reverso, configure `trust proxy` no Express somente para proxies confiáveis da infraestrutura; sem isso, clientes podem compartilhar o mesmo limite, e confiar indiscriminadamente em cabeçalhos permite falsificar o IP. Arquivos estáticos e Swagger não passam pelo guard dos controllers e precisam de proteção no proxy ou na infraestrutura.
+O IP usado é o da conexão. Atrás de um proxy reverso, configure `trust proxy` no Express somente para proxies confiáveis da infraestrutura; sem isso, clientes podem compartilhar o mesmo limite, e confiar indiscriminadamente em cabeçalhos permite falsificar o IP. Arquivos estáticos não passam pelo guard dos controllers e precisam de proteção no proxy ou na infraestrutura. O Swagger fica desativado em produção.
 
 When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
 
@@ -134,3 +134,14 @@ Nest is an MIT-licensed open source project. It can grow thanks to the sponsors 
 ## License
 
 Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+
+
+### Sprint 2: operacao e compatibilidade
+
+Execute `npm.cmd run migration:run` antes de iniciar a nova versao. Contas existentes permanecem verificadas; novos cadastros recebem um token valido por 24 horas por SMTP. Confirme com `POST /api/v1/users/confirm-email` e `{ "token": "..." }`. Se necessario, solicite outro token com `POST /api/v1/users/resend-verification` e `{ "email": "..." }`; a resposta nao revela se a conta existe. O login exige a confirmacao. Falhas no envio sao registradas e permitem uma nova solicitacao.
+
+Apos cinco senhas incorretas, a conta fica temporariamente bloqueada; novas falhas apos o vencimento aumentam o prazo ate uma hora. A resposta de autenticacao continua generica.
+
+As listagens de posts, rascunhos proprios e salvos retornam `excerpt` em vez de `content`; o conteudo completo permanece no detalhe. `publishedAt` indica a ultima publicacao e e nulo em rascunhos; posts publicados existentes usam `createdAt` como aproximacao. HTML de artigos e limitado a uma lista segura, e comentarios sao tratados como texto. Os metadados de paginacao de comentarios agora incluem `totalPages` e `hasPreviousPage`.
+
+Fotos sao convertidas para WebP e limitadas a 512 pixels. Para limpar arquivos sem referencia com mais de 24 horas, execute `npm.cmd run photos:clean` para inspecionar os candidatos e `npm.cmd run photos:clean -- --apply` para remove-los, com acesso ao banco correto e ao diretorio de uploads. O comando pode ser agendado na infraestrutura. O endpoint `GET /api/v1/health` verifica o banco. Para exportar traces, configure `OTEL_EXPORTER_OTLP_ENDPOINT` (ou `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT`) e `OTEL_SERVICE_NAME`; o SDK fica desativado sem endpoint. O Swagger fica desativado em producao.

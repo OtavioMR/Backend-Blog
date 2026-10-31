@@ -1,3 +1,5 @@
+import { paginationMeta } from '../../common/utils/pagination.js';
+import { sanitizePlainText } from '../../common/utils/sanitize-content.js';
 import {
   BadRequestException,
   ForbiddenException,
@@ -5,7 +7,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { IsNull, Repository } from 'typeorm';
+import { In, IsNull, Repository } from 'typeorm';
 import { Comment } from './entities/comment.entity.js';
 import { Post } from '../posts/entities/post.entity.js';
 import { UserRole } from '../users/enums/user.enum.js';
@@ -43,7 +45,7 @@ export class CommentsService {
         name: comment.author.name,
         profilePhoto: comment.author.profilePhoto,
       },
-      content: comment.isActive ? comment.content : 'Comentário excluído',
+      content: comment.isActive ? sanitizePlainText(comment.content) : 'Comentário excluído',
       isActive: comment.isActive,
       editedAt: comment.editedAt,
       createdAt: comment.createdAt,
@@ -62,6 +64,7 @@ export class CommentsService {
 
   async create(postId: string, dto: CreateCommentDto, user: AuthenticatedUser) {
     await this.availablePost(postId);
+    if (!sanitizePlainText(dto.content)) throw new BadRequestException('Conte\u00fado inv\u00e1lido.');
     let target: Comment | null = null;
     if (dto.replyToId) {
       target = await this.getComment(dto.replyToId);
@@ -72,7 +75,7 @@ export class CommentsService {
       this.comments.create({
         postId,
         authorId: user.userId,
-        content: dto.content.trim(),
+        content: sanitizePlainText(dto.content),
         rootId: target ? (target.rootId ?? target.id) : null,
         replyToId: target?.id ?? null,
         isActive: true,
@@ -91,15 +94,33 @@ export class CommentsService {
       skip: (page - 1) * limit,
       take: limit,
     });
-    const data = await Promise.all(
-      items.map(async (item) => ({
+    const rootIds = items.map((item) => item.id);
+    const rows: { id: string; root_id: string; total: string }[] = rootIds.length
+      ? await this.comments.query(`SELECT id, root_id, total FROM (
+          SELECT id, root_id, count(*) OVER (PARTITION BY root_id) AS total,
+            row_number() OVER (PARTITION BY root_id ORDER BY created_at ASC, id ASC) AS position
+          FROM comments WHERE post_id = $1 AND root_id = ANY($2::uuid[])
+        ) ranked WHERE position <= 5 ORDER BY root_id, position`, [postId, rootIds])
+      : [];
+    const replies = rows.length ? await this.comments.find({
+      where: { id: In(rows.map((row) => row.id)) },
+      relations: { author: true, replyTo: { author: true } },
+      withDeleted: true,
+    }) : [];
+    const byId = new Map(replies.map((reply) => [reply.id, reply]));
+    const data = items.map((item) => {
+      const related = rows.filter((row) => row.root_id === item.id);
+      return {
         ...this.present(item),
-        replies: await this.listRepliesUnchecked(postId, item.id, 1, 5),
-      })),
-    );
+        replies: {
+          data: related.map((row) => byId.get(row.id)).filter((reply): reply is Comment => !!reply).map((reply) => this.present(reply)),
+          meta: paginationMeta(1, 5, Number(related[0]?.total ?? 0)),
+        },
+      };
+    });
     return {
       data,
-      meta: { page, limit, total, hasNextPage: page * limit < total },
+      meta: paginationMeta(page, limit, total),
     };
   }
 
@@ -119,7 +140,7 @@ export class CommentsService {
     });
     return {
       data: items.map((item) => this.present(item)),
-      meta: { page, limit, total, hasNextPage: page * limit < total },
+      meta: paginationMeta(page, limit, total),
     };
   }
 
@@ -138,7 +159,9 @@ export class CommentsService {
       throw new BadRequestException('Comentário desativado.');
     if (comment.authorId !== user.userId && user.role !== UserRole.ADMIN)
       throw new ForbiddenException('Sem permissão para editar.');
-    comment.content = content.trim();
+    const safeContent = sanitizePlainText(content);
+    if (!safeContent) throw new BadRequestException('Conte\u00fado inv\u00e1lido.');
+    comment.content = safeContent;
     comment.editedAt = new Date();
     await this.comments.save(comment);
     return this.present(comment);

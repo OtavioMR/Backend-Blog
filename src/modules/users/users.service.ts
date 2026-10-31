@@ -1,3 +1,4 @@
+import { paginationMeta } from '../../common/utils/pagination.js';
 import {
   BadRequestException,
   ConflictException,
@@ -11,7 +12,8 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import bcrypt from 'bcrypt';
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
-import { mkdir, writeFile } from 'node:fs/promises';
+import { mkdir, writeFile, unlink } from 'node:fs/promises';
+import sharp from 'sharp';
 import { join } from 'node:path';
 
 import { CreateUserDto } from './dto/create-user.dto.js';
@@ -43,6 +45,7 @@ export class UsersService {
       profilePhoto: user.profilePhoto,
       email: user.email,
       role: user.role,
+      emailVerified: user.emailVerified,
       isActive: user.isActive,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
@@ -76,28 +79,36 @@ export class UsersService {
       where: { id, isActive: true },
     });
     if (!user) throw new NotFoundException('Usuário não encontrado.');
-    const jpeg =
-      buffer.length >= 3 &&
-      buffer[0] === 0xff &&
-      buffer[1] === 0xd8 &&
-      buffer[2] === 0xff;
-    const png =
-      buffer.length >= 8 &&
-      buffer
-        .subarray(0, 8)
-        .equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]));
-    const webp =
-      buffer.length >= 12 &&
-      buffer.toString('ascii', 0, 4) === 'RIFF' &&
-      buffer.toString('ascii', 8, 12) === 'WEBP';
-    if (!jpeg && !png && !webp)
-      throw new BadRequestException('A imagem deve ser JPEG, PNG ou WebP.');
+    let image: Buffer;
+    try {
+      const input = sharp(buffer, { limitInputPixels: 40_000_000, failOn: 'error' });
+      const metadata = await input.metadata();
+      if (!['jpeg', 'png', 'webp'].includes(metadata.format ?? '') || (metadata.pages ?? 1) > 1) throw new Error('Invalid image');
+      image = await input.rotate().resize(512, 512, { fit: 'inside', withoutEnlargement: true }).webp({ quality: 80 }).toBuffer();
+    } catch {
+      throw new BadRequestException('A imagem deve ser JPEG, PNG ou WebP v\u00e1lida.');
+    }
     const directory = join(process.cwd(), 'uploads', 'profile-photos');
     await mkdir(directory, { recursive: true });
-    const filename = `${randomUUID()}.${jpeg ? 'jpg' : png ? 'png' : 'webp'}`;
-    await writeFile(join(directory, filename), buffer, { flag: 'wx' });
+    const filename = `${randomUUID()}.webp`;
+    const path = join(directory, filename);
+    await writeFile(path, image, { flag: 'wx' });
+    const oldPhoto = user.profilePhoto;
     user.profilePhoto = `/uploads/profile-photos/${filename}`;
-    return this.toPublic(await this.usersRepository.save(user));
+    try {
+      const result = await this.usersRepository.createQueryBuilder().update(User)
+        .set({ profilePhoto: user.profilePhoto })
+        .where('id = :id AND is_active = true AND deleted_at IS NULL', { id })
+        .andWhere(oldPhoto === null ? 'profile_photo IS NULL' : 'profile_photo = :oldPhoto', { oldPhoto })
+        .execute();
+      if (!result.affected) throw new ConflictException('A foto foi alterada simultaneamente. Tente novamente.');
+    } catch (error) {
+      await unlink(path).catch(() => undefined);
+      throw error;
+    }
+    const oldName = oldPhoto?.match(/^\/uploads\/profile-photos\/([0-9a-f-]+\.(?:jpg|png|webp))$/i)?.[1];
+    if (oldName) await unlink(join(directory, oldName)).catch(() => undefined);
+    return this.toPublic(user);
   }
 
   async create(createUserDto: CreateUserDto) {
@@ -128,7 +139,11 @@ export class UsersService {
 
     const passwordHash = await bcrypt.hash(password, 12);
 
+    const verificationToken = randomBytes(32).toString('hex');
     const user = this.usersRepository.create({
+      emailVerified: false,
+      emailVerificationTokenHash: createHash('sha256').update(verificationToken).digest('hex'),
+      emailVerificationExpiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
       name,
       email,
       passwordHash,
@@ -137,8 +152,36 @@ export class UsersService {
     });
     const savedUser = await this.usersRepository.save(user);
 
+    try {
+      await this.mailService.sendEmailVerification(savedUser.email, verificationToken);
+    } catch {
+      this.logger.error(`Failed to send verification email for user ${savedUser.id}`);
+    }
     this.logger.log(`Usuário ${savedUser.id} cadastrado`);
     return this.toPublic(savedUser);
+  }
+
+  async confirmEmail(token: string): Promise<{ message: string }> {
+    const tokenHash = createHash('sha256').update(token).digest('hex');
+    const result = await this.usersRepository.createQueryBuilder().update(User)
+      .set({ emailVerified: true, emailVerificationTokenHash: null, emailVerificationExpiresAt: null })
+      .where('email_verification_token_hash = :tokenHash', { tokenHash })
+      .andWhere('email_verification_expires_at > CURRENT_TIMESTAMP AND is_active = true AND deleted_at IS NULL AND email_verified = false')
+      .execute();
+    if (!result.affected) throw new BadRequestException('Token inv\u00e1lido ou expirado.');
+    return { message: 'E-mail confirmado com sucesso.' };
+  }
+
+  async resendVerification(email: string): Promise<{ message: string }> {
+    const user = await this.usersRepository.findOne({ where: { email: email.trim().toLowerCase(), isActive: true, emailVerified: false } });
+    if (user) {
+      const token = randomBytes(32).toString('hex');
+      user.emailVerificationTokenHash = createHash('sha256').update(token).digest('hex');
+      user.emailVerificationExpiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+      await this.usersRepository.save(user);
+      try { await this.mailService.sendEmailVerification(user.email, token); } catch { this.logger.error(`Failed to send verification email for user ${user.id}`); }
+    }
+    return { message: 'Se a conta precisar de verifica\u00e7\u00e3o, as instru\u00e7\u00f5es ser\u00e3o enviadas.' };
   }
 
   async findAll(
@@ -155,18 +198,10 @@ export class UsersService {
       take: limit,
     });
 
-    const totalPages = Math.ceil(total / limit);
 
     return {
       data: users.map((u) => this.toPublic(u)),
-      meta: {
-        page,
-        limit,
-        total,
-        totalPages,
-        hasNextPage: page < totalPages,
-        hasPreviousPage: page > 1,
-      },
+      meta: paginationMeta(page, limit, total),
     };
   }
 
@@ -220,6 +255,7 @@ export class UsersService {
         throw new ForbiddenException('Apenas o titular pode alterar suas credenciais.');
       }
       if (!updateUserDto.currentPassword) throw new BadRequestException('Informe a senha atual.');
+      if (Buffer.byteLength(updateUserDto.currentPassword, 'utf8') > 72) throw new UnauthorizedException('Senha atual inv\u00e1lida.');
       const authUser = await this.findByEmailForAuth(user.email);
       if (!authUser || !(await bcrypt.compare(updateUserDto.currentPassword, authUser.passwordHash))) {
         throw new UnauthorizedException('Senha atual inválida.');
@@ -362,6 +398,20 @@ export class UsersService {
       .where('user.email = :email', { email })
       .andWhere('user.isActive = true')
       .getOne();
+  }
+
+  async recordFailedLogin(userId: string): Promise<void> {
+    await this.usersRepository.createQueryBuilder().update(User).set({
+      failedLoginAttempts: () => 'failed_login_attempts + 1',
+      loginLockedUntil: () => `CASE WHEN failed_login_attempts + 1 >= 5 THEN CURRENT_TIMESTAMP + (LEAST(3600, 60 * power(2, LEAST(failed_login_attempts - 4, 6))) * INTERVAL '1 second') ELSE login_locked_until END`,
+    }).where('id = :userId AND (login_locked_until IS NULL OR login_locked_until <= CURRENT_TIMESTAMP)', { userId }).execute();
+  }
+
+  async clearFailedLogins(userId: string): Promise<boolean> {
+    const result = await this.usersRepository.createQueryBuilder().update(User)
+      .set({ failedLoginAttempts: 0, loginLockedUntil: null })
+      .where('id = :userId AND (login_locked_until IS NULL OR login_locked_until <= CURRENT_TIMESTAMP)', { userId }).execute();
+    return !!result.affected;
   }
 
   async updateRefreshTokenHash(

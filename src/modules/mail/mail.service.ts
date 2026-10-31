@@ -30,6 +30,16 @@ export class MailService {
     }
   }
 
+  async sendEmailVerification(email: string, token: string): Promise<void> {
+    if (!this.transporter) throw new Error('SMTP not configured');
+    await this.transporter.sendMail({
+      from: this.configService.get<string>('SMTP_FROM', 'noreply@blog.com'),
+      to: email,
+      subject: 'Confirme seu e-mail',
+      text: `Para verificar sua conta, envie o token para POST /api/v1/users/confirm-email em até 24 horas: ${token}`,
+    });
+  }
+
   async sendEmailChangeConfirmation(email: string, token: string): Promise<void> {
     if (!this.transporter) {
       throw new Error('SMTP não configurado para confirmação de e-mail.');

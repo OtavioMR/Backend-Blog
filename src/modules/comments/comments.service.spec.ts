@@ -16,6 +16,8 @@ describe('CommentsService', () => {
     comments = {
       findOne: vi.fn(),
       findAndCount: vi.fn(),
+      query: vi.fn().mockResolvedValue([]),
+      find: vi.fn().mockResolvedValue([]),
       create: vi.fn((x) => x),
       save: vi.fn(async (x) => x),
     };

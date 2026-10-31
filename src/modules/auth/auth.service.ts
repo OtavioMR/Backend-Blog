@@ -112,8 +112,13 @@ export class AuthService {
     // Compare even for unknown users to avoid a cheap account enumeration oracle.
     const hash = user?.passwordHash ?? '$2b$12$1V0Y5v5dUHYeOwtoasAswuk3ESkRespVkPTfR2TzRFdg.y65Vxk/S';
     const passwordIsValid = await bcrypt.compare(loginDto.password, hash);
-    if (!user || !user.isActive || !passwordIsValid || Buffer.byteLength(loginDto.password, 'utf8') > 72) {
-      throw new UnauthorizedException('E-mail ou senha inválidos.');
+    const locked = !!user?.loginLockedUntil && new Date(user.loginLockedUntil).getTime() > Date.now();
+    if (!user || !user.isActive || user.emailVerified === false || !passwordIsValid || Buffer.byteLength(loginDto.password, 'utf8') > 72 || locked) {
+      if (user && !passwordIsValid && !locked) await this.usersService.recordFailedLogin(user.id);
+      throw new UnauthorizedException('E-mail ou senha inv\u00e1lidos.');
+    }
+    if (!(await this.usersService.clearFailedLogins(user.id))) {
+      throw new UnauthorizedException('E-mail ou senha inv\u00e1lidos.');
     }
 
     const tokens = await this.generateTokens(user.id, user.email, user.role, user.authVersion);

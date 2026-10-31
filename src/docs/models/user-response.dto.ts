@@ -27,6 +27,9 @@ export class UserResponseDto {
   })
   role: UserRole;
 
+  @ApiProperty({ description: 'E-mail confirmado', example: true })
+  emailVerified: boolean;
+
   @ApiProperty({
     description: 'Indica se o usuário está ativo no sistema',
     example: true,
