@@ -73,7 +73,7 @@ describe('TagsService', () => {
     });
 
     expect(queryBuilder.where).toHaveBeenCalledWith(
-      '(tag.name ILIKE :term OR tag.slug ILIKE :term)',
+      expect.stringContaining('unaccent('),
       { term: '%noti%' },
     );
     expect(result).toEqual({

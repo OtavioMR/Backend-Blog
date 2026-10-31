@@ -1,5 +1,5 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsOptional, IsString, IsUUID, ValidateIf } from 'class-validator';
+import { IsOptional, IsString, IsUUID, ValidateIf, MaxLength } from 'class-validator';
 import { Transform } from 'class-transformer';
 import { PaginationQueryDto } from '../../../common/dto/pagination-query.dto.js';
 
@@ -7,16 +7,19 @@ export class FindPostsQueryDto extends PaginationQueryDto {
   @ApiPropertyOptional({ description: 'Trecho do título ou conteúdo, sem diferenciar maiúsculas ou acentos', example: 'nestjs' })
   @IsOptional()
   @IsString()
+  @MaxLength(100)
   search?: string;
 
   @ApiPropertyOptional({ description: 'Trecho do nome do autor, sem diferenciar maiúsculas ou acentos', example: 'maria' })
   @IsOptional()
   @IsString()
+  @MaxLength(100)
   author?: string;
 
   @ApiPropertyOptional({ description: 'Trecho do nome da categoria, sem diferenciar maiúsculas ou acentos', example: 'tecnologia' })
   @IsOptional()
   @IsString()
+  @MaxLength(100)
   categoryName?: string;
 
   @ApiPropertyOptional({
@@ -39,6 +42,7 @@ export class FindPostsQueryDto extends PaginationQueryDto {
   @IsOptional()
   @Transform(({ value }) => (value === '' ? undefined : value))
   @IsString()
+  @MaxLength(100)
   categorySlug?: string;
 
   @ApiPropertyOptional({
@@ -48,5 +52,6 @@ export class FindPostsQueryDto extends PaginationQueryDto {
   @IsOptional()
   @Transform(({ value }) => (value === '' ? undefined : value))
   @IsString()
+  @MaxLength(100)
   tagSlug?: string;
 }

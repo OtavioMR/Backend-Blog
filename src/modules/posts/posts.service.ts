@@ -1,3 +1,4 @@
+import { likePattern } from '../../common/utils/like-pattern.js';
 import {
   Injectable,
   Logger,
@@ -45,10 +46,9 @@ export class PostsService {
     const author = query?.author?.trim();
     const categoryName = query?.categoryName?.trim();
     // Escape LIKE metacharacters so the input is always interpreted literally.
-    const pattern = (value: string) => `%${value.replace(/[\\%_]/g, '\\$&')}%`;
     const matches = (value: string, key: string) => Raw(
       (column) => `unaccent(${column}) ILIKE unaccent(:${key}) ESCAPE '\\'`,
-      { [key]: pattern(value) },
+      { [key]: likePattern(value) },
     );
 
     if (author) base.author = { name: matches(author, 'authorTerm') };

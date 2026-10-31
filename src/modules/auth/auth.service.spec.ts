@@ -153,6 +153,13 @@ describe('AuthService', () => {
       );
     });
 
+    it('compares a dummy hash when the account does not exist', async () => {
+      mockUsersService.findByEmailForAuth.mockResolvedValue(null);
+      const compare = vi.spyOn(bcrypt, 'compare').mockImplementation(async () => false);
+      await expect(service.login(validLoginDto)).rejects.toThrow(UnauthorizedException);
+      expect(compare).toHaveBeenCalledWith(validLoginDto.password, expect.stringMatching(/^\$2b\$12\$/));
+    });
+
     it('should throw UnauthorizedException when password does not match', async () => {
       mockUsersService.findByEmailForAuth.mockResolvedValue(mockUser);
       vi.spyOn(bcrypt, 'compare').mockImplementation(async () => false);
@@ -342,6 +349,12 @@ describe('AuthService', () => {
           newPassword: 'NewPassword123!',
         }),
       ).rejects.toThrow(BadRequestException);
+    });
+
+    it('rejects passwords exceeding the bcrypt byte limit', async () => {
+      mockUsersService.findByResetPasswordToken.mockResolvedValue({ id: 'user-uuid', resetPasswordExpiresAt: new Date(Date.now() + 60000) });
+      await expect(service.resetPassword({ token: 'valid', newPassword: '\u00e9'.repeat(37) })).rejects.toThrow(BadRequestException);
+      expect(mockUsersService.resetPassword).not.toHaveBeenCalled();
     });
 
     it('should update password and invalidate sessions when token is valid', async () => {

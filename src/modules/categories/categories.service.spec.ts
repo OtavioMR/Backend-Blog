@@ -169,7 +169,7 @@ describe('CategoriesService', () => {
       const result = await service.findAll({ search: 'notic' });
 
       expect(qb.andWhere).toHaveBeenCalledWith(
-        '(category.name ILIKE :term OR category.slug ILIKE :term)',
+        expect.stringContaining('unaccent('),
         { term: '%notic%' },
       );
       expect(result.data[0].name).toBe('Notícias');

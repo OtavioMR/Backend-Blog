@@ -109,16 +109,10 @@ export class AuthService {
 
     const user = await this.usersService.findByEmailForAuth(email);
 
-    if (!user || !user.isActive) {
-      throw new UnauthorizedException('E-mail ou senha inválidos.');
-    }
-
-    const passwordIsValid = await bcrypt.compare(
-      loginDto.password,
-      user.passwordHash,
-    );
-
-    if (!passwordIsValid) {
+    // Compare even for unknown users to avoid a cheap account enumeration oracle.
+    const hash = user?.passwordHash ?? '$2b$12$1V0Y5v5dUHYeOwtoasAswuk3ESkRespVkPTfR2TzRFdg.y65Vxk/S';
+    const passwordIsValid = await bcrypt.compare(loginDto.password, hash);
+    if (!user || !user.isActive || !passwordIsValid || Buffer.byteLength(loginDto.password, 'utf8') > 72) {
       throw new UnauthorizedException('E-mail ou senha inválidos.');
     }
 
@@ -250,7 +244,10 @@ export class AuthService {
       );
     }
 
-    const passwordHash = await bcrypt.hash(resetPasswordDto.newPassword, 10);
+    if (Buffer.byteLength(resetPasswordDto.newPassword, 'utf8') > 72) {
+      throw new BadRequestException('A senha é muito longa.');
+    }
+    const passwordHash = await bcrypt.hash(resetPasswordDto.newPassword, 12);
     await this.usersService.resetPassword(user.id, passwordHash);
 
     return {

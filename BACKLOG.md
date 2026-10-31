@@ -37,10 +37,10 @@ Status conferidos no GitHub em 31/10/2026: **8 concluídos e 47 abertos**. Para 
 | **S5** | #5 | [Segurança] Configurar Helmet, CORS com whitelist e Trust Proxy | P0 — Crítica | S | 🟢 Concluído |
 | **S6** | #6 | [Segurança] Restringir ou desativar interface do Swagger em ambiente de produção | P1 — Alta | XS | ?? Conclu?do |
 | **S7** | #7 | [Segurança] Exigir senha atual para alteração de credenciais e confirmar novo e-mail | P0 — Crítica | M | 🟢 Concluído |
-| **S8** | #8 | [Segurança] Mitigar ataques de temporização (Timing Attacks) na autenticação | P1 — Alta | S | Pronto para iniciar |
-| **S9** | #9 | [Segurança] Padronizar custo e limites de hashing de senhas com bcrypt | P1 — Alta | S | Pronto para iniciar |
+| **S8** | #8 | [Segurança] Mitigar ataques de temporização (Timing Attacks) na autenticação | P1 — Alta | S | 🟢 Concluído |
+| **S9** | #9 | [Segurança] Padronizar custo e limites de hashing de senhas com bcrypt | P1 — Alta | S | 🟢 Concluído |
 | **S10** | #10 | [Segurança] Implementar bloqueio progressivo por tentativas falhas de login | P1 — Alta | M | Pronto para iniciar |
-| **S11** | #11 | [Segurança] Definir limites de tamanho (MaxLength) e sanitização em parâmetros de busca | P1 — Alta | XS | Pronto para iniciar |
+| **S11** | #11 | [Segurança] Definir limites de tamanho (MaxLength) e sanitização em parâmetros de busca | P1 — Alta | XS | 🟢 Concluído |
 | **S12** | #12 | [Segurança] Sanitizar payloads de conteúdo de posts e comentários contra XSS | P1 — Alta | S | Pronto para iniciar |
 | **S13** | #13 | [Segurança] Processamento seguro de upload de fotos de perfil com Sharp e limpeza de órfãos | P1 — Alta | M | Pronto para iniciar |
 | **S14** | #14 | [Segurança/Épico] Modelagem de tabela de sessões ativas com rotação de refresh token por dispositivo | P2 — Média | L | Backlog |
@@ -58,7 +58,7 @@ Status conferidos no GitHub em 31/10/2026: **8 concluídos e 47 abertos**. Para 
 | **M7** | #22 | [Bug] Permitir moderação e remoção de comentários mesmo com comentários desativados no post | P1 — Alta | XS | ?? Conclu?do |
 | **M8** | #23 | [Melhoria] Enriquecer resposta de artigos salvos com autor, categorias e tags | P2 — Média | XS | Backlog |
 | **M9** | #24 | [Refatoração] Padronizar estrutura de metadados de paginação com utilitário compartilhado | P2 — Média | S | Pronto para iniciar |
-| **M10** | #25 | [Melhoria] Padronizar busca de categorias e tags com escape e unaccent | P2 — Média | XS | Pronto para iniciar |
+| **M10** | #25 | [Melhoria] Padronizar busca de categorias e tags com escape e unaccent | P2 — Média | XS | 🟢 Concluído |
 | **M11** | #26 | [Refatoração] Centralizar serialização de DTOs com ClassSerializerInterceptor e @Exclude | P2 — Média | M | Pronto para iniciar |
 | **M12** | #27 | [Melhoria] Ativar e configurar módulo de monitoramento e tracing (NestJS Observe / OpenTelemetry) | P1 — Alta | XS | Pronto para iniciar |
 | **M13** | #28 | [Infraestrutura] Implementar health check com Terminus, shutdown hooks e filtro global de exceções | P2 — Média | S | Pronto para iniciar |

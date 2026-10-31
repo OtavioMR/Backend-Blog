@@ -1,3 +1,4 @@
+import { likePattern } from '../../common/utils/like-pattern.js';
 import {
   BadRequestException,
   Injectable,
@@ -53,8 +54,8 @@ export class TagsService {
 
     const queryBuilder = this.tagsRepository.createQueryBuilder('tag');
     if (search) {
-      queryBuilder.where('(tag.name ILIKE :term OR tag.slug ILIKE :term)', {
-        term: `%${search}%`,
+      queryBuilder.where(`(unaccent(tag.name) ILIKE unaccent(:term) ESCAPE '\\' OR unaccent(tag.slug) ILIKE unaccent(:term) ESCAPE '\\')`, {
+        term: likePattern(search),
       });
     }
 

@@ -1,3 +1,4 @@
+import { likePattern } from '../../common/utils/like-pattern.js';
 import {
   ConflictException,
   Injectable,
@@ -120,9 +121,9 @@ export class CategoriesService {
       .where('category.isActive = :isActive', { isActive: true });
 
     if (query?.search && query.search.trim().length > 0) {
-      const term = `%${query.search.trim()}%`;
+      const term = likePattern(query.search);
       queryBuilder.andWhere(
-        '(category.name ILIKE :term OR category.slug ILIKE :term)',
+        `(unaccent(category.name) ILIKE unaccent(:term) ESCAPE '\\' OR unaccent(category.slug) ILIKE unaccent(:term) ESCAPE '\\')`,
         { term },
       );
     }
