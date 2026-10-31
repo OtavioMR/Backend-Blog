@@ -55,8 +55,9 @@ node scratch/move_card.js <NUMERO_DA_ISSUE> <STATUS> "<COMENTARIO_OPCIONAL>"
 ---
 
 ## 🔒 Credenciais e Tokens
-- As chamadas GraphQL com permissão de `project` e `repo` utilizam o token configurado no ambiente (`GITHUB_TOKEN`).
-- Nunca commite o token em arquivos de código ou git público. Mantenha no `.env` e no script local.
+- As chamadas GraphQL com permissão de `project` e `repo` utilizam a variável `GITHUB_TOKEN` configurada no arquivo `.env` da raiz do projeto.
+- O helper `scratch/move_card.js` lê automaticamente a chave `GITHUB_TOKEN` do `.env` local.
+- Nunca commite o token em arquivos de código ou git público. O `.env` e a pasta `scratch/` estão estritamente protegidos no `.gitignore`.
 
 ---
 
