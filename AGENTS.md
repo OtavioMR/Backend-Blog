@@ -1,40 +1,16 @@
-# Regras do Projeto (Agent Rules)
+# Regras do Projeto
 
-## 🎯 Roteiro de Execução e Backlog
-- O backlog completo de desenvolvimento está documentado em [BACKLOG.md](BACKLOG.md).
-- O desenvolvimento é dividido em 6 Sprints sequenciais. Não avance para a sprint seguinte sem concluir as tarefas da sprint atual:
-  - **Sprint 1 (Foco Atual):** Segurança crítica e correções lógicas fundamentais.
-    - Status: **#1** a **#5** (Concluídos), **#7 (Próxima)**, **#16** e **#17** (Prontos para iniciar).
-  - **Sprint 2:** Robustez, qualidade e observabilidade (#6, #8, #9, #10, #11, #12, #13, #18 a #20, #22, #24 a #28, #45).
-  - **Sprint 3:** SEO, Conteúdo e Autoria (#30, #31, #33, #34, #38, #39, #32).
-  - **Sprint 4:** Engajamento e Comunidade (#15, #23, #37, #40, #41, #42, #43, #44).
-  - **Sprint 5:** Moderação, Governança e Autenticação Avançada (#14, #46 a #53, #57). A decisão de produto sobre promoção automática a autor e revisão do primeiro artigo está no [BACKLOG.md](BACKLOG.md).
-  - **Sprint 6:** Performance e Escala (#21, #29, #35, #36, #54, #55).
+## Backlog e sprints
+- O [BACKLOG.md](BACKLOG.md) local é a fonte de referência para as tarefas. Consulte apenas o trecho relevante quando precisar de contexto; acesse o GitHub somente quando solicitado ou quando a informação necessária não estiver disponível localmente.
+- As seis sprints são sequenciais: não avance para a próxima sem concluir a atual. A Sprint 1 é o foco atual; consulte o backlog para tarefas e status atualizados.
 
----
+## Desenvolvimento
+- Respeite a arquitetura modular NestJS (controllers, services e DTOs com `class-validator`) e limite as alterações ao necessário para a tarefa.
+- Para mudanças de código, crie ou atualize testes unitários quando forem úteis para verificar o comportamento alterado. Execute testes direcionados e validações proporcionais ao risco e ao escopo.
+- Execute `npm.cmd run test` e `npm.cmd run lint` completos quando a mudança justificar, antes de uma entrega que exija essa validação ou quando solicitado. Informe o que foi executado e eventuais limitações.
+- Para economizar contexto, procure arquivos e trechos específicos e evite ler o backlog inteiro ou repetir verificações sem necessidade.
 
-## 🛠️ Ciclo de Desenvolvimento por Tarefa
-1. **Identificar a Tarefa:** Leia o contexto da issue atual no [BACKLOG.md](BACKLOG.md) ou diretamente no GitHub.
-2. **Implementar:** Escreva o código respeitando a arquitetura modular NestJS (Controllers, Services, DTOs com `class-validator`).
-3. **Testar e Validar:**
-   - Crie ou atualize os testes unitários (`.spec.ts`).
-   - Execute: `npm.cmd run test` (todos os testes devem passar 100% verde).
-   - Execute: `npm.cmd run lint`.
-4. **Finalizar:**
-   - Commit com mensagem semântica referenciando a issue:
-     ```bash
-     git commit -m "fix(security): sanitize html in email template (closes #3)"
-     ```
-   - Envie as alterações:
-     ```bash
-     git push origin main
-     ```
-   *(Ao utilizar a palavra-chave `closes #N`, o GitHub fecha a issue e atualiza o Kanban automaticamente).*
-
----
-
-## 📐 Boas Práticas e Restrições
-- **Final de Linha:** Padrão Unix LF (`\n`).
-- **Escopo Estrito:** Modifique apenas os arquivos estritamente necessários para a issue atual.
-- **Proteção de Segredos:** Nunca commite o arquivo `.env`.
-- **Ignore Pastas:** Não altere arquivos em `dist/`, `node_modules/`, `.git/` ou migrations antigas.
+## Git e restrições
+- Trabalhe localmente por padrão. Faça commit, push ou atualizações no GitHub somente quando o usuário solicitar; ao fazer commit, use mensagem semântica e referencie a issue quando aplicável.
+- Use finais de linha Unix (LF) e nunca commite `.env`.
+- Não altere arquivos em `dist/`, `node_modules/`, `.git/` ou migrations antigas.
