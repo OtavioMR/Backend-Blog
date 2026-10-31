@@ -2,6 +2,8 @@
 
 Este documento consolida e rastreia todos os **55 itens acionáveis** originados do relatório técnico `analise_blog.md`, categorizados em 6 Milestones e divididos por prioridades, estimativas de esforço e status de execução.
 
+Status conferidos no GitHub em 31/10/2026: **5 concluídos e 50 abertos**. Para issues fechadas como concluídas, o estado de fechamento prevalece sobre a etiqueta de status.
+
 ---
 
 ### 🗺️ Visão Geral dos Milestones
@@ -20,66 +22,66 @@ Este documento consolida e rastreia todos os **55 itens acionáveis** originados
 ### 📌 Matriz de Rastreabilidade (analise_blog.md ➔ GitHub Issues)
 
 #### 🔒 1. Segurança (S1 a S15)
-| Código | Issue | Título | Prioridade | Esforço | Status Inicial |
+| Código | Issue | Título | Prioridade | Esforço | Status |
 |---|---|---|---|---|---|
 | **S1** | #1 | [Segurança] Restringir criação de posts para perfis AUTHOR e ADMIN | P0 — Crítica | XS | 🟢 Concluído |
 | **S2** | #2 | [Segurança] Mitigar vazamento de dados sensíveis e e-mails em endpoints de usuários | P0 — Crítica | S | 🟢 Concluído |
 | **S3** | #3 | [Segurança] Sanitizar interpolação de HTML em templates de e-mail de recuperação | P0 — Crítica | XS | 🟢 Concluído |
 | **S4** | #4 | [Segurança] Implementar validação estrita de variáveis de ambiente com schema | P0 — Crítica | S | 🟢 Concluído |
-| **S5** | #5 | [Segurança] Configurar Helmet, CORS com whitelist e Trust Proxy | P0 — Crítica | S | Pronto para iniciar |
-| **S6** | #6 | [Segurança] Restringir ou desativar interface do Swagger em ambiente de produção | P1 — Alta | XS | Pronto para iniciar |
+| **S5** | #5 | [Segurança] Configurar Helmet, CORS com whitelist e Trust Proxy | P0 — Crítica | S | 🟢 Concluído |
+| **S6** | #6 | [Segurança] Restringir ou desativar interface do Swagger em ambiente de produção | P1 — Alta | XS | Backlog |
 | **S7** | #7 | [Segurança] Exigir senha atual para alteração de credenciais e confirmar novo e-mail | P0 — Crítica | M | Pronto para iniciar |
-| **S8** | #8 | [Segurança] Mitigar ataques de temporização (Timing Attacks) na autenticação | P1 — Alta | S | Pronto para iniciar |
-| **S9** | #9 | [Segurança] Padronizar custo e limites de hashing de senhas com bcrypt | P1 — Alta | S | Pronto para iniciar |
-| **S10** | #10 | [Segurança] Implementar bloqueio progressivo por tentativas falhas de login | P1 — Alta | M | Pronto para iniciar |
-| **S11** | #11 | [Segurança] Definir limites de tamanho (MaxLength) e sanitização em parâmetros de busca | P1 — Alta | XS | Pronto para iniciar |
-| **S12** | #12 | [Segurança] Sanitizar payloads de conteúdo de posts e comentários contra XSS | P1 — Alta | S | Pronto para iniciar |
-| **S13** | #13 | [Segurança] Processamento seguro de upload de fotos de perfil com Sharp e limpeza de órfãos | P1 — Alta | M | Pronto para iniciar |
+| **S8** | #8 | [Segurança] Mitigar ataques de temporização (Timing Attacks) na autenticação | P1 — Alta | S | Backlog |
+| **S9** | #9 | [Segurança] Padronizar custo e limites de hashing de senhas com bcrypt | P1 — Alta | S | Backlog |
+| **S10** | #10 | [Segurança] Implementar bloqueio progressivo por tentativas falhas de login | P1 — Alta | M | Backlog |
+| **S11** | #11 | [Segurança] Definir limites de tamanho (MaxLength) e sanitização em parâmetros de busca | P1 — Alta | XS | Backlog |
+| **S12** | #12 | [Segurança] Sanitizar payloads de conteúdo de posts e comentários contra XSS | P1 — Alta | S | Backlog |
+| **S13** | #13 | [Segurança] Processamento seguro de upload de fotos de perfil com Sharp e limpeza de órfãos | P1 — Alta | M | Backlog |
 | **S14** | #14 | [Segurança/Épico] Modelagem de tabela de sessões ativas com rotação de refresh token por dispositivo | P2 — Média | L | Backlog |
-| **S15** | #15 | [Segurança] Rate limiting granular para criação de comentários, reações e tags | P2 — Média | S | Pronto para iniciar |
+| **S15** | #15 | [Segurança] Rate limiting granular para criação de comentários, reações e tags | P2 — Média | S | Backlog |
 
 #### 🛠️ 2. Melhorias e Bugs (M1 a M14)
-| Código | Issue | Título | Prioridade | Esforço | Status Inicial |
+| Código | Issue | Título | Prioridade | Esforço | Status |
 |---|---|---|---|---|---|
 | **M1** | #16 | [Bug] Corrigir operador lógico na consulta filtrada de artigos (trocar OR por AND) | P0 — Crítica | XS | Pronto para iniciar |
 | **M2** | #17 | [Melhoria] Permitir que autores visualizem e gerenciem seus próprios rascunhos (GET /posts/me) | P0 — Crítica | S | Pronto para iniciar |
-| **M3** | #18 | [Melhoria] Adicionar campo publishedAt e ordenar artigos pela data real de publicação | P1 — Alta | S | Pronto para iniciar |
-| **M4** | #19 | [Melhoria] Otimizar listagem de artigos com resumo (excerpt) e exclusão de payload pesado | P1 — Alta | S | Pronto para iniciar |
-| **M5** | #20 | [Performance] Eliminar problema de query N+1 na listagem de comentários e respostas | P1 — Alta | M | Pronto para iniciar |
+| **M3** | #18 | [Melhoria] Adicionar campo publishedAt e ordenar artigos pela data real de publicação | P1 — Alta | S | Backlog |
+| **M4** | #19 | [Melhoria] Otimizar listagem de artigos com resumo (excerpt) e exclusão de payload pesado | P1 — Alta | S | Backlog |
+| **M5** | #20 | [Performance] Eliminar problema de query N+1 na listagem de comentários e respostas | P1 — Alta | M | Backlog |
 | **M6** | #21 | [Melhoria] Implementar busca textual Full-Text nativa com PostgreSQL (tsvector e GIN) | P2 — Média | M | Backlog |
-| **M7** | #22 | [Bug] Permitir moderação e remoção de comentários mesmo com comentários desativados no post | P1 — Alta | XS | Pronto para iniciar |
-| **M8** | #23 | [Melhoria] Enriquecer resposta de artigos salvos com autor, categorias e tags | P2 — Média | XS | Pronto para iniciar |
-| **M9** | #24 | [Refatoração] Padronizar estrutura de metadados de paginação com utilitário compartilhado | P2 — Média | S | Pronto para iniciar |
-| **M10** | #25 | [Melhoria] Padronizar busca de categorias e tags com escape e unaccent | P2 — Média | XS | Pronto para iniciar |
-| **M11** | #26 | [Refatoração] Centralizar serialização de DTOs com ClassSerializerInterceptor e @Exclude | P2 — Média | M | Pronto para iniciar |
-| **M12** | #27 | [Melhoria] Ativar e configurar módulo de monitoramento e tracing (NestJS Observe / OpenTelemetry) | P1 — Alta | XS | Pronto para iniciar |
-| **M13** | #28 | [Infraestrutura] Implementar health check com Terminus, shutdown hooks e filtro global de exceções | P2 — Média | S | Pronto para iniciar |
+| **M7** | #22 | [Bug] Permitir moderação e remoção de comentários mesmo com comentários desativados no post | P1 — Alta | XS | Backlog |
+| **M8** | #23 | [Melhoria] Enriquecer resposta de artigos salvos com autor, categorias e tags | P2 — Média | XS | Backlog |
+| **M9** | #24 | [Refatoração] Padronizar estrutura de metadados de paginação com utilitário compartilhado | P2 — Média | S | Backlog |
+| **M10** | #25 | [Melhoria] Padronizar busca de categorias e tags com escape e unaccent | P2 — Média | XS | Backlog |
+| **M11** | #26 | [Refatoração] Centralizar serialização de DTOs com ClassSerializerInterceptor e @Exclude | P2 — Média | M | Backlog |
+| **M12** | #27 | [Melhoria] Ativar e configurar módulo de monitoramento e tracing (NestJS Observe / OpenTelemetry) | P1 — Alta | XS | Backlog |
+| **M13** | #28 | [Infraestrutura] Implementar health check com Terminus, shutdown hooks e filtro global de exceções | P2 — Média | S | Backlog |
 | **M14** | #29 | [Infraestrutura] Implementar processamento assíncrono de e-mails em fila com BullMQ e Redis | P2 — Média | M | Backlog |
 
 #### ✨ 3. Novas Funcionalidades (F1 a F26)
-| Código | Issue | Título | Prioridade | Esforço | Status Inicial |
+| Código | Issue | Título | Prioridade | Esforço | Status |
 |---|---|---|---|---|---|
-| **F1** | #30 | [Feature] Suporte a Slugs amigáveis nas URLs de artigos (GET /posts/:slug) | P1 — Alta | S | Pronto para iniciar |
-| **F2** | #31 | [Feature] Upload e gerenciamento de Imagem de Capa para artigos (coverImage) | P2 — Média | M | Pronto para iniciar |
+| **F1** | #30 | [Feature] Suporte a Slugs amigáveis nas URLs de artigos (GET /posts/:slug) | P1 — Alta | S | Backlog |
+| **F2** | #31 | [Feature] Upload e gerenciamento de Imagem de Capa para artigos (coverImage) | P2 — Média | M | Backlog |
 | **F3** | #32 | [Feature] Agendamento de publicação automática de posts com @nestjs/schedule | P2 — Média | M | Backlog |
-| **F4** | #33 | [Feature] Cálculo e exibição automática do tempo estimado de leitura (readingTimeMinutes) | P2 — Média | XS | Pronto para iniciar |
-| **F5** | #34 | [Feature] Geração dinâmica de Feeds RSS/Atom e Sitemap XML | P2 — Média | S | Pronto para iniciar |
+| **F4** | #33 | [Feature] Cálculo e exibição automática do tempo estimado de leitura (readingTimeMinutes) | P2 — Média | XS | Backlog |
+| **F5** | #34 | [Feature] Geração dinâmica de Feeds RSS/Atom e Sitemap XML | P2 — Média | S | Backlog |
 | **F6** | #35 | [Feature] Agrupamento de artigos em séries sequenciais | P3 — Baixa | M | Backlog |
 | **F7** | #36 | [Feature] Histórico de revisões e versionamento de artigos (post_revisions) | P3 — Baixa | M | Backlog |
 | **F8** | #37 | [Feature] Contador de visualizações com deduplicação e endpoint de artigos em alta | P2 — Média | M | Backlog |
-| **F9** | #38 | [Feature] Recomendação de artigos relacionados por similaridade de tags e categorias | P2 — Média | S | Pronto para iniciar |
-| **F10** | #39 | [Feature] Perfil público do autor com bio, links sociais e contagem de publicações | P2 — Média | S | Pronto para iniciar |
+| **F9** | #38 | [Feature] Recomendação de artigos relacionados por similaridade de tags e categorias | P2 — Média | S | Backlog |
+| **F10** | #39 | [Feature] Perfil público do autor com bio, links sociais e contagem de publicações | P2 — Média | S | Backlog |
 | **F11** | #40 | [Feature] Sistema de seguir autores e feed personalizado (GET /feed) | P2 — Média | M | Backlog |
-| **F12** | #41 | [Feature] Sistema de reações e curtidas em comentários | P2 — Média | S | Pronto para iniciar |
+| **F12** | #41 | [Feature] Sistema de reações e curtidas em comentários | P2 — Média | S | Backlog |
 | **F13** | #42 | [Feature] Organização de artigos salvos em coleções/pastas personalizadas | P3 — Baixa | M | Backlog |
 | **F14** | #43 | [Feature/Épico] Sistema centralizado de notificações in-app (notificações de interações) | P2 — Média | L | Backlog |
 | **F15** | #44 | [Feature] Sistema de Newsletter com double opt-in e disparo automático em novas publicações | P2 — Média | M | Backlog |
-| **F16** | #45 | [Feature] Verificação obrigatória de e-mail no cadastro de novos usuários | P1 — Alta | S | Pronto para iniciar |
+| **F16** | #45 | [Feature] Verificação obrigatória de e-mail no cadastro de novos usuários | P1 — Alta | S | Backlog |
 | **F17** | #46 | [Feature] Sistema de denúncias (reports) de posts e comentários com painel de moderação | P2 — Média | M | Backlog |
-| **F18** | #47 | [Feature] Fluxo de solicitação e aprovação de perfil AUTHOR para usuários READER | P2 — Média | S | Pronto para iniciar |
+| **F18** | #47 | [Feature] Fluxo de solicitação e aprovação de perfil AUTHOR para usuários READER | P2 — Média | S | Backlog |
 | **F19** | #48 | [Feature] Dashboard de métricas analíticas e estatísticas da plataforma para administradores | P2 — Média | M | Backlog |
 | **F20** | #49 | [Feature] Trilha de auditoria (Audit Log) para ações críticas e administrativas | P2 — Média | M | Backlog |
-| **F21** | #50 | [Feature] Sistema de suspensão e banimento temporário ou definitivo de usuários | P2 — Média | S | Pronto para iniciar |
+| **F21** | #50 | [Feature] Sistema de suspensão e banimento temporário ou definitivo de usuários | P2 — Média | S | Backlog |
 | **F22** | #51 | [Feature] Autenticação social com OAuth2 (Google e GitHub) | P2 — Média | M | Backlog |
 | **F23** | #52 | [Feature] Autenticação de dois fatores (2FA / TOTP) | P2 — Média | M | Backlog |
 | **F24** | #53 | [Feature] Interface e endpoints para visualização e revogação de sessões ativas do usuário | P2 — Média | S | Backlog |

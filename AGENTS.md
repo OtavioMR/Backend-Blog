@@ -4,7 +4,7 @@
 - O backlog completo de desenvolvimento está documentado em [BACKLOG.md](BACKLOG.md).
 - O desenvolvimento é dividido em 6 Sprints sequenciais. Não avance para a sprint seguinte sem concluir as tarefas da sprint atual:
   - **Sprint 1 (Foco Atual):** Segurança crítica e correções lógicas fundamentais.
-    - Status: **#1**, **#2**, **#3** e **#4** (Concluídos), **#5 (Próxima)**, **#7**, **#16**, **#17**.
+    - Status: **#1** a **#5** (Concluídos), **#7 (Próxima)**, **#16** e **#17** (Prontos para iniciar).
   - **Sprint 2:** Robustez, qualidade e observabilidade (#6, #8, #9, #10, #11, #12, #13, #18 a #20, #22, #24 a #28, #45).
   - **Sprint 3:** SEO, Conteúdo e Autoria (#30, #31, #33, #34, #38, #39, #32).
   - **Sprint 4:** Engajamento e Comunidade (#15, #23, #37, #40, #41, #42, #43, #44).
