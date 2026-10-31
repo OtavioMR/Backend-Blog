@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import nodemailer from 'nodemailer';
 import type { Transporter } from 'nodemailer';
+import { escapeHtml } from '../../common/utils/escape-html.js';
 
 @Injectable()
 export class MailService {
@@ -43,7 +44,7 @@ export class MailService {
     const html = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
         <h2>Recuperação de Senha</h2>
-        <p>Olá${userName ? ` <strong>${userName}</strong>` : ''},</p>
+        <p>Olá${userName ? ` <strong>${escapeHtml(userName)}</strong>` : ''},</p>
         <p>Recebemos uma solicitação para redefinir a sua senha no Blog.</p>
         <p>Clique no botão abaixo para redefinir sua senha. Este link é válido por <strong>30 minutos</strong>:</p>
         <p style="text-align: center; margin: 30px 0;">
