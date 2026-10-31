@@ -8,7 +8,7 @@
   - **Sprint 2:** Robustez, qualidade e observabilidade (#6, #8, #9, #10, #11, #12, #13, #18 a #20, #22, #24 a #28, #45).
   - **Sprint 3:** SEO, Conteúdo e Autoria (#30, #31, #33, #34, #38, #39, #32).
   - **Sprint 4:** Engajamento e Comunidade (#15, #23, #37, #40, #41, #42, #43, #44).
-  - **Sprint 5:** Moderação, Governança e Autenticação Avançada (#14, #46 a #53).
+  - **Sprint 5:** Moderação, Governança e Autenticação Avançada (#14, #46 a #53, #57). A decisão de produto sobre promoção automática a autor e revisão do primeiro artigo está no [BACKLOG.md](BACKLOG.md).
   - **Sprint 6:** Performance e Escala (#21, #29, #35, #36, #54, #55).
 
 ---

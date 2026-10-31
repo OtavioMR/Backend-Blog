@@ -4,6 +4,12 @@ Este documento consolida e rastreia todos os **55 itens acionáveis** originados
 
 Status conferidos no GitHub em 31/10/2026: **5 concluídos e 50 abertos**. Para issues fechadas como concluídas, o estado de fechamento prevalece sobre a etiqueta de status.
 
+**Decisão de produto — comunidade e autoria:** visitantes leem artigos públicos; contas começam como `READER`. Após verificar o e-mail (#45) e aceitar as regras de publicação, o leitor pode solicitar promoção automática a `AUTHOR`. O primeiro artigo requer aprovação administrativa; depois, novos artigos e edições são publicados imediatamente. Administradores podem revogar a autoria ou suspender a conta e decidir quais artigos publicados ocultar. A moderação posterior deve tratar abusos, inclusive alterações feitas após a aprovação.
+
+**Planejamento:** a #47 registra a promoção automática e a #57 a revisão do primeiro artigo. Alinhar revogação, suspensão e auditoria com #49 e #50. A #17 trata do acesso a rascunhos próprios. Essas decisões não alteram a ordem das sprints.
+
+**Item adicional:** [#57 — Aprovar o primeiro artigo de cada autor](https://github.com/OtavioMR/Backend-Blog/issues/57), P2, backlog, Sprint 5. Esta issue foi criada após os 55 itens originais do relatório.
+
 ---
 
 ### 🗺️ Visão Geral dos Milestones
@@ -78,7 +84,7 @@ Status conferidos no GitHub em 31/10/2026: **5 concluídos e 50 abertos**. Para 
 | **F15** | #44 | [Feature] Sistema de Newsletter com double opt-in e disparo automático em novas publicações | P2 — Média | M | Backlog |
 | **F16** | #45 | [Feature] Verificação obrigatória de e-mail no cadastro de novos usuários | P1 — Alta | S | Backlog |
 | **F17** | #46 | [Feature] Sistema de denúncias (reports) de posts e comentários com painel de moderação | P2 — Média | M | Backlog |
-| **F18** | #47 | [Feature] Fluxo de solicitação e aprovação de perfil AUTHOR para usuários READER | P2 — Média | S | Backlog |
+| **F18** | #47 | [Feature] Promoção de READER a AUTHOR após verificação de e-mail e aceite das regras | P2 — Média | S | Backlog |
 | **F19** | #48 | [Feature] Dashboard de métricas analíticas e estatísticas da plataforma para administradores | P2 — Média | M | Backlog |
 | **F20** | #49 | [Feature] Trilha de auditoria (Audit Log) para ações críticas e administrativas | P2 — Média | M | Backlog |
 | **F21** | #50 | [Feature] Sistema de suspensão e banimento temporário ou definitivo de usuários | P2 — Média | S | Backlog |
@@ -129,7 +135,8 @@ Status conferidos no GitHub em 31/10/2026: **5 concluídos e 50 abertos**. Para 
 5. **Sprint 5 — Moderação, Governança & Autenticação Avançada (P2):**
    - #14 e #53 (Sessões ativas e múltiplos dispositivos)
    - #46 (Sistema de denúncias)
-   - #47 (Solicitação de autor)
+   - #47 (Promoção automática a autor após requisitos)
+   - #57 (Revisão do primeiro artigo; alinhar revogação e ocultação com #49 e #50)
    - #48 (Dashboard analítico para admin)
    - #49 (Trilha de auditoria)
    - #50 (Suspensão e banimento temporário)
