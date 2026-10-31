@@ -9,12 +9,14 @@ import { CategoriesModule } from './modules/categories/categories.module.js';
 import { TagsModule } from './modules/tags/tags.module.js';
 import { CommentsModule } from './modules/comments/comments.module.js';
 import { MailModule } from './modules/mail/mail.module.js';
+import { validate } from './config/env.validation.js';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: '.env',
+      validate,
     }),
     RateLimitModule,
     TypeOrmModule.forRootAsync({

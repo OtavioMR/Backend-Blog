@@ -24,8 +24,8 @@ Este documento consolida e rastreia todos os **55 itens acionáveis** originados
 |---|---|---|---|---|---|
 | **S1** | #1 | [Segurança] Restringir criação de posts para perfis AUTHOR e ADMIN | P0 — Crítica | XS | 🟢 Concluído |
 | **S2** | #2 | [Segurança] Mitigar vazamento de dados sensíveis e e-mails em endpoints de usuários | P0 — Crítica | S | 🟢 Concluído |
-| **S3** | #3 | [Segurança] Sanitizar interpolação de HTML em templates de e-mail de recuperação | P0 — Crítica | XS | Pronto para iniciar |
-| **S4** | #4 | [Segurança] Implementar validação estrita de variáveis de ambiente com schema | P0 — Crítica | S | Pronto para iniciar |
+| **S3** | #3 | [Segurança] Sanitizar interpolação de HTML em templates de e-mail de recuperação | P0 — Crítica | XS | 🟢 Concluído |
+| **S4** | #4 | [Segurança] Implementar validação estrita de variáveis de ambiente com schema | P0 — Crítica | S | 🟢 Concluído |
 | **S5** | #5 | [Segurança] Configurar Helmet, CORS com whitelist e Trust Proxy | P0 — Crítica | S | Pronto para iniciar |
 | **S6** | #6 | [Segurança] Restringir ou desativar interface do Swagger em ambiente de produção | P1 — Alta | XS | Pronto para iniciar |
 | **S7** | #7 | [Segurança] Exigir senha atual para alteração de credenciais e confirmar novo e-mail | P0 — Crítica | M | Pronto para iniciar |
