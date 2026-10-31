@@ -57,6 +57,18 @@ describe('Sprint 2 with PostgreSQL', () => {
     const summary = listing.body.data.find((item: { id: string }) => item.id === post.body.id);
     expect(summary.excerpt).toBe('Safe content');
     expect(summary).not.toHaveProperty('content');
+    const longContent = Array.from({ length: 1600 }, (_, i) => `palavra${i}`).join(' ');
+    const longPost = await request(server).post('/api/v1/posts').set('Authorization', auth)
+      .send({ title: 'Long article test', content: longContent, published: true }).expect(201);
+    expect(longPost.body.content).toBe(longContent);
+    expect(longPost.body.readingTimeMinutes).toBe(8);
+    const [storedLongPost] = await db.query('SELECT content FROM posts WHERE id = $1', [longPost.body.id]);
+    expect(storedLongPost.content).toBe(longContent);
+    const longDetail = await request(server).get(`/api/v1/posts/${longPost.body.id}`).expect(200);
+    expect(longDetail.body.content).toBe(longContent);
+    expect(longDetail.body.readingTimeMinutes).toBe(8);
+    await request(server).post('/api/v1/posts').set('Authorization', auth)
+      .send({ title: 'Too long article', content: 'a'.repeat(50001) }).expect(400);
     await request(server).patch(`/api/v1/posts/${post.body.id}`).set('Authorization', auth).send({ published: false }).expect(200);
     const [draft] = await db.query('SELECT published_at FROM posts WHERE id = $1', [post.body.id]);
     expect(draft.published_at).toBeNull();
