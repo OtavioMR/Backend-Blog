@@ -170,6 +170,26 @@ describe('PostsService', () => {
     await expect(service.findById('p1', { userId: 'admin', role: UserRole.ADMIN } as any)).resolves.toHaveProperty('id', 'p1');
   });
 
+  it('calcula leitura nas listagens sem expor o conteúdo', async () => {
+    const content = `<p>${Array(200).fill('palavra').join(' ')}</p><p>outra</p>`;
+    for (const list of ['findAll', 'findMine'] as const) {
+      mockPostsRepository.findAndCount.mockResolvedValue([[{ title: 'Título', content, categories: [] }], 1]);
+      const result = list === 'findAll' ? await service.findAll() : await service.findMine('autor', {});
+      expect(result.data[0]).toHaveProperty('readingTimeMinutes', 2);
+      expect(result.data[0]).not.toHaveProperty('content');
+    }
+  });
+
+  it('recalcula leitura ao criar, consultar e editar o conteúdo', async () => {
+    const content = Array(201).fill('palavra').join(' ');
+    const created = await service.create({ title: 'Título', content }, 'autor');
+    expect(created).toHaveProperty('readingTimeMinutes', 2);
+    mockPostsRepository.findOne.mockResolvedValue({ id: 'post-1', authorId: 'autor', title: 'Título', content, published: true, categories: [], tags: [] });
+    expect(await service.findById('post-1')).toHaveProperty('readingTimeMinutes', 2);
+    const updated = await service.update('post-1', { content: '<p>Texto curto</p>' }, { userId: 'autor', role: UserRole.AUTHOR } as any);
+    expect(updated).toHaveProperty('readingTimeMinutes', 1);
+  });
+
   describe('create', () => {
     it('deve criar artigo associando categorias válidas', async () => {
       const cat = { id: 'cat-1', name: 'Tech', slug: 'tech', isActive: true };

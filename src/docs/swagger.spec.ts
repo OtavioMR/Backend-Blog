@@ -75,6 +75,7 @@ describe('Swagger Documentation Configuration', () => {
 
     const document = SwaggerModule.createDocument(app, config);
 
+    expect((document.components?.schemas?.PostResponseDto as any)?.properties.readingTimeMinutes).toMatchObject({ type: 'number', minimum: 1, example: 3 });
     expect(document.info.title).toBe('Backend Blog API');
     expect(document.info.version).toBe('1.0');
     expect(document.tags).toBeDefined();

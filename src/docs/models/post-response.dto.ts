@@ -39,6 +39,9 @@ export class PostResponseDto {
   })
   content: string;
 
+  @ApiProperty({ description: 'Tempo estimado de leitura em minutos, calculado a 200 palavras por minuto e arredondado para cima (mínimo de 1 minuto).', example: 3, minimum: 1 })
+  readingTimeMinutes: number;
+
   @ApiProperty({ description: 'Resumo do artigo', maxLength: 200 })
   excerpt: string;
 

@@ -2,7 +2,7 @@
 
 Este documento consolida e rastreia todos os **55 itens acionáveis** originados do relatório técnico `analise_blog.md`, categorizados em 6 Milestones e divididos por prioridades, estimativas de esforço e status de execução.
 
-Status local dos 55 itens originais: **25 concluídos e 30 pendentes**. A issue adicional #57 permanece pendente.
+Status local dos 55 itens originais: **26 concluídos e 29 pendentes**. A issue adicional #57 permanece pendente.
 
 **Decisão de produto — comunidade e autoria:** visitantes leem artigos públicos; contas começam como `READER`. Após verificar o e-mail (#45) e aceitar as regras de publicação, o leitor pode solicitar promoção automática a `AUTHOR`. O primeiro artigo requer aprovação administrativa; depois, novos artigos e edições são publicados imediatamente. Administradores podem revogar a autoria ou suspender a conta e decidir quais artigos publicados ocultar. A moderação posterior deve tratar abusos, inclusive alterações feitas após a aprovação.
 
@@ -70,7 +70,7 @@ Status local dos 55 itens originais: **25 concluídos e 30 pendentes**. A issue 
 | **F1** | #30 | [Feature] Suporte a Slugs amigáveis nas URLs de artigos (GET /posts/:slug) | P1 — Alta | S | Backlog |
 | **F2** | #31 | [Feature] Upload e gerenciamento de Imagem de Capa para artigos (coverImage) | P2 — Média | M | Backlog |
 | **F3** | #32 | [Feature] Agendamento de publicação automática de posts com @nestjs/schedule | P2 — Média | M | Backlog |
-| **F4** | #33 | [Feature] Cálculo e exibição automática do tempo estimado de leitura (readingTimeMinutes) | P2 — Média | XS | Backlog |
+| **F4** | #33 | [Feature] Cálculo e exibição automática do tempo estimado de leitura (readingTimeMinutes) | P2 — Média | XS | Concluído localmente |
 | **F5** | #34 | [Feature] Geração dinâmica de Feeds RSS/Atom e Sitemap XML | P2 — Média | S | Backlog |
 | **F6** | #35 | [Feature] Agrupamento de artigos em séries sequenciais | P3 — Baixa | M | Backlog |
 | **F7** | #36 | [Feature] Histórico de revisões e versionamento de artigos (post_revisions) | P3 — Baixa | M | Backlog |
@@ -113,14 +113,23 @@ Status local dos 55 itens originais: **25 concluídos e 30 pendentes**. A issue 
    - #18, #19, #20, #22, #24, #25, #26, #27, #28
    - #45 (Verificação de e-mail no cadastro)
 
-3. **Sprint 3 — Conteúdo, SEO & Autoria (P1/P2; próxima):**
+3. **Sprint 3 — Conteúdo, SEO & Autoria (P1/P2; em andamento):**
    - #30 (Slugs amigáveis)
    - #31 (Imagem de capa)
-   - #33 (Tempo de leitura estimado)
+   - #33 (Tempo de leitura estimado; concluído localmente)
    - #34 (RSS/Atom + Sitemap XML)
    - #38 (Artigos relacionados)
    - #39 (Perfil público do autor)
    - #32 (Agendamento de publicação)
+
+   **Divisão para sessões curtas:**
+   - Leva 1: #33 concluída localmente. O tempo usa 200 palavras por minuto, arredondado para cima, com mínimo de um minuto; sem alteração de esquema.
+   - Leva 2: #30 (slugs); começar por esta issue no próximo chat.
+   - Leva 3: #31 (imagem de capa).
+   - Leva 4: #34 (feeds e sitemap).
+   - Leva 5: #38 e #39 (artigos relacionados e perfil público).
+   - Leva 6: #32 (agendamento). Concluir e validar cada leva antes de avançar; ajustar a divisão se necessário. A Sprint 4 começa somente após concluir a Sprint 3.
+   - Alterações e commits permanecem locais; o usuário enviará ao GitHub ao terminar a sprint.
 
 4. **Sprint 4 — Engajamento & Comunidade (P2):**
    - #15 (Rate limit granular em comentários e reações)

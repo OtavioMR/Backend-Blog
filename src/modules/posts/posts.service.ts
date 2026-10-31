@@ -22,6 +22,11 @@ import { PaginationQueryDto } from '../../common/dto/pagination-query.dto.js';
 import { UserRole } from '../users/enums/user.enum.js';
 import type { AuthenticatedUser } from '../auth/interfaces/request-with-user.interface.js';
 
+function readingTimeMinutes(content: string): number {
+  const text = sanitizePlainText(content.replace(/<[^>]*>/g, ' '));
+  return Math.max(1, Math.ceil((text ? text.split(/\s+/u).length : 0) / 200));
+}
+
 @Injectable()
 export class PostsService {
   private readonly logger = new Logger(PostsService.name);
@@ -78,6 +83,7 @@ export class PostsService {
       select: {
         id: true,
         title: true,
+        content: true,
         excerpt: true,
         publishedAt: true,
         published: true,
@@ -104,6 +110,8 @@ export class PostsService {
 
     // Garante que posts sem categoria retornem array vazio e remove categorias desativadas
     const formattedData = data.map((post) => {
+      Object.assign(post, { readingTimeMinutes: readingTimeMinutes(post.content ?? '') });
+      delete (post as Partial<Post>).content;
       post.title = sanitizePlainText(post.title);
       post.excerpt = sanitizePlainText(post.excerpt ?? '');
       post.categories = (post.categories || []).filter((cat) => cat.isActive);
@@ -125,7 +133,7 @@ export class PostsService {
       where: { authorId, isActive: true },
       relations: { author: true, categories: true, tags: true },
       select: {
-        id: true, title: true, excerpt: true, publishedAt: true, published: true, commentsEnabled: true,
+        id: true, title: true, content: true, excerpt: true, publishedAt: true, published: true, commentsEnabled: true,
         isActive: true, createdAt: true, updatedAt: true,
         author: { id: true, name: true },
         categories: { id: true, name: true, slug: true, isActive: true },
@@ -136,6 +144,8 @@ export class PostsService {
       take: limit,
     });
     return { data: data.map(post => {
+      Object.assign(post, { readingTimeMinutes: readingTimeMinutes(post.content ?? '') });
+      delete (post as Partial<Post>).content;
       post.title = sanitizePlainText(post.title);
       post.excerpt = sanitizePlainText(post.excerpt ?? '');
       post.categories = (post.categories || []).filter(cat => cat.isActive);
@@ -189,6 +199,7 @@ export class PostsService {
     post.tags = post.tags || [];
     post.title = sanitizePlainText(post.title);
     post.content = sanitizePostContent(post.content);
+    Object.assign(post, { readingTimeMinutes: readingTimeMinutes(post.content ?? '') });
 
     return post;
   }
@@ -229,7 +240,7 @@ export class PostsService {
 
     const savedPost = await this.postsRepository.save(post);
     this.logger.log(`Artigo ${savedPost.id} criado pelo usuário ${authorId}`);
-    return savedPost;
+    return Object.assign(savedPost, { readingTimeMinutes: readingTimeMinutes(savedPost.content ?? '') });
   }
 
   async update(
@@ -292,7 +303,7 @@ export class PostsService {
     Object.assign(post, postData);
     const savedPost = await this.postsRepository.save(post);
     this.logger.log(`Artigo ${id} atualizado pelo usuário ${user.userId}`);
-    return savedPost;
+    return Object.assign(savedPost, { readingTimeMinutes: readingTimeMinutes(savedPost.content ?? '') });
   }
 
   async remove(id: string, user: AuthenticatedUser): Promise<void> {
