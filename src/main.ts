@@ -30,6 +30,12 @@ async function bootstrap() {
     index: false,
   });
 
+  app.useStaticAssets(join(process.cwd(), 'uploads', 'post-covers'), {
+    prefix: '/uploads/post-covers/',
+    dotfiles: 'deny',
+    index: false,
+  });
+
   // Parsing de cookies para suporte a tokens HTTP-Only seguros
   app.use(cookieParser());
 

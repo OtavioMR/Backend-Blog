@@ -34,6 +34,9 @@ export class Post {
   @Column({ type: 'varchar', length: 200, default: '' })
   excerpt: string;
 
+  @Column({ name: 'cover_image', type: 'varchar', nullable: true })
+  coverImage: string | null;
+
   @Column({ name: 'published_at', type: 'timestamptz', nullable: true })
   publishedAt: Date | null;
 

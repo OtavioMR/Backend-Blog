@@ -1,3 +1,6 @@
+import { mkdir, writeFile, unlink } from 'node:fs/promises';
+import { join } from 'node:path';
+import sharp from 'sharp';
 import { randomUUID } from 'node:crypto';
 import { isUUID } from 'class-validator';
 import { shortPostSlug } from './post-slug.js';
@@ -6,6 +9,7 @@ import { sanitizePostContent, sanitizePlainText } from '../../common/utils/sanit
 import { likePattern } from '../../common/utils/like-pattern.js';
 import {
   BadRequestException,
+  ConflictException,
   Injectable,
   Logger,
   NotFoundException,
@@ -89,6 +93,7 @@ export class PostsService {
         title: true,
         content: true,
         excerpt: true,
+        coverImage: true,
         publishedAt: true,
         published: true,
         commentsEnabled: true,
@@ -137,7 +142,7 @@ export class PostsService {
       where: { authorId, isActive: true },
       relations: { author: true, categories: true, tags: true },
       select: {
-        id: true, slug: true, title: true, content: true, excerpt: true, publishedAt: true, published: true, commentsEnabled: true,
+        id: true, slug: true, title: true, content: true, excerpt: true, coverImage: true, publishedAt: true, published: true, commentsEnabled: true,
         isActive: true, createdAt: true, updatedAt: true,
         author: { id: true, name: true },
         categories: { id: true, name: true, slug: true, isActive: true },
@@ -173,6 +178,7 @@ export class PostsService {
         slug: true,
         publishedAt: true,
         excerpt: true,
+        coverImage: true,
         authorId: true,
         title: true,
         content: true,
@@ -236,6 +242,7 @@ export class PostsService {
     const post = this.postsRepository.create({
       ...postData,
       id,
+      coverImage: null,
       slug: shortPostSlug(postData.title),
       excerpt: sanitizePlainText(postData.content).slice(0, 200),
       publishedAt: postData.published ? new Date() : null,
@@ -323,6 +330,54 @@ export class PostsService {
     const savedPost = await this.postsRepository.save(post);
     this.logger.log(`Artigo ${id} atualizado pelo usuário ${user.userId}`);
     return Object.assign(savedPost, { readingTimeMinutes: readingTimeMinutes(savedPost.content ?? '') });
+  }
+
+  private async changeCover(id: string, user: AuthenticatedUser, buffer?: Buffer): Promise<{ coverImage: string | null }> {
+    const post = await this.postsRepository.findOne({ where: { id, isActive: true } });
+    if (!post) throw new NotFoundException('Artigo não encontrado.');
+    if (post.authorId !== user.userId && user.role !== UserRole.ADMIN) throw new ForbiddenException('Sem permissão para editar este artigo.');
+
+    const directory = join(process.cwd(), 'uploads', 'post-covers');
+    let path: string | undefined;
+    let coverImage: string | null = null;
+    if (buffer) {
+      let image: Buffer;
+      try {
+        const input = sharp(buffer, { limitInputPixels: 40_000_000, failOn: 'error' });
+        const metadata = await input.metadata();
+        if (!['jpeg', 'png', 'webp'].includes(metadata.format ?? '') || (metadata.pages ?? 1) > 1) throw new Error('Invalid image');
+        image = await input.rotate().resize(1920, 1080, { fit: 'inside', withoutEnlargement: true }).webp({ quality: 80 }).toBuffer();
+      } catch {
+        throw new BadRequestException('A imagem deve ser JPEG, PNG ou WebP válida.');
+      }
+      await mkdir(directory, { recursive: true });
+      const filename = `${randomUUID()}.webp`;
+      path = join(directory, filename);
+      await writeFile(path, image, { flag: 'wx' });
+      coverImage = `/uploads/post-covers/${filename}`;
+    }
+    try {
+      const result = await this.postsRepository.createQueryBuilder().update(Post)
+        .set({ coverImage })
+        .where('id = :id AND is_active = true AND deleted_at IS NULL', { id })
+        .andWhere(post.coverImage == null ? 'cover_image IS NULL' : 'cover_image = :oldCover', { oldCover: post.coverImage })
+        .execute();
+      if (!result.affected) throw new ConflictException('A capa foi alterada simultaneamente. Tente novamente.');
+    } catch (error) {
+      if (path) await unlink(path).catch(() => undefined);
+      throw error;
+    }
+    const oldName = post.coverImage?.match(/^\/uploads\/post-covers\/([0-9a-f-]+\.webp)$/i)?.[1];
+    if (oldName) await unlink(join(directory, oldName)).catch(() => undefined);
+    return { coverImage };
+  }
+
+  uploadCover(id: string, buffer: Buffer, user: AuthenticatedUser) {
+    return this.changeCover(id, user, buffer);
+  }
+
+  removeCover(id: string, user: AuthenticatedUser) {
+    return this.changeCover(id, user);
   }
 
   async remove(id: string, user: AuthenticatedUser): Promise<void> {

@@ -1,5 +1,10 @@
+import { FileInterceptor } from '@nestjs/platform-express';
+import { ApiBearerAuth, ApiBody, ApiConsumes, ApiOperation, ApiParam, ApiResponse } from '@nestjs/swagger';
 import {
   Body,
+  BadRequestException,
+  UploadedFile,
+  UseInterceptors,
   Controller,
   Delete,
   Get,
@@ -81,6 +86,41 @@ export class PostsController {
     @Req() request: RequestWithUser,
   ) {
     return this.postsService.update(id, updatePostDto, request.user);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 5 * 1024 * 1024 } }))
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Enviar ou substituir capa', description: 'Autor ou administrador envia JPEG, PNG ou WebP de até 5 MB; a imagem é convertida para WebP com até 1920 × 1080 pixels.' })
+  @ApiParam({ name: 'id', format: 'uuid', example: 'b1ffcd88-8b1a-4ce7-aa5c-5cc8ac271b22' })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({ schema: { type: 'object', required: ['file'], properties: { file: { type: 'string', format: 'binary' } } } })
+  @ApiResponse({ status: 201, description: 'Capa atualizada.', schema: { example: { coverImage: '/uploads/post-covers/550e8400-e29b-41d4-a716-446655440000.webp' } } })
+  @ApiResponse({ status: 400, description: 'UUID ou imagem inválidos.' })
+  @ApiResponse({ status: 401, description: 'Token ausente ou inválido.' })
+  @ApiResponse({ status: 403, description: 'Sem permissão.' })
+  @ApiResponse({ status: 404, description: 'Artigo não encontrado.' })
+  @ApiResponse({ status: 409, description: 'Capa alterada simultaneamente.' })
+  @ApiResponse({ status: 413, description: 'Arquivo maior que 5 MB.' })
+  @HttpPost(':id/cover-image')
+  uploadCover(@Param('id', ParseUUIDPipe) id: string, @UploadedFile() file: { buffer: Buffer } | undefined, @Req() request: RequestWithUser) {
+    if (!file) throw new BadRequestException('Envie uma imagem.');
+    return this.postsService.uploadCover(id, file.buffer, request.user);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Remover capa', description: 'Remove a capa do artigo; disponível ao autor ou administrador.' })
+  @ApiParam({ name: 'id', format: 'uuid', example: 'b1ffcd88-8b1a-4ce7-aa5c-5cc8ac271b22' })
+  @ApiResponse({ status: 200, description: 'Capa removida.', schema: { example: { coverImage: null } } })
+  @ApiResponse({ status: 400, description: 'UUID inválido.' })
+  @ApiResponse({ status: 401, description: 'Token ausente ou inválido.' })
+  @ApiResponse({ status: 403, description: 'Sem permissão.' })
+  @ApiResponse({ status: 404, description: 'Artigo não encontrado.' })
+  @ApiResponse({ status: 409, description: 'Capa alterada simultaneamente.' })
+  @Delete(':id/cover-image')
+  removeCover(@Param('id', ParseUUIDPipe) id: string, @Req() request: RequestWithUser) {
+    return this.postsService.removeCover(id, request.user);
   }
 
   @ApiRemovePostDoc()

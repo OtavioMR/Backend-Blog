@@ -45,6 +45,9 @@ export class PostResponseDto {
   @ApiProperty({ description: 'Tempo estimado de leitura em minutos, calculado a 200 palavras por minuto e arredondado para cima (mínimo de 1 minuto).', example: 3, minimum: 1 })
   readingTimeMinutes: number;
 
+  @ApiProperty({ description: 'Caminho público da imagem de capa, ou null.', type: String, nullable: true, example: '/uploads/post-covers/550e8400-e29b-41d4-a716-446655440000.webp' })
+  coverImage: string | null;
+
   @ApiProperty({ description: 'Resumo do artigo', maxLength: 200 })
   excerpt: string;
 
