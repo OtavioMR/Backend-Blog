@@ -56,6 +56,7 @@ export function setupSwagger(app: INestApplication, nodeEnv = process.env.NODE_E
 
   SwaggerModule.setup('api/docs', app, document, {
     swaggerOptions: {
+      deepLinking: false,
       persistAuthorization: true,
       tagsSorter: 'alpha',
       operationsSorter: 'alpha',

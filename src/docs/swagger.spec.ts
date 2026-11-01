@@ -182,7 +182,12 @@ describe('Swagger Documentation Configuration', () => {
 
     // Verify setupSwagger executes without error
     const createDocument = vi.spyOn(SwaggerModule, 'createDocument');
+    const setup = vi.spyOn(SwaggerModule, 'setup');
     expect(() => setupSwagger(app, 'development')).not.toThrow();
+    expect(setup).toHaveBeenCalledWith('api/docs', app, expect.anything(), expect.objectContaining({
+      swaggerOptions: expect.objectContaining({ deepLinking: false }),
+    }));
+    setup.mockRestore();
     const setupConfig = createDocument.mock.calls[0][1];
     expect(setupConfig.info.description).toContain('/api/v1/users/confirm-email');
     expect(setupConfig.info.description).toContain('excerpt');
