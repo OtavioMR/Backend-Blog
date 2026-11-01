@@ -13,7 +13,7 @@
 - Para economizar contexto, procure arquivos e trechos específicos e evite ler o backlog inteiro ou repetir verificações sem necessidade.
 
 ## Git e restrições
-- **Push direto para a `main`:** Ao concluir uma atividade e validar os testes, faça o commit semântico diretamente na `main` referenciando a issue (ex.: `fix: ... (closes #N)`) e faça `git push origin main`. Não abra Pull Requests.
-- **Zero requisições de API ao GitHub:** Não faça chamadas de API (REST/GraphQL) ao GitHub para gerenciar issues, labels, comentários ou projetos. O controle de status é 100% local no [BACKLOG.md](BACKLOG.md). O fechamento no GitHub ocorre de forma nativa e automática pelo `closes #N` no push.
+- **Sem commits ou envios ao GitHub:** Mantenha todas as alterações locais. O agente não deve criar commits, fazer push ou abrir Pull Requests; o usuário fará os commits e envios ao final da sprint.
+- **Zero requisições de API ao GitHub:** Não faça chamadas de API (REST/GraphQL) ao GitHub para gerenciar issues, labels, comentários ou projetos. O controle de status é 100% local no [BACKLOG.md](BACKLOG.md).
 - Use finais de linha Unix (LF) e nunca commite `.env`.
 - Não altere arquivos em `dist/`, `node_modules/`, `.git/` ou migrations antigas.
