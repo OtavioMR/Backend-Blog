@@ -111,6 +111,14 @@ describe('Swagger Documentation Configuration', () => {
       expect(document.paths[path].get?.responses).toHaveProperty('200');
       expect(document.paths[path].get?.responses).toHaveProperty('404');
     }
+    expect(document.paths['/api/v1/posts/{id}/related'].get?.responses['200']).toMatchObject({ content: { 'application/json': { schema: { type: 'array', items: { $ref: '#/components/schemas/PostResponseDto' } } } } });
+    for (const [path, method] of [['/api/v1/posts', 'post'], ['/api/v1/posts/{id}', 'patch']] as const) {
+      const operation = document.paths[path][method];
+      expect(operation?.security).toEqual([{ 'JWT-auth': [] }]);
+      const body = operation?.requestBody;
+      expect(body && 'content' in body && body.content['application/json'].examples).toBeDefined();
+    }
+    expect((document.components?.schemas?.CreatePostDto as any)?.properties.scheduledAt).toMatchObject({ type: 'string', format: 'date-time', nullable: true });
 
     // Paths verification
     const paths = Object.keys(document.paths);

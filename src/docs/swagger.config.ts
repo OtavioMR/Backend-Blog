@@ -18,6 +18,10 @@ export function setupSwagger(app: INestApplication, nodeEnv = process.env.NODE_E
         '2. Use o `access_token` retornado para chamar rotas protegidas. Por padrão, ele expira em 15 minutos; a duração pode ser configurada no servidor.\n' +
         '3. Para renovar a sessão, envie o cookie `refreshToken` em `POST /api/v1/auth/refresh`. O token de renovação é rotacionado a cada uso.\n' +
         '4. Encerre a sessão em `POST /api/v1/auth/logout`.\n\n' +
+        '### Conteúdo e SEO\n' +
+        '- Feeds públicos: `GET /api/v1/feed/rss` e `/api/v1/feed/atom` fornecem os 50 artigos publicados mais recentes em XML para leitores de feed. `GET /api/v1/sitemap.xml` lista todos os artigos publicados para mecanismos de busca.\n' +
+        '- Para recomendações, use `GET /api/v1/posts/{id}/related` com UUID ou slug; para o perfil público, use `GET /api/v1/authors/{id}` com o UUID em `author.id`.\n' +
+        '- Para agendar uma publicação, autentique-se como autor ou administrador e envie um rascunho com `scheduledAt` futuro e fuso em `POST /api/v1/posts` ou `PATCH /api/v1/posts/{id}`. Consulte os exemplos dessas operações para remarcar, cancelar ou publicar imediatamente. A verificação ocorre a cada minuto enquanto a aplicação está em execução.\n\n' +
         '### Recursos e respostas\n' +
         '- Visitantes acessam posts publicados e ativos; autores e administradores também podem consultar rascunhos autorizados. Categorias desativadas não aparecem nas listagens públicas.\n' +
         '- Listagens de posts retornam `excerpt` e `publishedAt`; consulte o detalhe do post para obter `content`.\n' +
@@ -45,6 +49,8 @@ export function setupSwagger(app: INestApplication, nodeEnv = process.env.NODE_E
     )
     .addTag('Users', 'Operações de gerenciamento de usuários')
     .addTag('Posts', 'Operações de gerenciamento e consulta de artigos')
+    .addTag('Feeds', 'Feeds RSS e Atom e sitemap público em XML')
+    .addTag('Autores', 'Perfis públicos de autores e administradores')
     .addTag('Tags', 'Consulta das tags associadas aos artigos')
     .addTag(
       'Categorias',

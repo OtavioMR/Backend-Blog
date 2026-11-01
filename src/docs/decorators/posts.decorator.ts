@@ -1,12 +1,15 @@
 import { applyDecorators } from '@nestjs/common';
 import {
   ApiBearerAuth,
+  ApiBody,
   ApiOperation,
   ApiParam,
   ApiQuery,
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
+import { CreatePostDto } from '../../modules/posts/dto/create-post.dto.js';
+import { UpdatePostDto } from '../../modules/posts/dto/update-post.dto.js';
 import {
   PostResponseDto,
   PaginatedPostResponseDto,
@@ -134,8 +137,9 @@ export function ApiCreatePostDoc() {
     ApiOperation({
       summary: 'Criar novo artigo',
       description:
-        'Gera um slug curto e estável a partir do título; títulos repetidos recebem sufixos numéricos. Cria um novo artigo no blog associado automaticamente ao usuário autenticado. Exige perfil AUTHOR ou ADMIN. Requer envio do header `Authorization: Bearer <access_token>`.',
+        'Cria um artigo associado ao usuário autenticado (AUTHOR ou ADMIN). O slug é gerado a partir do título e recebe sufixo em caso de duplicidade. Para agendar, envie published: false (ou omita) e scheduledAt com data futura e fuso. O artigo fica como rascunho até a execução do agendador, que verifica publicações pendentes a cada minuto enquanto a aplicação está em execução; então published passa a true, publishedAt é preenchido e scheduledAt é limpo.',
     }),
+    ApiBody({ type: CreatePostDto, examples: { imediato: { summary: 'Publicar imediatamente', value: { title: 'Introdução ao NestJS', content: 'Conteúdo completo do artigo sobre NestJS.', published: true, categoryIds: ['b1a7d654-2a6c-4876-b9b6-79cf021516e8'], tagNames: ['NestJS', 'TypeScript'] } }, agendado: { summary: 'Criar rascunho agendado', value: { title: 'Introdução ao NestJS', content: 'Conteúdo completo do artigo sobre NestJS.', published: false, scheduledAt: '2099-01-01T12:00:00Z', categoryIds: ['b1a7d654-2a6c-4876-b9b6-79cf021516e8'], tagNames: ['NestJS', 'TypeScript'] } } } }),
     ApiResponse({
       status: 201,
       description: 'Artigo criado com sucesso.',
@@ -144,7 +148,7 @@ export function ApiCreatePostDoc() {
     ApiResponse({
       status: 400,
       description:
-        'Dados de validação incorretos (título ou conteúdo inválidos).',
+        'Dados inválidos ou agendamento passado, sem fuso ou combinado com publicação imediata.',
       type: BadRequestResponseDto,
     }),
     ApiResponse({
@@ -179,11 +183,12 @@ export function ApiUpdatePostDoc() {
     ApiOperation({
       summary: 'Atualizar artigo existente',
       description:
-        'O slug permanece estável quando o título muda. Atualiza campos específicos de um artigo (título, conteúdo, status de publicação ou ativação). Apenas o autor do artigo ou administradores podem executar esta alteração.',
+        'Atualiza apenas os campos enviados; exige autenticação do autor ou administrador e UUID do artigo. O slug permanece estável ao alterar o título. Para agendar ou remarcar um rascunho, envie scheduledAt com data futura e fuso. Envie scheduledAt: null para cancelar, ou published: true para publicar imediatamente e cancelar o agendamento. Desativar ou excluir o artigo também cancela o agendamento. Consulte GET /posts/me para acompanhar seus rascunhos.',
     }),
+    ApiBody({ type: UpdatePostDto, examples: { agendar: { summary: 'Agendar ou remarcar', value: { scheduledAt: '2099-01-01T12:00:00-03:00' } }, cancelar: { summary: 'Cancelar agendamento', value: { scheduledAt: null } }, publicar: { summary: 'Publicar imediatamente', value: { published: true } } } }),
     ApiParam({
       name: 'id',
-      description: 'UUID ou slug do artigo a ser atualizado',
+      description: 'UUID do artigo a ser atualizado',
       example: 'b1ffcd88-8b1a-4ce7-aa5c-5cc8ac271b22',
       format: 'uuid',
     }),
@@ -232,7 +237,7 @@ export function ApiRemovePostDoc() {
     }),
     ApiParam({
       name: 'id',
-      description: 'UUID ou slug do artigo a ser desativado',
+      description: 'UUID do artigo a ser desativado',
       example: 'b1ffcd88-8b1a-4ce7-aa5c-5cc8ac271b22',
       format: 'uuid',
     }),

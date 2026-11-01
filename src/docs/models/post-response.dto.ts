@@ -60,7 +60,7 @@ export class PostResponseDto {
   })
   published: boolean;
 
-  @ApiProperty({ description: 'Scheduled publication date, or null.', type: String, format: 'date-time', nullable: true, required: false, example: '2030-01-01T12:00:00Z' })
+  @ApiProperty({ description: 'Data da publicação agendada, ou null quando não há agendamento. Pode estar ausente em listagens públicas.', type: String, format: 'date-time', nullable: true, required: false, example: '2099-01-01T12:00:00Z' })
   scheduledAt?: Date | null;
 
   @ApiProperty({

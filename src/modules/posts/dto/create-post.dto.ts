@@ -47,7 +47,7 @@ export class CreatePostDto {
   @IsBoolean()
   published?: boolean;
 
-  @ApiPropertyOptional({ description: 'Data futura com fuso para publicação automática; use null para cancelar.', example: '2030-01-01T12:00:00Z', nullable: true })
+  @ApiPropertyOptional({ description: 'Agende um rascunho com data ISO 8601 futura e fuso explícito (Z ou offset, por exemplo -03:00). Não combine com published: true. No PATCH, envie null para cancelar; omita para manter a data.', type: String, format: 'date-time', example: '2099-01-01T12:00:00Z', nullable: true })
   @IsOptional()
   @IsISO8601({ strict: true })
   scheduledAt?: string | null;

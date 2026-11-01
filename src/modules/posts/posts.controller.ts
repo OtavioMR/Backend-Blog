@@ -24,6 +24,7 @@ import { PostsService } from './posts.service.js';
 import { CreatePostDto } from './dto/create-post.dto.js';
 import { UpdatePostDto } from './dto/update-post.dto.js';
 import { FindPostsQueryDto } from './dto/find-posts-query.dto.js';
+import { PostResponseDto } from '../../docs/models/post-response.dto.js';
 
 import { JwtAuthGuard } from '../auth/guard/jwt-auth.guard.js';
 import { OptionalJwtAuthGuard } from '../auth/guard/optional-jwt-auth.guard.js';
@@ -62,9 +63,9 @@ export class PostsController {
 
   @Get(':id/related')
   @ApiPublicRoute()
-  @ApiOperation({ summary: 'Artigos relacionados', description: 'Retorna até cinco artigos publicados e ativos, ordenados pela quantidade de tags e categorias ativas em comum.' })
+  @ApiOperation({ summary: 'Artigos relacionados', description: 'Informe o UUID, slug atual ou slug antigo de um artigo publicado e ativo. Retorna até cinco artigos completos, também publicados e ativos, que compartilham tags ou categorias ativas. A ordem prioriza a quantidade de correspondências; em empate, a publicação mais recente e depois o ID. O próprio artigo é excluído. Sem correspondências, retorna []. Não requer autenticação.' })
   @ApiParam({ name: 'id', description: 'UUID ou slug do artigo público.', example: 'meu-artigo' })
-  @ApiResponse({ status: 200, description: 'Artigos relacionados; lista vazia quando não há correspondência.', schema: { example: [{ id: 'b1ffcd88-8b1a-4ce7-aa5c-5cc8ac271b22', slug: 'artigo-relacionado', title: 'Artigo relacionado' }] } })
+  @ApiResponse({ status: 200, description: 'Artigos relacionados completos; lista vazia quando não há correspondência.', type: PostResponseDto, isArray: true })
   @ApiResponse({ status: 404, description: 'Artigo público não encontrado.' })
   findRelated(@Param('id') id: string) { return this.postsService.findRelated(id); }
 
