@@ -22,6 +22,9 @@ export class Post {
   @Column({ length: 150, unique: true })
   slug: string;
 
+  @Column({ name: 'legacy_slug', type: 'varchar', length: 150, nullable: true, unique: true, select: false })
+  legacySlug: string | null;
+
   @Column({ length: 150 })
   title: string;
 

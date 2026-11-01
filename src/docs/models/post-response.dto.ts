@@ -26,7 +26,7 @@ export class PostResponseDto {
   })
   id: string;
 
-  @ApiProperty({ description: 'Slug estável e único do artigo', example: 'introducao-ao-nestjs-b1ffcd88-8b1a-4ce7-aa5c-5cc8ac271b22' })
+  @ApiProperty({ description: 'Slug estável e único do artigo', example: 'introducao-ao-nestjs' })
   slug: string;
 
   @ApiProperty({

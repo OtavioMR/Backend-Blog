@@ -202,15 +202,17 @@ describe('PostsService', () => {
     const id = 'b1ffcd88-8b1a-4ce7-aa5c-5cc8ac271b22';
     mockPostsRepository.findOne.mockResolvedValue({ id, authorId: 'autor', published: false, title: 'Titulo', content: 'texto' });
     await expect(service.findById('titulo-' + id)).rejects.toThrow(NotFoundException);
-    expect(mockPostsRepository.findOne.mock.calls.at(-1)[0].where).toEqual({ slug: 'titulo-' + id, isActive: true });
+    expect(mockPostsRepository.findOne.mock.calls.at(-1)[0].where).toEqual([{ slug: 'titulo-' + id, isActive: true }, { legacySlug: 'titulo-' + id, isActive: true }]);
     await service.findById(id, { userId: 'autor', role: UserRole.AUTHOR } as any);
     expect(mockPostsRepository.findOne.mock.calls.at(-1)[0].where).toEqual({ id, isActive: true });
   });
 
   it('gera slugs unicos para titulos iguais e preserva o slug ao editar', async () => {
     const first = await service.create({ title: 'Ol\u00e1, NestJS!', content: 'Conteudo' }, 'autor');
+    mockPostsRepository.save.mockRejectedValueOnce({ driverError: { code: '23505', constraint: 'uq_posts_slug' } });
     const second = await service.create({ title: 'Ol\u00e1, NestJS!', content: 'Conteudo' }, 'autor');
-    expect(first.slug).toBe(`ola-nestjs-${first.id}`);
+    expect(first.slug).toBe('ola-nestjs');
+    expect(second.slug).toBe('ola-nestjs-2');
     expect(second.slug).not.toBe(first.slug);
     mockPostsRepository.findOne.mockResolvedValue(first);
     const updated = await service.update(first.id, { title: 'Outro titulo' }, { userId: 'autor', role: UserRole.AUTHOR } as any);
@@ -238,7 +240,7 @@ describe('PostsService', () => {
           categories: [cat],
         }),
       );
-      expect(result.slug).toBe(`novo-post-${result.id}`);
+      expect(result.slug).toBe('novo-post');
     });
 
     it('deve lançar NotFoundException se alguma categoria informada não for encontrada', async () => {

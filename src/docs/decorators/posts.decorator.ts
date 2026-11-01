@@ -108,7 +108,7 @@ export function ApiFindPostByIdDoc() {
     ApiParam({
       name: 'id',
       description: 'UUID ou slug do artigo',
-      example: 'introducao-ao-nestjs-b1ffcd88-8b1a-4ce7-aa5c-5cc8ac271b22',
+      example: 'introducao-ao-nestjs',
     }),
     ApiResponse({
       status: 200,
@@ -134,7 +134,7 @@ export function ApiCreatePostDoc() {
     ApiOperation({
       summary: 'Criar novo artigo',
       description:
-        'Gera um slug único e estável a partir do título. Cria um novo artigo no blog associado automaticamente ao usuário autenticado. Exige perfil AUTHOR ou ADMIN. Requer envio do header `Authorization: Bearer <access_token>`.',
+        'Gera um slug curto e estável a partir do título; títulos repetidos recebem sufixos numéricos. Cria um novo artigo no blog associado automaticamente ao usuário autenticado. Exige perfil AUTHOR ou ADMIN. Requer envio do header `Authorization: Bearer <access_token>`.',
     }),
     ApiResponse({
       status: 201,

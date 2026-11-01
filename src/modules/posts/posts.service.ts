@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { isUUID } from 'class-validator';
-import { postSlug } from './post-slug.js';
+import { shortPostSlug } from './post-slug.js';
 import { paginationMeta } from '../../common/utils/pagination.js';
 import { sanitizePostContent, sanitizePlainText } from '../../common/utils/sanitize-content.js';
 import { likePattern } from '../../common/utils/like-pattern.js';
@@ -160,10 +160,9 @@ export class PostsService {
 
   async findById(id: string, user?: AuthenticatedUser | null): Promise<Post> {
     const post = await this.postsRepository.findOne({
-      where: {
-        ...(isUUID(id) ? { id } : { slug: id }),
-        isActive: true,
-      },
+      where: isUUID(id)
+        ? { id, isActive: true }
+        : [{ slug: id, isActive: true }, { legacySlug: id, isActive: true }],
       relations: {
         author: true,
         categories: true,
@@ -237,7 +236,7 @@ export class PostsService {
     const post = this.postsRepository.create({
       ...postData,
       id,
-      slug: postSlug(postData.title, id),
+      slug: shortPostSlug(postData.title),
       excerpt: sanitizePlainText(postData.content).slice(0, 200),
       publishedAt: postData.published ? new Date() : null,
       authorId,
@@ -246,7 +245,19 @@ export class PostsService {
       tags,
     });
 
-    const savedPost = await this.postsRepository.save(post);
+    const baseSlug = post.slug;
+    let savedPost: Post;
+    for (let suffix = 1; ; suffix++) {
+      post.slug = suffix === 1 ? baseSlug : `${baseSlug}-${suffix}`;
+      if (await this.postsRepository.findOne({ where: { legacySlug: post.slug }, withDeleted: true, select: { id: true } })) continue;
+      try {
+        savedPost = await this.postsRepository.save(post);
+        break;
+      } catch (error) {
+        const dbError = error as { driverError?: { code?: string; constraint?: string } };
+        if (dbError.driverError?.code !== '23505' || dbError.driverError.constraint !== 'uq_posts_slug') throw error;
+      }
+    }
     this.logger.log(`Artigo ${savedPost.id} criado pelo usuário ${authorId}`);
     return Object.assign(savedPost, { readingTimeMinutes: readingTimeMinutes(savedPost.content ?? '') });
   }

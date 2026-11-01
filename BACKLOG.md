@@ -124,7 +124,7 @@ Status local dos 55 itens originais: **27 concluídos e 28 pendentes**. A issue 
 
    **Divisão para sessões curtas:**
    - Leva 1: #33 concluída localmente. O tempo usa 200 palavras por minuto, arredondado para cima, com mínimo de um minuto; sem alteração de esquema.
-   - Leva 2: #30 concluída. Slugs estáveis derivados do título e UUID; migration aplicada.
+   - Leva 2: #30 concluída. Slugs curtos e estáveis derivados do título, com sufixos para duplicatas e compatibilidade com URLs anteriores.
    - Leva 3: #31 (imagem de capa); próxima issue.
    - Leva 4: #34 (feeds e sitemap).
    - Leva 5: #38 e #39 (artigos relacionados e perfil público).
