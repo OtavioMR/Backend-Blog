@@ -1,3 +1,7 @@
+import { PostSchedulerService } from './post-scheduler.service.js';
+import { AuthorsController } from './authors.controller.js';
+import { FeedController } from './feed.controller.js';
+import { FeedService } from './feed.service.js';
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
@@ -15,8 +19,8 @@ import { PostInteractionsController } from './post-interactions.controller.js';
     TypeOrmModule.forFeature([Post, Category, PostInteraction]),
     TagsModule,
   ],
-  controllers: [PostInteractionsController, PostsController],
-  providers: [PostsService, PostInteractionsService],
+  controllers: [AuthorsController, FeedController, PostInteractionsController, PostsController],
+  providers: [PostsService, PostInteractionsService, FeedService, PostSchedulerService],
   exports: [PostsService, TypeOrmModule],
 })
 export class PostsModule {}

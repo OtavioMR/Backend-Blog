@@ -20,6 +20,15 @@ export class UserResponseDto {
   })
   email: string;
 
+  @ApiProperty({ description: 'Public biography', type: String, nullable: true })
+  bio: string | null;
+
+  @ApiProperty({ description: 'Public website', type: String, nullable: true })
+  websiteUrl: string | null;
+
+  @ApiProperty({ description: 'Public social link', type: String, nullable: true })
+  socialUrl: string | null;
+
   @ApiProperty({
     description: 'Papel/permissão do usuário no sistema',
     enum: UserRole,

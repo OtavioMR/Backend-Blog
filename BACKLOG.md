@@ -2,7 +2,7 @@
 
 Este documento consolida e rastreia todos os **55 itens acionáveis** originados do relatório técnico `analise_blog.md`, categorizados em 6 Milestones e divididos por prioridades, estimativas de esforço e status de execução.
 
-Status local dos 55 itens originais: **28 concluídos e 27 pendentes**. A issue adicional #57 permanece pendente.
+Status local dos 55 itens originais: **32 concluídos e 23 pendentes**. A issue adicional #57 permanece pendente.
 
 **Decisão de produto — comunidade e autoria:** visitantes leem artigos públicos; contas começam como `READER`. Após verificar o e-mail (#45) e aceitar as regras de publicação, o leitor pode solicitar promoção automática a `AUTHOR`. O primeiro artigo requer aprovação administrativa; depois, novos artigos e edições são publicados imediatamente. Administradores podem revogar a autoria ou suspender a conta e decidir quais artigos publicados ocultar. A moderação posterior deve tratar abusos, inclusive alterações feitas após a aprovação.
 
@@ -35,7 +35,7 @@ Status local dos 55 itens originais: **28 concluídos e 27 pendentes**. A issue 
 | **S3** | #3 | [Segurança] Sanitizar interpolação de HTML em templates de e-mail de recuperação | P0 — Crítica | XS | 🟢 Concluído |
 | **S4** | #4 | [Segurança] Implementar validação estrita de variáveis de ambiente com schema | P0 — Crítica | S | 🟢 Concluído |
 | **S5** | #5 | [Segurança] Configurar Helmet, CORS com whitelist e Trust Proxy | P0 — Crítica | S | 🟢 Concluído |
-| **S6** | #6 | [Segurança] Restringir ou desativar interface do Swagger em ambiente de produção | P1 — Alta | XS | ?? Conclu?do |
+| **S6** | #6 | [Segurança] Restringir ou desativar interface do Swagger em ambiente de produção | P1 — Alta | XS | ?? Concluído |
 | **S7** | #7 | [Segurança] Exigir senha atual para alteração de credenciais e confirmar novo e-mail | P0 — Crítica | M | 🟢 Concluído |
 | **S8** | #8 | [Segurança] Mitigar ataques de temporização (Timing Attacks) na autenticação | P1 — Alta | S | 🟢 Concluído |
 | **S9** | #9 | [Segurança] Padronizar custo e limites de hashing de senhas com bcrypt | P1 — Alta | S | 🟢 Concluído |
@@ -55,7 +55,7 @@ Status local dos 55 itens originais: **28 concluídos e 27 pendentes**. A issue 
 | **M4** | #19 | [Melhoria] Otimizar listagem de artigos com resumo (excerpt) e exclusão de payload pesado | P1 — Alta | S | 🟢 Concluído |
 | **M5** | #20 | [Performance] Eliminar problema de query N+1 na listagem de comentários e respostas | P1 — Alta | M | 🟢 Concluído |
 | **M6** | #21 | [Melhoria] Implementar busca textual Full-Text nativa com PostgreSQL (tsvector e GIN) | P2 — Média | M | Backlog |
-| **M7** | #22 | [Bug] Permitir moderação e remoção de comentários mesmo com comentários desativados no post | P1 — Alta | XS | ?? Conclu?do |
+| **M7** | #22 | [Bug] Permitir moderação e remoção de comentários mesmo com comentários desativados no post | P1 — Alta | XS | ?? Concluído |
 | **M8** | #23 | [Melhoria] Enriquecer resposta de artigos salvos com autor, categorias e tags | P2 — Média | XS | Backlog |
 | **M9** | #24 | [Refatoração] Padronizar estrutura de metadados de paginação com utilitário compartilhado | P2 — Média | S | 🟢 Concluído |
 | **M10** | #25 | [Melhoria] Padronizar busca de categorias e tags com escape e unaccent | P2 — Média | XS | 🟢 Concluído |
@@ -69,14 +69,14 @@ Status local dos 55 itens originais: **28 concluídos e 27 pendentes**. A issue 
 |---|---|---|---|---|---|
 | **F1** | #30 | [Feature] Suporte a Slugs amigáveis nas URLs de artigos (GET /posts/:slug) | P1 — Alta | S | Concluído |
 | **F2** | #31 | [Feature] Upload e gerenciamento de Imagem de Capa para artigos (coverImage) | P2 — Média | M | Concluído localmente |
-| **F3** | #32 | [Feature] Agendamento de publicação automática de posts com @nestjs/schedule | P2 — Média | M | Backlog |
+| **F3** | #32 | [Feature] Agendamento de publicação automática de posts com @nestjs/schedule | P2 — Média | M | Concluído localmente |
 | **F4** | #33 | [Feature] Cálculo e exibição automática do tempo estimado de leitura (readingTimeMinutes) | P2 — Média | XS | Concluído localmente |
-| **F5** | #34 | [Feature] Geração dinâmica de Feeds RSS/Atom e Sitemap XML | P2 — Média | S | Backlog |
+| **F5** | #34 | [Feature] Geração dinâmica de Feeds RSS/Atom e Sitemap XML | P2 — Média | S | Concluído localmente |
 | **F6** | #35 | [Feature] Agrupamento de artigos em séries sequenciais | P3 — Baixa | M | Backlog |
 | **F7** | #36 | [Feature] Histórico de revisões e versionamento de artigos (post_revisions) | P3 — Baixa | M | Backlog |
 | **F8** | #37 | [Feature] Contador de visualizações com deduplicação e endpoint de artigos em alta | P2 — Média | M | Backlog |
-| **F9** | #38 | [Feature] Recomendação de artigos relacionados por similaridade de tags e categorias | P2 — Média | S | Backlog |
-| **F10** | #39 | [Feature] Perfil público do autor com bio, links sociais e contagem de publicações | P2 — Média | S | Backlog |
+| **F9** | #38 | [Feature] Recomendação de artigos relacionados por similaridade de tags e categorias | P2 — Média | S | Concluído localmente |
+| **F10** | #39 | [Feature] Perfil público do autor com bio, links sociais e contagem de publicações | P2 — Média | S | Concluído localmente |
 | **F11** | #40 | [Feature] Sistema de seguir autores e feed personalizado (GET /feed) | P2 — Média | M | Backlog |
 | **F12** | #41 | [Feature] Sistema de reações e curtidas em comentários | P2 — Média | S | Backlog |
 | **F13** | #42 | [Feature] Organização de artigos salvos em coleções/pastas personalizadas | P3 — Baixa | M | Backlog |
@@ -113,7 +113,7 @@ Status local dos 55 itens originais: **28 concluídos e 27 pendentes**. A issue 
    - #18, #19, #20, #22, #24, #25, #26, #27, #28
    - #45 (Verificação de e-mail no cadastro)
 
-3. **Sprint 3 — Conteúdo, SEO & Autoria (P1/P2; em andamento):**
+3. **Sprint 3 — Conteúdo, SEO & Autoria (P1/P2; concluída localmente):**
    - #30 (Slugs amigáveis)
    - #31 (Imagem de capa)
    - #33 (Tempo de leitura estimado; concluído localmente)
@@ -126,9 +126,9 @@ Status local dos 55 itens originais: **28 concluídos e 27 pendentes**. A issue 
    - Leva 1: #33 concluída localmente. O tempo usa 200 palavras por minuto, arredondado para cima, com mínimo de um minuto; sem alteração de esquema.
    - Leva 2: #30 concluída. Slugs curtos e estáveis derivados do título, com sufixos para duplicatas e compatibilidade com URLs anteriores.
    - Leva 3: #31 (imagem de capa) concluída localmente.
-   - Leva 4: #34 (feeds e sitemap); próxima issue.
-   - Leva 5: #38 e #39 (artigos relacionados e perfil público).
-   - Leva 6: #32 (agendamento). Concluir e validar cada leva antes de avançar; ajustar a divisão se necessário. A Sprint 4 começa somente após concluir a Sprint 3.
+   - Leva 4: #34 (feeds e sitemap) concluída localmente.
+   - Leva 5: #38 e #39 (artigos relacionados e perfil público) concluídas localmente.
+   - Leva 6: #32 (agendamento) concluída localmente. Concluir e validar cada leva antes de avançar; ajustar a divisão se necessário. A Sprint 4 começa somente após concluir a Sprint 3.
    - Alterações e commits permanecem locais; o usuário enviará ao GitHub ao terminar a sprint.
 
 4. **Sprint 4 — Engajamento & Comunidade (P2):**

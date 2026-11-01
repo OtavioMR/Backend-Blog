@@ -21,6 +21,15 @@ export class User {
   @Column({ name: 'profile_photo', type: 'varchar', nullable: true })
   profilePhoto: string | null;
 
+  @Column({ type: 'varchar', length: 500, nullable: true })
+  bio: string | null;
+
+  @Column({ name: 'website_url', type: 'varchar', length: 500, nullable: true })
+  websiteUrl: string | null;
+
+  @Column({ name: 'social_url', type: 'varchar', length: 500, nullable: true })
+  socialUrl: string | null;
+
   @Column({ unique: true, length: 255 })
   email: string;
 

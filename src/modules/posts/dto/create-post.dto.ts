@@ -4,6 +4,7 @@ import {
   IsArray,
   IsBoolean,
   IsNotEmpty,
+  IsISO8601,
   IsOptional,
   IsString,
   IsUUID,
@@ -45,6 +46,11 @@ export class CreatePostDto {
   @IsOptional()
   @IsBoolean()
   published?: boolean;
+
+  @ApiPropertyOptional({ description: 'Data futura com fuso para publicação automática; use null para cancelar.', example: '2030-01-01T12:00:00Z', nullable: true })
+  @IsOptional()
+  @IsISO8601({ strict: true })
+  scheduledAt?: string | null;
 
   @ApiPropertyOptional({
     description: 'Lista de IDs (UUID) das categorias vinculadas ao artigo',

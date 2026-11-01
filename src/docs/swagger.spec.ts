@@ -1,3 +1,6 @@
+import { AuthorsController } from '../modules/posts/authors.controller.js';
+import { FeedController } from '../modules/posts/feed.controller.js';
+import { FeedService } from '../modules/posts/feed.service.js';
 import { describe, it, expect, vi } from 'vitest';
 import { Test } from '@nestjs/testing';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
@@ -31,6 +34,8 @@ describe('Swagger Documentation Configuration', () => {
   it('should generate OpenAPI document containing Auth, Users, and Posts endpoints', async () => {
     const moduleRef = await Test.createTestingModule({
       controllers: [
+        AuthorsController,
+        FeedController,
         UsersController,
         PostsController,
         PostInteractionsController,
@@ -40,6 +45,7 @@ describe('Swagger Documentation Configuration', () => {
         HealthController,
       ],
       providers: [
+        { provide: FeedService, useValue: {} },
         { provide: UsersService, useValue: {} },
         { provide: PostsService, useValue: {} },
         { provide: PostInteractionsService, useValue: {} },
@@ -94,6 +100,17 @@ describe('Swagger Documentation Configuration', () => {
     expect(securityScheme.type).toBe('http');
     expect(securityScheme.scheme).toBe('bearer');
     expect(securityScheme.bearerFormat).toBe('JWT');
+
+    for (const path of ['/api/v1/feed/rss', '/api/v1/feed/atom', '/api/v1/sitemap.xml']) {
+      expect(document.paths[path].get?.security).toEqual([{}]);
+      expect(document.paths[path].get?.responses).toHaveProperty('200');
+    }
+
+    for (const path of ['/api/v1/authors/{id}', '/api/v1/posts/{id}/related']) {
+      expect(document.paths[path].get?.security).toEqual([{}]);
+      expect(document.paths[path].get?.responses).toHaveProperty('200');
+      expect(document.paths[path].get?.responses).toHaveProperty('404');
+    }
 
     // Paths verification
     const paths = Object.keys(document.paths);

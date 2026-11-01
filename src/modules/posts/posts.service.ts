@@ -46,6 +46,15 @@ export class PostsService {
     private readonly tagsService: TagsService,
   ) {}
 
+  private validateSchedule(value: string | null | undefined, published?: boolean): Date | null {
+    if (value == null) return null;
+    const date = new Date(value);
+    if (published || !Number.isFinite(date.getTime()) || date.getTime() <= Date.now() || !/(?:Z|[+-]\d{2}:\d{2})$/i.test(value)) {
+      throw new BadRequestException('O agendamento exige um rascunho e uma data futura com fuso horário.');
+    }
+    return date;
+  }
+
   async findAll(query?: FindPostsQueryDto): Promise<PaginatedResult<Post>> {
     const page = query?.page ?? 1;
     const limit = query?.limit ?? 10;
@@ -135,6 +144,31 @@ export class PostsService {
     };
   }
 
+  async authorProfile(id: string) {
+    const user = await this.postsRepository.manager.getRepository('User').findOne({ where: { id, isActive: true } });
+    if (!user || ![UserRole.AUTHOR, UserRole.ADMIN].includes(user.role)) throw new NotFoundException('Autor não encontrado.');
+    const publicationCount = await this.postsRepository.count({ where: { authorId: id, published: true, isActive: true } });
+    return { id: user.id, name: user.name, profilePhoto: user.profilePhoto, bio: user.bio, websiteUrl: user.websiteUrl, socialUrl: user.socialUrl, publicationCount };
+  }
+
+  async findRelated(id: string): Promise<Post[]> {
+    const target = await this.postsRepository.findOne({
+      where: isUUID(id) ? { id, published: true, isActive: true } : [{ slug: id, published: true, isActive: true }, { legacySlug: id, published: true, isActive: true }],
+      relations: { tags: true, categories: true },
+    });
+    if (!target) throw new NotFoundException('Artigo não encontrado.');
+    const tagIds = (target.tags ?? []).map(tag => tag.id);
+    const categoryIds = (target.categories ?? []).filter(category => category.isActive).map(category => category.id);
+    if (!tagIds.length && !categoryIds.length) return [];
+    const where: FindOptionsWhere<Post>[] = [];
+    if (tagIds.length) where.push({ published: true, isActive: true, tags: { id: In(tagIds) } });
+    if (categoryIds.length) where.push({ published: true, isActive: true, categories: { id: In(categoryIds), isActive: true } });
+    const candidates = await this.postsRepository.find({ where, relations: { tags: true, categories: true } });
+    const ranked = candidates.filter(post => post.id !== target.id).map(post => ({ post, score: (post.tags ?? []).filter(tag => tagIds.includes(tag.id)).length + (post.categories ?? []).filter(category => category.isActive && categoryIds.includes(category.id)).length }));
+    ranked.sort((a, b) => b.score - a.score || (b.post.publishedAt?.getTime() ?? 0) - (a.post.publishedAt?.getTime() ?? 0) || a.post.id.localeCompare(b.post.id));
+    return Promise.all(ranked.slice(0, 5).map(({ post }) => this.findById(post.id)));
+  }
+
   async findMine(authorId: string, query: PaginationQueryDto): Promise<PaginatedResult<Post>> {
     const page = query.page ?? 1;
     const limit = query.limit ?? 10;
@@ -142,7 +176,7 @@ export class PostsService {
       where: { authorId, isActive: true },
       relations: { author: true, categories: true, tags: true },
       select: {
-        id: true, slug: true, title: true, content: true, excerpt: true, coverImage: true, publishedAt: true, published: true, commentsEnabled: true,
+        id: true, slug: true, title: true, content: true, excerpt: true, coverImage: true, publishedAt: true, scheduledAt: true, published: true, commentsEnabled: true,
         isActive: true, createdAt: true, updatedAt: true,
         author: { id: true, name: true },
         categories: { id: true, name: true, slug: true, isActive: true },
@@ -177,6 +211,7 @@ export class PostsService {
         id: true,
         slug: true,
         publishedAt: true,
+        scheduledAt: true,
         excerpt: true,
         coverImage: true,
         authorId: true,
@@ -215,7 +250,8 @@ export class PostsService {
   }
 
   async create(createPostDto: CreatePostDto, authorId: string): Promise<Post> {
-    const { categoryIds, tagNames, ...postData } = createPostDto;
+    const { categoryIds, tagNames, scheduledAt, ...postData } = createPostDto;
+    const schedule = this.validateSchedule(scheduledAt, postData.published);
     postData.title = sanitizePlainText(postData.title);
     postData.content = sanitizePostContent(postData.content);
     if (!postData.title || !sanitizePlainText(postData.content)) throw new BadRequestException('Conte\u00fado inv\u00e1lido.');
@@ -242,6 +278,7 @@ export class PostsService {
     const post = this.postsRepository.create({
       ...postData,
       id,
+      scheduledAt: schedule,
       coverImage: null,
       slug: shortPostSlug(postData.title),
       excerpt: sanitizePlainText(postData.content).slice(0, 200),
@@ -289,7 +326,10 @@ export class PostsService {
       );
     }
 
-    const { categoryIds, tagNames, ...postData } = updatePostDto;
+    const { categoryIds, tagNames, scheduledAt, ...postData } = updatePostDto;
+    const schedule = scheduledAt === undefined ? undefined : this.validateSchedule(scheduledAt, postData.published ?? post.published);
+    if (scheduledAt !== undefined) post.scheduledAt = schedule ?? null;
+    if (postData.published === true || postData.isActive === false) post.scheduledAt = null;
     if (postData.title !== undefined) postData.title = sanitizePlainText(postData.title);
     if (postData.content !== undefined) postData.content = sanitizePostContent(postData.content);
     if (postData.title === '' || (postData.content !== undefined && !sanitizePlainText(postData.content))) throw new BadRequestException('Conte\u00fado inv\u00e1lido.');
@@ -396,6 +436,7 @@ export class PostsService {
     }
 
     post.published = false;
+    post.scheduledAt = null;
     post.isActive = false;
     await this.postsRepository.save(post);
     await this.postsRepository.softRemove(post);

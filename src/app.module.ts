@@ -1,3 +1,4 @@
+import { ScheduleModule } from '@nestjs/schedule';
 import { TerminusModule } from '@nestjs/terminus';
 import { APP_FILTER, APP_INTERCEPTOR } from '@nestjs/core';
 import { HealthController } from './common/health.controller.js';
@@ -23,6 +24,7 @@ import { validate } from './config/env.validation.js';
       envFilePath: '.env',
       validate,
     }),
+    ScheduleModule.forRoot(),
     RateLimitModule,
     TerminusModule,
     TypeOrmModule.forRootAsync({

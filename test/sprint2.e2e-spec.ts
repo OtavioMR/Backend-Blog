@@ -1,3 +1,4 @@
+import { PostSchedulerService } from '../src/modules/posts/post-scheduler.service.js';
 import { beforeAll, afterAll, describe, expect, it, vi } from 'vitest';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
@@ -13,6 +14,7 @@ describe('Sprint 2 with PostgreSQL', () => {
   let userId: string;
   const email = `sprint2-${randomUUID()}@example.com`;
   const password = 'Password123!';
+  const tagName = `sprint2-${randomUUID()}`;
   const mail = { sendEmailVerification: vi.fn(), sendEmailChangeConfirmation: vi.fn(), sendPasswordResetEmail: vi.fn() };
   beforeAll(async () => {
     const module = await Test.createTestingModule({ imports: [AppModule] }).overrideProvider(MailService).useValue(mail).compile();
@@ -27,6 +29,7 @@ describe('Sprint 2 with PostgreSQL', () => {
       await db.query('DELETE FROM comments WHERE author_id = $1', [userId]);
       await db.query('DELETE FROM posts WHERE author_id = $1', [userId]);
       await db.query('DELETE FROM users WHERE id = $1', [userId]);
+      await db.query('DELETE FROM tags WHERE name = $1', [tagName]);
     }
     await app?.close();
   });
@@ -50,9 +53,26 @@ describe('Sprint 2 with PostgreSQL', () => {
     const login = await request(server).post('/api/v1/auth/login').send({ email, password }).expect(200);
     const auth = `Bearer ${login.body.access_token}`;
     const post = await request(server).post('/api/v1/posts').set('Authorization', auth)
-      .send({ title: 'A valid title', content: '<p>Safe content</p><script>alert(1)</script>', published: true }).expect(201);
+      .send({ title: 'A valid title', content: '<p>Safe content</p><script>alert(1)</script>', published: true, tagNames: [tagName] }).expect(201);
     expect(post.body.content).toBe('<p>Safe content</p>');
     expect(post.body.publishedAt).toBeTruthy();
+    const profile = await request(server).get(`/api/v1/authors/${userId}`).expect(200);
+    expect(profile.body.publicationCount).toBe(1);
+    expect(profile.body).not.toHaveProperty('email');
+    const feed = await request(server).get('/api/v1/feed/rss').expect(200);
+    expect(feed.headers['content-type']).toContain('application/rss+xml');
+    expect(feed.text).toContain(post.body.slug);
+    const sitemap = await request(server).get('/api/v1/sitemap.xml').expect(200);
+    expect(sitemap.text).toContain(post.body.slug);
+    await request(server).patch(`/api/v1/users/${userId}`).set('Authorization', auth).send({ bio: 'Autora', websiteUrl: 'https://example.com' }).expect(200);
+    const updatedProfile = await request(server).get(`/api/v1/authors/${userId}`).expect(200);
+    expect(updatedProfile.body).toMatchObject({ bio: 'Autora', websiteUrl: 'https://example.com' });
+    const relatedPost = await request(server).post('/api/v1/posts').set('Authorization', auth)
+      .send({ title: 'Related article', content: 'Some related content', published: true, tagNames: [tagName] }).expect(201);
+    const related = await request(server).get(`/api/v1/posts/${post.body.slug}/related`).expect(200);
+    expect(related.body.map((item: { id: string }) => item.id)).toContain(relatedPost.body.id);
+
+
     const listing = await request(server).get('/api/v1/posts').expect(200);
     const summary = listing.body.data.find((item: { id: string }) => item.id === post.body.id);
     expect(summary.excerpt).toBe('Safe content');
@@ -72,6 +92,17 @@ describe('Sprint 2 with PostgreSQL', () => {
     await request(server).patch(`/api/v1/posts/${post.body.id}`).set('Authorization', auth).send({ published: false }).expect(200);
     const [draft] = await db.query('SELECT published_at FROM posts WHERE id = $1', [post.body.id]);
     expect(draft.published_at).toBeNull();
+    const scheduledAt = new Date(Date.now() + 3600000).toISOString();
+    const scheduled = await request(server).patch(`/api/v1/posts/${post.body.id}`).set('Authorization', auth).send({ scheduledAt }).expect(200);
+    expect(new Date(scheduled.body.scheduledAt).toISOString()).toBe(scheduledAt);
+    await request(server).patch(`/api/v1/posts/${post.body.id}`).set('Authorization', auth).send({ scheduledAt: null }).expect(200);
+    await db.query("UPDATE posts SET scheduled_at = CURRENT_TIMESTAMP - interval '1 second' WHERE id = $1", [post.body.id]);
+    await app.get(PostSchedulerService).publishDue();
+    const [automaticallyPublished] = await db.query('SELECT published, scheduled_at FROM posts WHERE id = $1', [post.body.id]);
+    expect(automaticallyPublished).toMatchObject({ published: true, scheduled_at: null });
+    await request(server).patch(`/api/v1/posts/${post.body.id}`).set('Authorization', auth).send({ published: false }).expect(200);
+
+
     const republished = await request(server).patch(`/api/v1/posts/${post.body.id}`).set('Authorization', auth).send({ published: true }).expect(200);
     expect(republished.body.publishedAt).toBeTruthy();
     const root = await request(server).post(`/api/v1/posts/${post.body.id}/comments`).set('Authorization', auth).send({ content: 'First comment' }).expect(201);

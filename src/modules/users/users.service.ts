@@ -43,6 +43,9 @@ export class UsersService {
       id: user.id,
       name: user.name,
       profilePhoto: user.profilePhoto,
+      bio: user.bio,
+      websiteUrl: user.websiteUrl,
+      socialUrl: user.socialUrl,
       email: user.email,
       role: user.role,
       emailVerified: user.emailVerified,
@@ -261,6 +264,10 @@ export class UsersService {
         throw new UnauthorizedException('Senha atual inválida.');
       }
     }
+
+    if (updateUserDto.bio !== undefined) user.bio = updateUserDto.bio?.trim() || null;
+    if (updateUserDto.websiteUrl !== undefined) user.websiteUrl = updateUserDto.websiteUrl;
+    if (updateUserDto.socialUrl !== undefined) user.socialUrl = updateUserDto.socialUrl;
 
     if (updateUserDto.name !== undefined) {
       const name = updateUserDto.name.trim();

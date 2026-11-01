@@ -60,6 +60,9 @@ export class PostResponseDto {
   })
   published: boolean;
 
+  @ApiProperty({ description: 'Scheduled publication date, or null.', type: String, format: 'date-time', nullable: true, required: false, example: '2030-01-01T12:00:00Z' })
+  scheduledAt?: Date | null;
+
   @ApiProperty({
     description: 'Indica se o artigo está ativo (não desativado)',
     example: true,

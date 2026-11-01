@@ -145,3 +145,12 @@ Apos cinco senhas incorretas, a conta fica temporariamente bloqueada; novas falh
 As listagens de posts, rascunhos proprios e salvos retornam `excerpt` em vez de `content`; o conteudo completo permanece no detalhe. `publishedAt` indica a ultima publicacao e e nulo em rascunhos; posts publicados existentes usam `createdAt` como aproximacao. HTML de artigos e limitado a uma lista segura, e comentarios sao tratados como texto. Os metadados de paginacao de comentarios agora incluem `totalPages` e `hasPreviousPage`.
 
 Fotos sao convertidas para WebP e limitadas a 512 pixels. Para limpar arquivos sem referencia com mais de 24 horas, execute `npm.cmd run photos:clean` para inspecionar os candidatos e `npm.cmd run photos:clean -- --apply` para remove-los, com acesso ao banco correto e ao diretorio de uploads. O comando pode ser agendado na infraestrutura. O endpoint `GET /api/v1/health` verifica o banco. Para exportar traces, configure `OTEL_EXPORTER_OTLP_ENDPOINT` (ou `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT`) e `OTEL_SERVICE_NAME`; o SDK fica desativado sem endpoint. O Swagger fica desativado em producao.
+
+
+### Conteudo e publicacao
+
+Feeds publicos em `GET /api/v1/feed/rss` e `GET /api/v1/feed/atom` mostram os 50 artigos publicados mais recentes. `GET /api/v1/sitemap.xml` lista artigos publicados e ativos. Os links usam `FRONTEND_URL` seguido de `/posts/:slug`; configure o frontend para essa rota.
+
+`GET /api/v1/posts/:id/related` recomenda ate cinco artigos por tags e categorias ativas em comum. `GET /api/v1/authors/:id` mostra perfil e quantidade de publicacoes; `PATCH /api/v1/users/:id` permite editar `bio`, `websiteUrl` e `socialUrl` (use `null` para limpar).
+
+Para agendar um rascunho, informe `scheduledAt` como data futura ISO 8601 com fuso, por exemplo `2030-01-01T12:00:00Z`, em `POST /api/v1/posts` ou `PATCH /api/v1/posts/:id`. Envie `null` para cancelar. Publicacao manual ou desativacao cancela o agendamento. O processo da API verifica publicacoes vencidas a cada minuto; enquanto estiver parado, elas serao processadas na proxima verificacao apos reiniciar.
