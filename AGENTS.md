@@ -2,7 +2,7 @@
 
 ## Backlog e sprints
 - O [BACKLOG.md](BACKLOG.md) local é a fonte de referência para as tarefas. Consulte apenas o trecho relevante quando precisar de contexto; acesse o GitHub somente quando solicitado ou quando a informação necessária não estiver disponível localmente.
-- As seis sprints são sequenciais: não avance para a próxima sem concluir a atual. A Sprint 3 é o próximo foco; consulte o backlog para tarefas e status atualizados.
+- As seis sprints são sequenciais: não avance para a próxima sem concluir a atual. A Sprint 3 foi concluída e enviada pelo usuário; a Sprint 4 é o próximo foco. Consulte o backlog para tarefas, ordem sugerida e status atualizados.
 
 ## Desenvolvimento
 - Documente no Swagger toda rota nova ou alterada, incluindo autenticação, parâmetros, exemplos e respostas; atualize e valide a documentação junto com a mudança.

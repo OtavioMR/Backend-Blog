@@ -68,15 +68,15 @@ Status local dos 55 itens originais: **32 concluídos e 23 pendentes**. A issue 
 | Código | Issue | Título | Prioridade | Esforço | Status |
 |---|---|---|---|---|---|
 | **F1** | #30 | [Feature] Suporte a Slugs amigáveis nas URLs de artigos (GET /posts/:slug) | P1 — Alta | S | Concluído |
-| **F2** | #31 | [Feature] Upload e gerenciamento de Imagem de Capa para artigos (coverImage) | P2 — Média | M | Concluído localmente |
-| **F3** | #32 | [Feature] Agendamento de publicação automática de posts com @nestjs/schedule | P2 — Média | M | Concluído localmente |
-| **F4** | #33 | [Feature] Cálculo e exibição automática do tempo estimado de leitura (readingTimeMinutes) | P2 — Média | XS | Concluído localmente |
-| **F5** | #34 | [Feature] Geração dinâmica de Feeds RSS/Atom e Sitemap XML | P2 — Média | S | Concluído localmente |
+| **F2** | #31 | [Feature] Upload e gerenciamento de Imagem de Capa para artigos (coverImage) | P2 — Média | M | Concluído |
+| **F3** | #32 | [Feature] Agendamento de publicação automática de posts com @nestjs/schedule | P2 — Média | M | Concluído |
+| **F4** | #33 | [Feature] Cálculo e exibição automática do tempo estimado de leitura (readingTimeMinutes) | P2 — Média | XS | Concluído |
+| **F5** | #34 | [Feature] Geração dinâmica de Feeds RSS/Atom e Sitemap XML | P2 — Média | S | Concluído |
 | **F6** | #35 | [Feature] Agrupamento de artigos em séries sequenciais | P3 — Baixa | M | Backlog |
 | **F7** | #36 | [Feature] Histórico de revisões e versionamento de artigos (post_revisions) | P3 — Baixa | M | Backlog |
 | **F8** | #37 | [Feature] Contador de visualizações com deduplicação e endpoint de artigos em alta | P2 — Média | M | Backlog |
-| **F9** | #38 | [Feature] Recomendação de artigos relacionados por similaridade de tags e categorias | P2 — Média | S | Concluído localmente |
-| **F10** | #39 | [Feature] Perfil público do autor com bio, links sociais e contagem de publicações | P2 — Média | S | Concluído localmente |
+| **F9** | #38 | [Feature] Recomendação de artigos relacionados por similaridade de tags e categorias | P2 — Média | S | Concluído |
+| **F10** | #39 | [Feature] Perfil público do autor com bio, links sociais e contagem de publicações | P2 — Média | S | Concluído |
 | **F11** | #40 | [Feature] Sistema de seguir autores e feed personalizado (GET /feed) | P2 — Média | M | Backlog |
 | **F12** | #41 | [Feature] Sistema de reações e curtidas em comentários | P2 — Média | S | Backlog |
 | **F13** | #42 | [Feature] Organização de artigos salvos em coleções/pastas personalizadas | P3 — Baixa | M | Backlog |
@@ -113,25 +113,18 @@ Status local dos 55 itens originais: **32 concluídos e 23 pendentes**. A issue 
    - #18, #19, #20, #22, #24, #25, #26, #27, #28
    - #45 (Verificação de e-mail no cadastro)
 
-3. **Sprint 3 — Conteúdo, SEO & Autoria (P1/P2; concluída localmente):**
+3. **Sprint 3 — Conteúdo, SEO & Autoria (P1/P2; concluída e enviada pelo usuário):**
    - #30 (Slugs amigáveis)
    - #31 (Imagem de capa)
-   - #33 (Tempo de leitura estimado; concluído localmente)
+   - #33 (Tempo de leitura estimado)
    - #34 (RSS/Atom + Sitemap XML)
    - #38 (Artigos relacionados)
    - #39 (Perfil público do autor)
    - #32 (Agendamento de publicação)
 
-   **Divisão para sessões curtas:**
-   - Leva 1: #33 concluída localmente. O tempo usa 200 palavras por minuto, arredondado para cima, com mínimo de um minuto; sem alteração de esquema.
-   - Leva 2: #30 concluída. Slugs curtos e estáveis derivados do título, com sufixos para duplicatas e compatibilidade com URLs anteriores.
-   - Leva 3: #31 (imagem de capa) concluída localmente.
-   - Leva 4: #34 (feeds e sitemap) concluída localmente.
-   - Leva 5: #38 e #39 (artigos relacionados e perfil público) concluídas localmente.
-   - Leva 6: #32 (agendamento) concluída localmente. Concluir e validar cada leva antes de avançar; ajustar a divisão se necessário. A Sprint 4 começa somente após concluir a Sprint 3.
-   - Alterações e commits permanecem locais; o usuário enviará ao GitHub ao terminar a sprint.
+   O tempo de leitura usa 200 palavras por minuto, arredondado para cima, com mínimo de um minuto. Os slugs são estáveis, com sufixos para duplicatas e compatibilidade com URLs anteriores.
 
-4. **Sprint 4 — Engajamento & Comunidade (P2):**
+4. **Sprint 4 — Engajamento & Comunidade (P2/P3; próxima, não iniciada):**
    - #15 (Rate limit granular em comentários e reações)
    - #23 (Enriquecimento de artigos salvos)
    - #37 (Contador de visualizações e trending)
@@ -140,6 +133,18 @@ Status local dos 55 itens originais: **32 concluídos e 23 pendentes**. A issue 
    - #42 (Coleções de salvos)
    - #43 (Sistema de notificações in-app)
    - #44 (Newsletter)
+
+   **Ordem sugerida para sessões curtas:**
+   1. #23: enriquecer artigos salvos; verificar a resposta e os relacionamentos existentes.
+   2. #15: limitar comentários, reações e criação de tags, considerando os controles já existentes.
+   3. #37: visualizações e artigos em alta; definir deduplicação e período de cálculo antes de implementar.
+   4. #41: curtidas em comentários.
+   5. #40: seguir autores e feed personalizado.
+   6. #42: coleções de artigos salvos.
+   7. #43: notificações in-app; identificar eventos das funcionalidades existentes e definir quais serão cobertos.
+   8. #44: newsletter com double opt-in e envio em novas publicações, incluindo publicações agendadas.
+
+   Conclua e valide cada leva antes de avançar, ajustando a ordem se dependências identificadas durante a implementação exigirem. Atualize os status neste documento; alterações e commits permanecem locais até o usuário enviá-los.
 
 5. **Sprint 5 — Moderação, Governança & Autenticação Avançada (P2):**
    - #14 e #53 (Sessões ativas e múltiplos dispositivos)
