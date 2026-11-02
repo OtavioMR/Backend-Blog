@@ -9,9 +9,14 @@ import { JwtService } from '@nestjs/jwt';
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import bcrypt from 'bcrypt';
 import type { CookieOptions } from 'express';
+import { InjectRepository } from '@nestjs/typeorm';
+import { MoreThan, Repository } from 'typeorm';
+import { TotpService } from './totp.service.js';
+import { AuthSession } from './entities/session.entity.js';
 
 import { UsersService } from '../users/users.service.js';
 import { MailService } from '../mail/mail.service.js';
+import { User } from '../users/entities/user.entity.js';
 import { UserRole } from '../users/enums/user.enum.js';
 import { LoginDto } from './dto/login.dto.js';
 import { ForgotPasswordDto } from './dto/forgot-password.dto.js';
@@ -34,6 +39,8 @@ export class AuthService {
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
     private readonly mailService: MailService,
+    @InjectRepository(AuthSession) private readonly sessions: Repository<AuthSession>,
+    private readonly totp: TotpService,
   ) {}
 
   private hashToken(token: string): string {
@@ -61,16 +68,19 @@ export class AuthService {
     email: string,
     role: UserRole,
     authVersion: number,
+    sessionId: string,
   ): Promise<TokenPairResult> {
     const payload = {
       sub: userId,
       email,
       role,
       authVersion,
+      sid: sessionId,
     };
 
     const refreshPayload = {
       jti: randomUUID(),
+      sid: sessionId,
       sub: userId,
     };
 
@@ -104,7 +114,7 @@ export class AuthService {
     };
   }
 
-  async login(loginDto: LoginDto): Promise<TokenPairResult> {
+  async login(loginDto: LoginDto, userAgent?: string): Promise<TokenPairResult> {
     const email = loginDto.email.trim().toLowerCase();
 
     const user = await this.usersService.findByEmailForAuth(email);
@@ -117,19 +127,28 @@ export class AuthService {
       if (user && !passwordIsValid && !locked) await this.usersService.recordFailedLogin(user.id);
       throw new UnauthorizedException('E-mail ou senha inv\u00e1lidos.');
     }
+    if (user.totpEnabled && !(await this.totp.verifyLogin(user.id, loginDto.totpCode))) {
+      await this.usersService.recordFailedLogin(user.id);
+      throw new UnauthorizedException('Credenciais inválidas.');
+    }
     if (!(await this.usersService.clearFailedLogins(user.id))) {
       throw new UnauthorizedException('E-mail ou senha inv\u00e1lidos.');
     }
 
-    const tokens = await this.generateTokens(user.id, user.email, user.role, user.authVersion);
+    return this.createSession(user, userAgent);
+  }
 
-    const refreshTokenHash = await bcrypt.hash(
-      this.hashToken(tokens.refreshToken),
-      10,
-    );
-    await this.usersService.updateRefreshTokenHash(user.id, refreshTokenHash);
-
-    this.logger.log(`Login realizado para usuário ${user.id}`);
+  async createSession(user: User, userAgent?: string): Promise<TokenPairResult> {
+    const sessionId = randomUUID();
+    const tokens = await this.generateTokens(user.id, user.email, user.role, user.authVersion, sessionId);
+    const now = new Date();
+    await this.sessions.manager.transaction(async manager => {
+      await manager.getRepository(AuthSession).save({ id: sessionId, userId: user.id, authVersion: user.authVersion,
+        tokenHash: this.hashToken(tokens.refreshToken), userAgent: userAgent?.slice(0, 500) || null,
+        lastUsedAt: now, expiresAt: new Date(now.getTime() + tokens.refreshExpiresIn * 1000) });
+      await manager.query(`INSERT INTO audit_logs (actor_id, action, target_type, target_id) VALUES ($1, 'auth.session_created', 'session', $2)`, [user.id, sessionId]);
+    });
+    this.logger.log(`Login realizado para usuario ${user.id}`);
     return tokens;
   }
 
@@ -141,61 +160,43 @@ export class AuthService {
     const refreshSecret =
       this.configService.getOrThrow<string>('JWT_REFRESH_SECRET');
 
-    let payload: { sub: string };
+    let payload: { sub: string; sid: string };
     try {
-      payload = await this.jwtService.verifyAsync<{ sub: string }>(
-        refreshToken,
-        {
-          secret: refreshSecret,
-        },
-      );
+      payload = await this.jwtService.verifyAsync(refreshToken, { secret: refreshSecret });
     } catch {
       throw new UnauthorizedException('Refresh token inválido ou expirado.');
     }
-
-    if (!payload || !payload.sub) {
-      throw new UnauthorizedException('Refresh token inválido.');
-    }
-
+    if (!payload?.sub || !payload.sid) throw new UnauthorizedException('Refresh token inválido.');
     const user = await this.usersService.findByIdForAuth(payload.sub);
-
-    if (!user || !user.isActive || !user.refreshTokenHash) {
-      throw new UnauthorizedException(
-        'Refresh token revogado, usuário inativo ou inválido.',
-      );
-    }
-
-    const isMatch = await bcrypt.compare(
-      this.hashToken(refreshToken),
-      user.refreshTokenHash,
-    );
-
-    if (!isMatch) {
-      throw new UnauthorizedException('Refresh token inválido ou reutilizado.');
-    }
-
-    // Rotação estrita: gera novo par e substitui o hash anterior no banco
-    const tokens = await this.generateTokens(user.id, user.email, user.role, user.authVersion);
-
-    const newRefreshTokenHash = await bcrypt.hash(
-      this.hashToken(tokens.refreshToken),
-      10,
-    );
-    await this.usersService.updateRefreshTokenHash(
-      user.id,
-      newRefreshTokenHash,
-    );
+    if (!user || !user.isActive) throw new UnauthorizedException('Usuário inválido.');
+    const tokens = await this.generateTokens(user.id, user.email, user.role, user.authVersion, payload.sid);
+    const now = new Date();
+    // Compare-and-swap ensures concurrent refresh requests cannot both rotate the same token.
+    const result = await this.sessions.update({ id: payload.sid, userId: user.id,
+      authVersion: user.authVersion, tokenHash: this.hashToken(refreshToken), expiresAt: MoreThan(now) },
+      { tokenHash: this.hashToken(tokens.refreshToken), lastUsedAt: now,
+        expiresAt: new Date(now.getTime() + tokens.refreshExpiresIn * 1000) });
+    if (!result.affected) throw new UnauthorizedException('Refresh token inválido ou reutilizado.');
 
     this.logger.log(`Tokens renovados para usuário ${user.id}`);
     return tokens;
   }
 
-  async logout(userId: string): Promise<{ message: string }> {
-    await this.usersService.updateRefreshTokenHash(userId, null);
-    this.logger.log(`Sessão encerrada para usuário ${userId}`);
-    return {
-      message: 'Logout realizado com sucesso.',
-    };
+  async listSessions(userId: string, sessionId: string, authVersion: number) {
+    const sessions = await this.sessions.find({ where: { userId, authVersion, expiresAt: MoreThan(new Date()) }, order: { createdAt: 'DESC' } });
+    return sessions.map(({ id, userAgent, createdAt, lastUsedAt, expiresAt }) => ({ id, userAgent, createdAt, lastUsedAt, expiresAt, current: id === sessionId }));
+  }
+
+  async revokeSession(userId: string, sessionId: string): Promise<void> {
+    await this.sessions.manager.transaction(async manager => {
+      const result = await manager.getRepository(AuthSession).delete({ id: sessionId, userId });
+      if (result.affected) await manager.query(`INSERT INTO audit_logs (actor_id, action, target_type, target_id) VALUES ($1, 'auth.session_revoked', 'session', $2)`, [userId, sessionId]);
+    });
+  }
+
+  async logout(userId: string, sessionId: string): Promise<{ message: string }> {
+    await this.revokeSession(userId, sessionId);
+    return { message: 'Logout realizado com sucesso.' };
   }
 
   async forgotPassword(

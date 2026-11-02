@@ -75,6 +75,7 @@ describe('Auth E2E Test Suite (Secure Cookies, Refresh Token Rotation, Logout)',
   afterAll(async () => {
     try {
       if (usersRepository && testUser.email) {
+        await usersRepository.query('DELETE FROM audit_logs WHERE actor_id IN (SELECT id FROM users WHERE email = $1)', [testUser.email.toLowerCase()]);
         await usersRepository.delete({ email: testUser.email.toLowerCase() });
       }
     } catch {
@@ -234,6 +235,17 @@ describe('Auth E2E Test Suite (Secure Cookies, Refresh Token Rotation, Logout)',
 
       expect(response.status).toBe(401);
     });
+  });
+
+  it('keeps device sessions independent and revokes only the selected session', async () => {
+    const second = await request(app.getHttpServer()).post('/api/v1/auth/login').set('User-Agent', 'Second device').send({ email: testUser.email, password: testUser.password }).expect(200);
+    const sessions = await request(app.getHttpServer()).get('/api/v1/auth/sessions').set('Authorization', `Bearer ${rotatedAccessToken}`).expect(200);
+    expect(sessions.body).toHaveLength(2);
+    const other = sessions.body.find((session: { current: boolean }) => !session.current);
+    expect(other.userAgent).toBe('Second device');
+    await request(app.getHttpServer()).delete(`/api/v1/auth/sessions/${other.id}`).set('Authorization', `Bearer ${rotatedAccessToken}`).expect(204);
+    await request(app.getHttpServer()).get('/api/v1/auth/sessions').set('Authorization', `Bearer ${second.body.access_token}`).expect(401);
+    await request(app.getHttpServer()).get('/api/v1/auth/sessions').set('Authorization', `Bearer ${rotatedAccessToken}`).expect(200);
   });
 
   describe('3. Logout & Revocation (POST /api/v1/auth/logout)', () => {

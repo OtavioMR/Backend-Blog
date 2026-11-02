@@ -115,7 +115,7 @@ export class PostsController {
   @ApiResponse({ status: 401, description: 'Token ausente ou inválido.' })
   @ApiResponse({ status: 403, description: 'Sem permissão.' })
   @ApiResponse({ status: 404, description: 'Artigo não encontrado.' })
-  @ApiResponse({ status: 409, description: 'Capa alterada simultaneamente.' })
+  @ApiResponse({ status: 409, description: 'Capa alterada simultaneamente ou artigo pendente de revisão.' })
   @ApiResponse({ status: 413, description: 'Arquivo maior que 5 MB.' })
   @HttpPost(':id/cover-image')
   uploadCover(@Param('id', ParseUUIDPipe) id: string, @UploadedFile() file: { buffer: Buffer } | undefined, @Req() request: RequestWithUser) {
@@ -132,7 +132,7 @@ export class PostsController {
   @ApiResponse({ status: 401, description: 'Token ausente ou inválido.' })
   @ApiResponse({ status: 403, description: 'Sem permissão.' })
   @ApiResponse({ status: 404, description: 'Artigo não encontrado.' })
-  @ApiResponse({ status: 409, description: 'Capa alterada simultaneamente.' })
+  @ApiResponse({ status: 409, description: 'Capa alterada simultaneamente ou artigo pendente de revisão.' })
   @Delete(':id/cover-image')
   removeCover(@Param('id', ParseUUIDPipe) id: string, @Req() request: RequestWithUser) {
     return this.postsService.removeCover(id, request.user);

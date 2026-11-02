@@ -1,7 +1,12 @@
 import {
   Body,
+  Delete,
+  Get,
+  Param,
+  ParseUUIDPipe,
   Controller,
   HttpCode,
+  Header,
   HttpStatus,
   Post,
   Req,
@@ -10,6 +15,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
+import { ApiBearerAuth, ApiOperation, ApiParam, ApiResponse } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 
 import { AuthService } from './auth.service.js';
@@ -36,14 +42,16 @@ export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @ApiLoginDoc()
+  @Header('Cache-Control', 'no-store')
   @Post('login')
   @Throttle({ default: { limit: 20, ttl: 60_000 } })
   @HttpCode(HttpStatus.OK)
   async login(
     @Body() loginDto: LoginDto,
+    @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ): Promise<AuthResponseDto> {
-    const tokens = await this.authService.login(loginDto);
+    const tokens = await this.authService.login(loginDto, req.get('user-agent'));
 
     res.cookie(
       REFRESH_COOKIE_NAME,
@@ -59,6 +67,7 @@ export class AuthController {
   }
 
   @ApiRefreshDoc()
+  @Header('Cache-Control', 'no-store')
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
   async refresh(
@@ -105,7 +114,30 @@ export class AuthController {
       path: cookieOptions.path,
     });
 
-    return this.authService.logout(request.user.userId);
+    return this.authService.logout(request.user.userId, request.user.sessionId);
+  }
+
+  @Get('sessions')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Listar sessões ativas do usuário' })
+  @ApiResponse({ status: 200, description: 'Sessões ativas, incluindo a sessão atual.', schema: { example: [{ id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', userAgent: 'Mozilla/5.0', createdAt: '2026-01-01T00:00:00Z', lastUsedAt: '2026-01-01T00:00:00Z', expiresAt: '2026-01-08T00:00:00Z', current: true }] } })
+  @ApiResponse({ status: 401, description: 'Token ausente, inválido ou sessão revogada.' })
+  listSessions(@Req() request: RequestWithUser) {
+    return this.authService.listSessions(request.user.userId, request.user.sessionId, request.user.authVersion);
+  }
+
+  @Delete('sessions/:id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Revogar uma sessão do próprio usuário' })
+  @ApiParam({ name: 'id', format: 'uuid', example: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11' })
+  @ApiResponse({ status: 204, description: 'Sessão revogada ou já ausente.' })
+  @ApiResponse({ status: 400, description: 'Identificador inválido.' })
+  @ApiResponse({ status: 401, description: 'Token ausente, inválido ou sessão revogada.' })
+  async revokeSession(@Req() request: RequestWithUser, @Param('id', ParseUUIDPipe) id: string): Promise<void> {
+    await this.authService.revokeSession(request.user.userId, id);
   }
 
   @ApiForgotPasswordDoc()

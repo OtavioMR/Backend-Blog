@@ -86,17 +86,17 @@ describe('CategoriesController', () => {
     const dto = { name: 'Atualizado' };
     mockCategoriesService.update.mockResolvedValue({ id: 'uuid-1', ...dto });
 
-    const result = await controller.update('uuid-1', dto);
+    const result = await controller.update('uuid-1', dto, { user: { userId: 'admin-123' } } as any);
 
-    expect(mockCategoriesService.update).toHaveBeenCalledWith('uuid-1', dto);
+    expect(mockCategoriesService.update).toHaveBeenCalledWith('uuid-1', dto, 'admin-123');
     expect(result.name).toBe('Atualizado');
   });
 
   it('remove deve chamar service.remove', async () => {
     mockCategoriesService.remove.mockResolvedValue(undefined);
 
-    await controller.remove('uuid-1');
+    await controller.remove('uuid-1', { user: { userId: 'admin-123' } } as any);
 
-    expect(mockCategoriesService.remove).toHaveBeenCalledWith('uuid-1');
+    expect(mockCategoriesService.remove).toHaveBeenCalledWith('uuid-1', 'admin-123');
   });
 });

@@ -46,6 +46,9 @@ export class Post {
   @Column({ default: false })
   published: boolean;
 
+  @Column({ name: 'review_status', type: 'varchar', length: 20, default: 'DRAFT' })
+  reviewStatus: string;
+
   @Column({ name: 'comments_enabled', default: true })
   commentsEnabled: boolean;
 

@@ -22,6 +22,8 @@ describe('CategoriesService', () => {
       createQueryBuilder: vi.fn(),
     };
 
+    const manager = { getRepository: () => mockCategoryRepository, query: vi.fn() };
+    mockCategoryRepository.manager = { transaction: (callback: any) => callback(manager) };
     mockPostsService = {
       findAll: vi.fn(),
     };

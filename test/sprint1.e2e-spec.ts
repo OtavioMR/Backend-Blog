@@ -33,7 +33,7 @@ describe('Sprint 1 com PostgreSQL', () => {
     const created = await supertest(app.getHttpServer()).post('/api/v1/users')
       .send({ name: 'Maria Sprint', email, password: 'Password123!' }).expect(201);
     userId = created.body.id;
-    await users.update(userId, { role: UserRole.AUTHOR, emailVerified: true });
+    await users.update(userId, { role: UserRole.AUTHOR, emailVerified: true, firstPostApproved: true });
     const login = await supertest(app.getHttpServer()).post('/api/v1/auth/login')
       .send({ email, password: 'Password123!' }).expect(200);
     token = login.body.access_token;
@@ -43,6 +43,7 @@ describe('Sprint 1 com PostgreSQL', () => {
   });
 
   afterAll(async () => {
+    if (users && userId) await users.query('DELETE FROM audit_logs WHERE actor_id = $1', [userId]);
     if (users && userId) await users.delete(userId);
     await app?.close();
   });

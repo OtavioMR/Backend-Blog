@@ -163,7 +163,14 @@ export class CommentsService {
     if (!safeContent) throw new BadRequestException('Conte\u00fado inv\u00e1lido.');
     comment.content = safeContent;
     comment.editedAt = new Date();
-    await this.comments.save(comment);
+    if (comment.authorId !== user.userId) {
+      await this.comments.manager.transaction(async manager => {
+        await manager.getRepository(Comment).save(comment);
+        await manager.query(`INSERT INTO audit_logs (actor_id, action, target_type, target_id) VALUES ($1, 'comment.admin_updated', 'comment', $2)`, [user.userId, id]);
+      });
+    } else {
+      await this.comments.save(comment);
+    }
     return this.present(comment);
   }
 
@@ -179,6 +186,13 @@ export class CommentsService {
     )
       throw new ForbiddenException('Sem permissão para desativar.');
     comment.isActive = false;
-    await this.comments.save(comment);
+    if (comment.authorId !== user.userId) {
+      await this.comments.manager.transaction(async manager => {
+        await manager.getRepository(Comment).save(comment);
+        await manager.query(`INSERT INTO audit_logs (actor_id, action, target_type, target_id, details) VALUES ($1, 'comment.moderated', 'comment', $2, $3::jsonb)`, [user.userId, id, JSON.stringify({ postId: comment.postId })]);
+      });
+    } else {
+      await this.comments.save(comment);
+    }
   }
 }

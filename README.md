@@ -154,3 +154,13 @@ Feeds publicos em `GET /api/v1/feed/rss` e `GET /api/v1/feed/atom` mostram os 50
 `GET /api/v1/posts/:id/related` recomenda ate cinco artigos por tags e categorias ativas em comum. `GET /api/v1/authors/:id` mostra perfil e quantidade de publicacoes; `PATCH /api/v1/users/:id` permite editar `bio`, `websiteUrl` e `socialUrl` (use `null` para limpar).
 
 Para agendar um rascunho, informe `scheduledAt` como data futura ISO 8601 com fuso, por exemplo `2030-01-01T12:00:00Z`, em `POST /api/v1/posts` ou `PATCH /api/v1/posts/:id`. Envie `null` para cancelar. Publicacao manual ou desativacao cancela o agendamento. O processo da API verifica publicacoes vencidas a cada minuto; enquanto estiver parado, elas serao processadas na proxima verificacao apos reiniciar.
+
+## TOTP
+
+Configure `TOTP_ENCRYPTION_KEY` com 64 caracteres hexadecimais (32 bytes aleatórios) antes de ativar o TOTP. Mantenha a chave estável e secreta: perdê-la ou substituí-la torna ilegíveis os segredos existentes. Quando o TOTP está ativo, o login exige um código novo de seis dígitos. A ativação ou desativação invalida todas as sessões existentes.
+
+## Login social
+
+Configure `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` e `GOOGLE_CALLBACK_URL` para Google e/ou `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET` e `GITHUB_CALLBACK_URL` para GitHub. Cadastre as URLs de callback exatas nos respectivos provedores; elas devem usar HTTPS, exceto em localhost. O cliente chama a rota de início com cookies habilitados e navega para a URL retornada. O callback devolve os tokens ou um desafio TOTP. Contas já existentes devem vincular o provedor autenticadas antes de usá-lo para login; o e-mail verificado no provedor deve coincidir com o da conta.
+
+O fluxo TOTP ainda não oferece códigos de recuperação: guarde o aplicativo autenticador e a chave de criptografia com cuidado.

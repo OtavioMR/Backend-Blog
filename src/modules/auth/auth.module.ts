@@ -1,3 +1,9 @@
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { SocialAuthController } from './social-auth.controller.js';
+import { SocialAuthService } from './social-auth.service.js';
+import { TotpController } from './totp.controller.js';
+import { TotpService } from './totp.service.js';
+import { AuthSession } from './entities/session.entity.js';
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
@@ -11,6 +17,7 @@ import { JwtStrategy } from './strategies/jwt.strategy.js';
 
 @Module({
   imports: [
+    TypeOrmModule.forFeature([AuthSession]),
     UsersModule,
     MailModule,
     PassportModule.register({
@@ -27,8 +34,8 @@ import { JwtStrategy } from './strategies/jwt.strategy.js';
       }),
     }),
   ],
-  controllers: [AuthController],
-  providers: [AuthService, JwtStrategy],
+  controllers: [AuthController, TotpController, SocialAuthController],
+  providers: [AuthService, JwtStrategy, TotpService, SocialAuthService],
   exports: [AuthService],
 })
 export class AuthModule {}

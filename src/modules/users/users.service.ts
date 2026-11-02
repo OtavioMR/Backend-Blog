@@ -38,6 +38,19 @@ export class UsersService {
     private readonly mailService: MailService,
   ) {}
 
+  async becomeAuthor(userId: string) {
+    const result = await this.usersRepository.query(`WITH promoted AS (
+      UPDATE users SET role = 'AUTHOR', author_rules_version = '1', author_rules_accepted_at = CURRENT_TIMESTAMP
+      WHERE id = $1 AND role = 'READER' AND email_verified = true AND is_active = true AND deleted_at IS NULL AND author_promotion_blocked = false
+      RETURNING id
+    ), logged AS (
+      INSERT INTO audit_logs (actor_id, action, target_type, target_id, details)
+      SELECT id, 'user.author_promoted', 'user', id, '{"rulesVersion":"1"}'::jsonb FROM promoted RETURNING target_id
+    ) SELECT target_id FROM logged`, [userId]);
+    if (!result.length) throw new ForbiddenException('A promoção exige uma conta de leitor ativa, verificada e elegível.');
+    return { role: UserRole.AUTHOR, rulesVersion: '1' };
+  }
+
   private toPublic(user: User) {
     return {
       id: user.id,
@@ -246,6 +259,9 @@ export class UsersService {
       throw new NotFoundException('Usuário não encontrado.');
     }
 
+    const previousRole = user.role;
+    const previousActive = user.isActive;
+
     if ((updateUserDto.role !== undefined || updateUserDto.isActive !== undefined) && requester.role !== UserRole.ADMIN) {
       throw new ForbiddenException('Apenas administradores podem alterar permissões ou status.');
     }
@@ -327,22 +343,36 @@ export class UsersService {
           'Apenas administradores podem alterar o perfil (role) de usuários.',
         );
       }
+      if (user.role === UserRole.AUTHOR && updateUserDto.role === UserRole.READER) user.authorPromotionBlocked = true;
+      if (updateUserDto.role === UserRole.AUTHOR) user.authorPromotionBlocked = false;
       user.role = updateUserDto.role;
     }
 
     if (updateUserDto.isActive !== undefined) {
+      if (user.moderationSuspended) throw new ConflictException('Use a rota de moderação para restaurar uma conta suspensa.');
       if (requester.role !== UserRole.ADMIN) {
         throw new ForbiddenException(
           'Apenas administradores podem alterar o status de ativação diretamente.',
         );
       }
+      if (user.isActive && !updateUserDto.isActive) user.authVersion += 1;
       user.isActive = updateUserDto.isActive;
       if (!user.isActive) {
         user.refreshTokenHash = null;
       }
     }
 
-    const savedUser = await this.usersRepository.save(user);
+    const administrativeChange = previousRole !== user.role || previousActive !== user.isActive;
+    const savedUser = administrativeChange
+      ? await this.usersRepository.manager.transaction(async manager => {
+          const saved = await manager.getRepository(User).save(user);
+          if (previousRole === UserRole.AUTHOR && user.role !== UserRole.AUTHOR) {
+            await manager.query("UPDATE posts SET review_status = 'REJECTED' WHERE author_id = $1 AND review_status = 'PENDING'", [id]);
+          }
+          await manager.query(`INSERT INTO audit_logs (actor_id, action, target_type, target_id, details) VALUES ($1, $2, 'user', $3, $4::jsonb)`, [requester.userId, 'user.permissions_changed', id, JSON.stringify({ previousRole, role: user.role, previousActive, isActive: user.isActive })]);
+          return saved;
+        })
+      : await this.usersRepository.save(user);
     if (confirmation) {
       await this.mailService.sendEmailChangeConfirmation(confirmation.email, confirmation.token);
     }
@@ -363,9 +393,14 @@ export class UsersService {
     }
 
     user.isActive = false;
+    user.authVersion += 1;
     user.refreshTokenHash = null;
-    await this.usersRepository.save(user);
-    await this.usersRepository.softRemove(user);
+    await this.usersRepository.manager.transaction(async manager => {
+      const repository = manager.getRepository(User);
+      await repository.save(user);
+      await repository.softRemove(user);
+      await manager.query(`INSERT INTO audit_logs (actor_id, action, target_type, target_id) VALUES ($1, 'user.deleted', 'user', $2)`, [requester.userId, id]);
+    });
     this.logger.log(`Usuário ${id} desativado por ${requester.userId}`);
   }
 
@@ -465,15 +500,18 @@ export class UsersService {
   }
 
   async resetPassword(userId: string, newPasswordHash: string): Promise<void> {
-    await this.usersRepository.update(userId, {
-      passwordHash: newPasswordHash,
-      resetPasswordTokenHash: null,
-      resetPasswordExpiresAt: null,
-      refreshTokenHash: null,
-      pendingEmail: null,
-      emailChangeTokenHash: null,
-      emailChangeExpiresAt: null,
-      authVersion: () => 'auth_version + 1',
+    await this.usersRepository.manager.transaction(async manager => {
+      await manager.getRepository(User).update(userId, {
+        passwordHash: newPasswordHash,
+        resetPasswordTokenHash: null,
+        resetPasswordExpiresAt: null,
+        refreshTokenHash: null,
+        pendingEmail: null,
+        emailChangeTokenHash: null,
+        emailChangeExpiresAt: null,
+        authVersion: () => 'auth_version + 1',
+      });
+      await manager.query(`INSERT INTO audit_logs (actor_id, action, target_type, target_id) VALUES ($1, 'auth.password_reset', 'user', $1)`, [userId]);
     });
     this.logger.log(
       `Senha redefinida e sessões invalidadas para o usuário ${userId}`,

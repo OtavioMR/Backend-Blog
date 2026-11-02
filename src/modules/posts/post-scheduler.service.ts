@@ -14,7 +14,7 @@ export class PostSchedulerService {
     try {
       await this.posts.createQueryBuilder().update(Post)
         .set({ published: true, publishedAt: () => 'CURRENT_TIMESTAMP', scheduledAt: null })
-        .where('scheduled_at <= CURRENT_TIMESTAMP AND published = false AND is_active = true AND deleted_at IS NULL')
+        .where("scheduled_at <= CURRENT_TIMESTAMP AND published = false AND is_active = true AND deleted_at IS NULL AND EXISTS (SELECT 1 FROM users WHERE users.id = author_id AND users.first_post_approved = true AND users.is_active = true AND users.role IN ('AUTHOR', 'ADMIN'))")
         .execute();
     } catch (error) {
       this.logger.error('Falha ao publicar artigos agendados', error instanceof Error ? error.stack : String(error));

@@ -21,6 +21,8 @@ describe('CommentsService', () => {
       create: vi.fn((x) => x),
       save: vi.fn(async (x) => x),
     };
+    const manager = { getRepository: () => comments, query: vi.fn() };
+    comments.manager = { transaction: (callback: any) => callback(manager) };
     posts = {
       findOne: vi.fn().mockResolvedValue({
         id: 'post',

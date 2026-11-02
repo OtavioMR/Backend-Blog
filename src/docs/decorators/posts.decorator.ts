@@ -169,6 +169,7 @@ export function ApiCreatePostDoc() {
         'Uma ou mais categorias informadas não existem ou estão inativas.',
       type: NotFoundResponseDto,
     }),
+    ApiResponse({ status: 409, description: 'Primeiro artigo ainda não aprovado.' }),
     ApiResponse({
       status: 500,
       description: 'Erro interno ao registrar o artigo no banco.',
@@ -183,7 +184,7 @@ export function ApiUpdatePostDoc() {
     ApiOperation({
       summary: 'Atualizar artigo existente',
       description:
-        'Atualiza apenas os campos enviados; exige autenticação do autor ou administrador e UUID do artigo. O slug permanece estável ao alterar o título. Para agendar ou remarcar um rascunho, envie scheduledAt com data futura e fuso. Envie scheduledAt: null para cancelar, ou published: true para publicar imediatamente e cancelar o agendamento. Desativar ou excluir o artigo também cancela o agendamento. Consulte GET /posts/me para acompanhar seus rascunhos.',
+        'Atualiza apenas os campos enviados; exige autenticação do autor ou administrador e UUID do artigo. O slug permanece estável ao alterar o título. Para agendar ou remarcar um rascunho, envie scheduledAt com data futura e fuso. Envie scheduledAt: null para cancelar, ou published: true para publicar imediatamente e cancelar o agendamento. Desativar ou excluir o artigo também cancela o agendamento. Rascunhos pendentes de revisão não podem ser alterados. Autores sem primeiro artigo aprovado não podem publicar ou agendar. Consulte GET /posts/me para acompanhar seus rascunhos.',
     }),
     ApiBody({ type: UpdatePostDto, examples: { agendar: { summary: 'Agendar ou remarcar', value: { scheduledAt: '2099-01-01T12:00:00-03:00' } }, cancelar: { summary: 'Cancelar agendamento', value: { scheduledAt: null } }, publicar: { summary: 'Publicar imediatamente', value: { published: true } } } }),
     ApiParam({
@@ -219,6 +220,7 @@ export function ApiUpdatePostDoc() {
         'Artigo não encontrado ou uma das categorias informadas não existe ou está inativa.',
       type: NotFoundResponseDto,
     }),
+    ApiResponse({ status: 409, description: 'Artigo pendente de revisão ou primeiro artigo ainda não aprovado.' }),
     ApiResponse({
       status: 500,
       description: 'Erro interno inesperado no servidor.',
@@ -266,6 +268,7 @@ export function ApiRemovePostDoc() {
       description: 'Artigo não encontrado.',
       type: NotFoundResponseDto,
     }),
+    ApiResponse({ status: 409, description: 'Artigo pendente de revisão.' }),
     ApiResponse({
       status: 500,
       description: 'Erro interno inesperado no servidor.',

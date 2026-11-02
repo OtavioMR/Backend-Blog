@@ -291,7 +291,7 @@ describe('PostsService', () => {
 
     await service.update('post-1', { tagNames: ['NestJS'] }, {
       userId: 'author-1',
-      role: 'USER',
+      role: 'AUTHOR',
     } as any);
 
     expect(post.tags).toEqual(tags);

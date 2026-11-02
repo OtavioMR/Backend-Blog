@@ -95,6 +95,43 @@ export class User {
   @Exclude()
   emailVerificationExpiresAt: Date | null;
 
+  @Column({ name: 'totp_enabled', default: false })
+  totpEnabled: boolean;
+
+  @Column({ name: 'totp_secret', type: 'text', nullable: true, select: false })
+  @Exclude()
+  totpSecret: string | null;
+
+  @Column({ name: 'totp_pending_secret', type: 'text', nullable: true, select: false })
+  @Exclude()
+  totpPendingSecret: string | null;
+
+  @Column({ name: 'totp_pending_expires_at', type: 'timestamptz', nullable: true, select: false })
+  @Exclude()
+  totpPendingExpiresAt: Date | null;
+
+  @Column({ name: 'totp_last_counter', type: 'bigint', nullable: true, select: false })
+  @Exclude()
+  totpLastCounter: string | null;
+
+  @Column({ name: 'moderation_suspended', default: false })
+  moderationSuspended: boolean;
+
+  @Column({ name: 'suspension_ends_at', type: 'timestamptz', nullable: true })
+  suspensionEndsAt: Date | null;
+
+  @Column({ name: 'first_post_approved', default: false })
+  firstPostApproved: boolean;
+
+  @Column({ name: 'author_rules_accepted_at', type: 'timestamptz', nullable: true })
+  authorRulesAcceptedAt: Date | null;
+
+  @Column({ name: 'author_rules_version', type: 'varchar', length: 20, nullable: true })
+  authorRulesVersion: string | null;
+
+  @Column({ name: 'author_promotion_blocked', default: false })
+  authorPromotionBlocked: boolean;
+
   @Column({ name: 'auth_version', type: 'integer', default: 0 })
   authVersion: number;
 

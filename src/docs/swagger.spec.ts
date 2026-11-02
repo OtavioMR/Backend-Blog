@@ -1,3 +1,17 @@
+import { TotpController } from '../modules/auth/totp.controller.js';
+import { TotpService } from '../modules/auth/totp.service.js';
+import { SocialAuthController } from '../modules/auth/social-auth.controller.js';
+import { SocialAuthService } from '../modules/auth/social-auth.service.js';
+import { ModerationController } from '../modules/moderation/moderation.controller.js';
+import { ModerationService } from '../modules/moderation/moderation.service.js';
+import { AuditController } from '../modules/audit/audit.controller.js';
+import { AuditService } from '../modules/audit/audit.service.js';
+import { AnalyticsController } from '../modules/analytics/analytics.controller.js';
+import { AnalyticsService } from '../modules/analytics/analytics.service.js';
+import { PostReviewController } from '../modules/posts/post-review.controller.js';
+import { PostReviewService } from '../modules/posts/post-review.service.js';
+import { ReportsController } from '../modules/reports/reports.controller.js';
+import { ReportsService } from '../modules/reports/reports.service.js';
 import { AuthorsController } from '../modules/posts/authors.controller.js';
 import { FeedController } from '../modules/posts/feed.controller.js';
 import { FeedService } from '../modules/posts/feed.service.js';
@@ -46,6 +60,7 @@ describe('Swagger Documentation Configuration', () => {
   it('should generate OpenAPI document containing Auth, Users, and Posts endpoints', async () => {
     const moduleRef = await Test.createTestingModule({
       controllers: [
+        TotpController, SocialAuthController, AuditController, ModerationController, AnalyticsController, PostReviewController, ReportsController,
         AuthorsController,
         FeedController,
         PostViewsController, AuthorFollowsController, SavedCollectionsController,
@@ -59,6 +74,11 @@ describe('Swagger Documentation Configuration', () => {
         HealthController,
       ],
       providers: [
+        { provide: TotpService, useValue: {} }, { provide: SocialAuthService, useValue: {} },
+        { provide: AuditService, useValue: {} }, { provide: ModerationService, useValue: {} },
+        { provide: AnalyticsService, useValue: {} },
+        { provide: PostReviewService, useValue: {} },
+        { provide: ReportsService, useValue: {} },
         { provide: FeedService, useValue: {} },
         { provide: PostViewsService, useValue: {} }, { provide: AuthorFollowsService, useValue: {} },
         { provide: SavedCollectionsService, useValue: {} }, { provide: CommentLikesService, useValue: {} },
@@ -156,6 +176,22 @@ describe('Swagger Documentation Configuration', () => {
     // Paths verification
     const paths = Object.keys(document.paths);
     expect(paths).toContain('/api/v1/auth/login');
+    expect(document.paths['/api/v1/auth/totp/setup'].post?.security).toEqual([{ 'JWT-auth': [] }]);
+    expect(document.paths['/api/v1/auth/social/{provider}/link'].post?.security).toEqual([{ 'JWT-auth': [] }]);
+    expect(document.paths['/api/v1/auth/social/{provider}/callback'].get?.security).toEqual([{}]);
+    expect(document.paths['/api/v1/auth/social/challenge'].post?.security).toEqual([{}]);
+    expect(document.paths['/api/v1/admin/users/{id}/suspension'].post?.security).toEqual([{ 'JWT-auth': [] }]);
+    expect(document.paths['/api/v1/admin/users/{id}/restore'].post?.security).toEqual([{ 'JWT-auth': [] }]);
+    expect(document.paths['/api/v1/admin/audit-logs'].get?.security).toEqual([{ 'JWT-auth': [] }]);
+    expect(document.paths['/api/v1/admin/analytics/overview'].get?.security).toEqual([{ 'JWT-auth': [] }]);
+    expect(document.paths['/api/v1/post-reviews/{id}/submit'].post?.security).toEqual([{ 'JWT-auth': [] }]);
+    expect(document.paths['/api/v1/post-reviews/{id}/decision'].post?.security).toEqual([{ 'JWT-auth': [] }]);
+    expect(document.paths['/api/v1/users/author-rules'].get?.security).toEqual([{}]);
+    expect(document.paths['/api/v1/users/me/author'].post?.security).toEqual([{ 'JWT-auth': [] }]);
+    expect(document.paths['/api/v1/reports'].post?.security).toEqual([{ 'JWT-auth': [] }]);
+    expect(document.paths['/api/v1/reports/{id}'].patch?.security).toEqual([{ 'JWT-auth': [] }]);
+    expect(document.paths['/api/v1/auth/sessions'].get?.security).toEqual([{ 'JWT-auth': [] }]);
+    expect(document.paths['/api/v1/auth/sessions/{id}'].delete?.security).toEqual([{ 'JWT-auth': [] }]);
     expect(paths).toContain('/api/v1/auth/refresh');
     expect(paths).toContain('/api/v1/auth/logout');
     expect(paths).toContain('/api/v1/auth/forgot-password');

@@ -17,6 +17,10 @@ import { CommentsModule } from './modules/comments/comments.module.js';
 import { MailModule } from './modules/mail/mail.module.js';
 import { NotificationsModule } from './modules/notifications/notifications.module.js';
 import { NewsletterModule } from './modules/newsletter/newsletter.module.js';
+import { ModerationModule } from './modules/moderation/moderation.module.js';
+import { AuditModule } from './modules/audit/audit.module.js';
+import { AnalyticsModule } from './modules/analytics/analytics.module.js';
+import { ReportsModule } from './modules/reports/reports.module.js';
 import { validate } from './config/env.validation.js';
 
 @Module({
@@ -52,6 +56,10 @@ import { validate } from './config/env.validation.js';
     MailModule,
     NotificationsModule,
     NewsletterModule,
+    ReportsModule,
+    AnalyticsModule,
+    AuditModule,
+    ModerationModule,
   ],
   controllers: [HealthController],
   providers: [

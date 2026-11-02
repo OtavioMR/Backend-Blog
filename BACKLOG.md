@@ -2,13 +2,13 @@
 
 Este documento consolida e rastreia todos os **55 itens acionáveis** originados do relatório técnico `analise_blog.md`, categorizados em 6 Milestones e divididos por prioridades, estimativas de esforço e status de execução.
 
-Status local dos 55 itens originais: **32 concluídos e 23 pendentes**. A issue adicional #57 permanece pendente.
+Status local dos 55 itens originais: **41 concluídos e 14 pendentes**. A issue adicional #57 foi concluída.
 
 **Decisão de produto — comunidade e autoria:** visitantes leem artigos públicos; contas começam como `READER`. Após verificar o e-mail (#45) e aceitar as regras de publicação, o leitor pode solicitar promoção automática a `AUTHOR`. O primeiro artigo requer aprovação administrativa; depois, novos artigos e edições são publicados imediatamente. Administradores podem revogar a autoria ou suspender a conta e decidir quais artigos publicados ocultar. A moderação posterior deve tratar abusos, inclusive alterações feitas após a aprovação.
 
 **Planejamento:** a #47 registra a promoção automática e a #57 a revisão do primeiro artigo. Alinhar revogação, suspensão e auditoria com #49 e #50. A #17 trata do acesso a rascunhos próprios. Essas decisões não alteram a ordem das sprints.
 
-**Item adicional:** [#57 — Aprovar o primeiro artigo de cada autor](https://github.com/OtavioMR/Backend-Blog/issues/57), P2, backlog, Sprint 5. Esta issue foi criada após os 55 itens originais do relatório.
+**Item adicional:** [#57 — Aprovar o primeiro artigo de cada autor](https://github.com/OtavioMR/Backend-Blog/issues/57), P2, concluído na Sprint 5. Esta issue foi criada após os 55 itens originais do relatório.
 
 ---
 
@@ -43,7 +43,7 @@ Status local dos 55 itens originais: **32 concluídos e 23 pendentes**. A issue 
 | **S11** | #11 | [Segurança] Definir limites de tamanho (MaxLength) e sanitização em parâmetros de busca | P1 — Alta | XS | 🟢 Concluído |
 | **S12** | #12 | [Segurança] Sanitizar payloads de conteúdo de posts e comentários contra XSS | P1 — Alta | S | 🟢 Concluído |
 | **S13** | #13 | [Segurança] Processamento seguro de upload de fotos de perfil com Sharp e limpeza de órfãos | P1 — Alta | M | 🟢 Concluído |
-| **S14** | #14 | [Segurança/Épico] Modelagem de tabela de sessões ativas com rotação de refresh token por dispositivo | P2 — Média | L | Backlog |
+| **S14** | #14 | [Segurança/Épico] Modelagem de tabela de sessões ativas com rotação de refresh token por dispositivo | P2 — Média | L | Concluído |
 | **S15** | #15 | [Segurança] Rate limiting granular para criação de comentários, reações e tags | P2 — Média | S | 🟢 Concluído |
 
 #### 🛠️ 2. Melhorias e Bugs (M1 a M14)
@@ -83,14 +83,14 @@ Status local dos 55 itens originais: **32 concluídos e 23 pendentes**. A issue 
 | **F14** | #43 | [Feature/Épico] Sistema centralizado de notificações in-app (notificações de interações) | P2 — Média | L | 🟢 Concluído |
 | **F15** | #44 | [Feature] Sistema de Newsletter com double opt-in e disparo automático em novas publicações | P2 — Média | M | 🟢 Concluído |
 | **F16** | #45 | [Feature] Verificação obrigatória de e-mail no cadastro de novos usuários | P1 — Alta | S | 🟢 Concluído |
-| **F17** | #46 | [Feature] Sistema de denúncias (reports) de posts e comentários com painel de moderação | P2 — Média | M | Backlog |
-| **F18** | #47 | [Feature] Promoção de READER a AUTHOR após verificação de e-mail e aceite das regras | P2 — Média | S | Backlog |
-| **F19** | #48 | [Feature] Dashboard de métricas analíticas e estatísticas da plataforma para administradores | P2 — Média | M | Backlog |
-| **F20** | #49 | [Feature] Trilha de auditoria (Audit Log) para ações críticas e administrativas | P2 — Média | M | Backlog |
-| **F21** | #50 | [Feature] Sistema de suspensão e banimento temporário ou definitivo de usuários | P2 — Média | S | Backlog |
-| **F22** | #51 | [Feature] Autenticação social com OAuth2 (Google e GitHub) | P2 — Média | M | Backlog |
-| **F23** | #52 | [Feature] Autenticação de dois fatores (2FA / TOTP) | P2 — Média | M | Backlog |
-| **F24** | #53 | [Feature] Interface e endpoints para visualização e revogação de sessões ativas do usuário | P2 — Média | S | Backlog |
+| **F17** | #46 | [Feature] Sistema de denúncias (reports) de posts e comentários com painel de moderação | P2 — Média | M | Concluído |
+| **F18** | #47 | [Feature] Promoção de READER a AUTHOR após verificação de e-mail e aceite das regras | P2 — Média | S | Concluído |
+| **F19** | #48 | [Feature] Dashboard de métricas analíticas e estatísticas da plataforma para administradores | P2 — Média | M | Concluído |
+| **F20** | #49 | [Feature] Trilha de auditoria (Audit Log) para ações críticas e administrativas | P2 — Média | M | Concluído |
+| **F21** | #50 | [Feature] Sistema de suspensão e banimento temporário ou definitivo de usuários | P2 — Média | S | Concluído |
+| **F22** | #51 | [Feature] Autenticação social com OAuth2 (Google e GitHub) | P2 — Média | M | Concluído |
+| **F23** | #52 | [Feature] Autenticação de dois fatores (2FA / TOTP) | P2 — Média | M | Concluído |
+| **F24** | #53 | [Feature] Interface e endpoints para visualização e revogação de sessões ativas do usuário | P2 — Média | S | Concluído |
 | **F25** | #54 | [Performance] Camada de cache distribuído em memória com Redis para consultas públicas | P2 — Média | M | Backlog |
 | **F26** | #55 | [Performance] Paginação por cursor (keyset pagination) para feed de artigos e comentários | P3 — Baixa | M | Backlog |
 
@@ -151,15 +151,14 @@ Status local dos 55 itens originais: **32 concluídos e 23 pendentes**. A issue 
    Conclua e valide cada leva antes de avançar, ajustando a ordem se dependências identificadas durante a implementação exigirem. Atualize os status neste documento; alterações e commits permanecem locais até o usuário enviá-los.
 
 5. **Sprint 5 — Moderação, Governança & Autenticação Avançada (P2):**
-   - #14 e #53 (Sessões ativas e múltiplos dispositivos)
-   - #46 (Sistema de denúncias)
-   - #47 (Promoção automática a autor após requisitos)
-   - #57 (Revisão do primeiro artigo; alinhar revogação e ocultação com #49 e #50)
-   - #48 (Dashboard analítico para admin)
-   - #49 (Trilha de auditoria)
-   - #50 (Suspensão e banimento temporário)
-   - #51 (Login social OAuth2)
-   - #52 (Autenticação de 2 fatores TOTP)
+   - #14 e #53 — concluídos: sessões por dispositivo, rotação atômica e revogação seletiva. Tokens anteriores à migration exigem novo login.
+   - #46 — concluída: denúncias de artigos e comentários, análise administrativa e auditoria da decisão.
+   - #47 e #57 — concluídas: aceite versionado e promoção automática; o primeiro artigo de novos autores exige aprovação. Autores existentes foram preservados na migration. A revogação bloqueia nova promoção automática e encerra revisões pendentes.
+   - #48 — concluída: indicadores agregados disponíveis a administradores.
+   - #49 — concluída: auditoria de ações de autenticação, moderação, permissões e administração de conteúdo, com consulta restrita a administradores.
+   - #50 — concluída: suspensão com prazo ou banimento, revogação das sessões, ocultação escolhida de artigos e restauração manual ou após expiração.
+   - #51 — concluída: OAuth2 Google e GitHub, PKCE, estado de uso único, vínculo explícito de contas e desafio TOTP quando necessário. A operação real depende das credenciais dos provedores.
+   - #52 — concluída: TOTP com segredo criptografado e proteção contra reutilização de códigos. Não há códigos de recuperação.
 
 6. **Sprint 6 — Performance & Escala (P2/P3):**
    - #21 (Busca textual Full-Text nativa com tsvector e GIN)

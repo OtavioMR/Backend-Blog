@@ -26,6 +26,7 @@ describe('Sprint 2 with PostgreSQL', () => {
   });
   afterAll(async () => {
     if (userId) {
+      await db.query('DELETE FROM audit_logs WHERE actor_id = $1', [userId]);
       await db.query('DELETE FROM comments WHERE author_id = $1', [userId]);
       await db.query('DELETE FROM posts WHERE author_id = $1', [userId]);
       await db.query('DELETE FROM users WHERE id = $1', [userId]);
@@ -49,7 +50,7 @@ describe('Sprint 2 with PostgreSQL', () => {
     const [locked] = await db.query('SELECT failed_login_attempts, login_locked_until FROM users WHERE id = $1', [userId]);
     expect(locked.failed_login_attempts).toBe(5);
     expect(new Date(locked.login_locked_until).getTime()).toBeGreaterThan(Date.now());
-    await db.query("UPDATE users SET login_locked_until = CURRENT_TIMESTAMP - interval '1 second', role = 'AUTHOR' WHERE id = $1", [userId]);
+    await db.query("UPDATE users SET login_locked_until = CURRENT_TIMESTAMP - interval '1 second', role = 'AUTHOR', first_post_approved = true WHERE id = $1", [userId]);
     const login = await request(server).post('/api/v1/auth/login').send({ email, password }).expect(200);
     const auth = `Bearer ${login.body.access_token}`;
     const post = await request(server).post('/api/v1/posts').set('Authorization', auth)

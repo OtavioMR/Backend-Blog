@@ -26,7 +26,7 @@ export function ApiLoginDoc() {
     ApiOperation({
       summary: 'Autenticar usuário e emitir tokens',
       description:
-        'Realiza login com e-mail verificado e senha válidos. Após cinco tentativas incorretas a conta é temporariamente bloqueada, com prazo progressivo. Retorna access_token e define o refreshToken em cookie HTTP-Only (`Path=/api/v1/auth`, `SameSite=Strict`).',
+        'Realiza login com e-mail verificado e senha válidos. Quando TOTP está ativo, exige um código novo no campo totpCode. Após cinco tentativas incorretas a conta é temporariamente bloqueada, com prazo progressivo. Cria uma sessão por dispositivo, retorna access_token e define o refreshToken em cookie HTTP-Only (`Path=/api/v1/auth`, `SameSite=Strict`).',
     }),
     ApiResponse({
       status: 200,
@@ -115,7 +115,7 @@ export function ApiLogoutDoc() {
     ApiOperation({
       summary: 'Encerrar sessão do usuário (Logout)',
       description:
-        'Invalida o refresh token no banco de dados e limpa o cookie HTTP-Only `refreshToken` da sessão do usuário autenticado.',
+        'Revoga a sessão atual e seus tokens de acesso e atualização, e limpa o cookie HTTP-Only `refreshToken`.',
     }),
     ApiResponse({
       status: 200,

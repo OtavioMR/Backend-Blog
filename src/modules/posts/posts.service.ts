@@ -105,6 +105,7 @@ export class PostsService {
         coverImage: true,
         publishedAt: true,
         published: true,
+        reviewStatus: true,
         commentsEnabled: true,
         isActive: true,
         createdAt: true,
@@ -176,7 +177,7 @@ export class PostsService {
       where: { authorId, isActive: true },
       relations: { author: true, categories: true, tags: true },
       select: {
-        id: true, slug: true, title: true, content: true, excerpt: true, coverImage: true, publishedAt: true, scheduledAt: true, published: true, commentsEnabled: true,
+        id: true, slug: true, title: true, content: true, excerpt: true, coverImage: true, publishedAt: true, scheduledAt: true, published: true, reviewStatus: true, commentsEnabled: true,
         isActive: true, createdAt: true, updatedAt: true,
         author: { id: true, name: true },
         categories: { id: true, name: true, slug: true, isActive: true },
@@ -218,6 +219,7 @@ export class PostsService {
         title: true,
         content: true,
         published: true,
+        reviewStatus: true,
         commentsEnabled: true,
         isActive: true,
         createdAt: true,
@@ -320,7 +322,7 @@ export class PostsService {
       throw new NotFoundException('Artigo não encontrado.');
     }
 
-    if (post.authorId !== user.userId && user.role !== UserRole.ADMIN) {
+    if (user.role !== UserRole.ADMIN && (post.authorId !== user.userId || user.role !== UserRole.AUTHOR)) {
       throw new ForbiddenException(
         'Você não tem permissão para editar este artigo.',
       );
@@ -367,7 +369,13 @@ export class PostsService {
     if (postData.published === true && !post.published) post.publishedAt = new Date();
     if (postData.published === false || postData.isActive === false) post.publishedAt = null;
     Object.assign(post, postData);
-    const savedPost = await this.postsRepository.save(post);
+    const savedPost = user.role === UserRole.ADMIN && post.authorId !== user.userId
+      ? await this.postsRepository.manager.transaction(async manager => {
+          const saved = await manager.getRepository(Post).save(post);
+          await manager.query(`INSERT INTO audit_logs (actor_id, action, target_type, target_id, details) VALUES ($1, 'post.admin_updated', 'post', $2, $3::jsonb)`, [user.userId, id, JSON.stringify({ fields: Object.keys(updatePostDto) })]);
+          return saved;
+        })
+      : await this.postsRepository.save(post);
     this.logger.log(`Artigo ${id} atualizado pelo usuário ${user.userId}`);
     return Object.assign(savedPost, { readingTimeMinutes: readingTimeMinutes(savedPost.content ?? '') });
   }
@@ -375,7 +383,7 @@ export class PostsService {
   private async changeCover(id: string, user: AuthenticatedUser, buffer?: Buffer): Promise<{ coverImage: string | null }> {
     const post = await this.postsRepository.findOne({ where: { id, isActive: true } });
     if (!post) throw new NotFoundException('Artigo não encontrado.');
-    if (post.authorId !== user.userId && user.role !== UserRole.ADMIN) throw new ForbiddenException('Sem permissão para editar este artigo.');
+    if (user.role !== UserRole.ADMIN && (post.authorId !== user.userId || user.role !== UserRole.AUTHOR)) throw new ForbiddenException('Sem permissão para editar este artigo.');
 
     const directory = join(process.cwd(), 'uploads', 'post-covers');
     let path: string | undefined;
@@ -397,11 +405,18 @@ export class PostsService {
       coverImage = `/uploads/post-covers/${filename}`;
     }
     try {
-      const result = await this.postsRepository.createQueryBuilder().update(Post)
+      const updateCover = (repository: Repository<Post>) => repository.createQueryBuilder().update(Post)
         .set({ coverImage })
         .where('id = :id AND is_active = true AND deleted_at IS NULL', { id })
         .andWhere(post.coverImage == null ? 'cover_image IS NULL' : 'cover_image = :oldCover', { oldCover: post.coverImage })
         .execute();
+      const result = user.role === UserRole.ADMIN && post.authorId !== user.userId
+        ? await this.postsRepository.manager.transaction(async manager => {
+            const updated = await updateCover(manager.getRepository(Post));
+            if (updated.affected) await manager.query(`INSERT INTO audit_logs (actor_id, action, target_type, target_id) VALUES ($1, 'post.admin_cover_changed', 'post', $2)`, [user.userId, id]);
+            return updated;
+          })
+        : await updateCover(this.postsRepository);
       if (!result.affected) throw new ConflictException('A capa foi alterada simultaneamente. Tente novamente.');
     } catch (error) {
       if (path) await unlink(path).catch(() => undefined);
@@ -429,7 +444,7 @@ export class PostsService {
       throw new NotFoundException('Artigo não encontrado.');
     }
 
-    if (post.authorId !== user.userId && user.role !== UserRole.ADMIN) {
+    if (user.role !== UserRole.ADMIN && (post.authorId !== user.userId || user.role !== UserRole.AUTHOR)) {
       throw new ForbiddenException(
         'Você não tem permissão para desativar este artigo.',
       );
@@ -438,8 +453,12 @@ export class PostsService {
     post.published = false;
     post.scheduledAt = null;
     post.isActive = false;
-    await this.postsRepository.save(post);
-    await this.postsRepository.softRemove(post);
+    await this.postsRepository.manager.transaction(async manager => {
+      const repository = manager.getRepository(Post);
+      await repository.save(post);
+      await repository.softRemove(post);
+      await manager.query(`INSERT INTO audit_logs (actor_id, action, target_type, target_id) VALUES ($1, 'post.deleted', 'post', $2)`, [user.userId, id]);
+    });
     this.logger.log(`Artigo ${id} desativado pelo usuário ${user.userId}`);
   }
 }

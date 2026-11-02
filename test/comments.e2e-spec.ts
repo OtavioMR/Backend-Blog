@@ -51,6 +51,7 @@ describe('Comentários e foto: fluxo completo', () => {
 
   afterAll(async () => {
     try {
+      for (const id of userIds) await db.query('DELETE FROM audit_logs WHERE actor_id = $1', [id]);
       for (const id of [...commentIds].reverse())
         await db.query('DELETE FROM comments WHERE id = $1', [id]);
       for (const id of postIds)
@@ -87,15 +88,15 @@ describe('Comentários e foto: fluxo completo', () => {
     const reader = await register('Reader');
     const other = await register('Other');
     const admin = await register('Admin');
-    await db.query('UPDATE users SET role = $1 WHERE id = $2', [
+    await db.query('UPDATE users SET role = $1, first_post_approved = true WHERE id = $2', [
       'AUTHOR',
       owner.id,
     ]);
-    await db.query('UPDATE users SET role = $1 WHERE id = $2', [
+    await db.query('UPDATE users SET role = $1, first_post_approved = true WHERE id = $2', [
       'AUTHOR',
       other.id,
     ]);
-    await db.query('UPDATE users SET role = $1 WHERE id = $2', [
+    await db.query('UPDATE users SET role = $1, first_post_approved = true WHERE id = $2', [
       'ADMIN',
       admin.id,
     ]);

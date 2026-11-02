@@ -86,8 +86,9 @@ export class CategoriesController {
   update(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() updateCategoryDto: UpdateCategoryDto,
+    @Req() request: RequestWithUser,
   ) {
-    return this.categoriesService.update(id, updateCategoryDto);
+    return this.categoriesService.update(id, updateCategoryDto, request.user.userId);
   }
 
   @ApiRemoveCategoryDoc()
@@ -95,7 +96,7 @@ export class CategoriesController {
   @Roles(UserRole.ADMIN)
   @HttpCode(HttpStatus.NO_CONTENT)
   @Delete(':id')
-  remove(@Param('id', ParseUUIDPipe) id: string) {
-    return this.categoriesService.remove(id);
+  remove(@Param('id', ParseUUIDPipe) id: string, @Req() request: RequestWithUser) {
+    return this.categoriesService.remove(id, request.user.userId);
   }
 }

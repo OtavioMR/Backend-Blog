@@ -19,6 +19,7 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiBearerAuth, ApiBody, ApiConsumes, ApiParam } from '@nestjs/swagger';
 
+import { AcceptAuthorRulesDto } from './dto/accept-author-rules.dto.js';
 import { UsersService } from './users.service.js';
 import { CreateUserDto } from './dto/create-user.dto.js';
 import { UpdateUserDto } from './dto/update-user.dto.js';
@@ -47,6 +48,25 @@ import {
 @Controller('users')
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
+
+  @Get('author-rules')
+  @ApiPublicRoute()
+  @ApiOperation({ summary: 'Consultar regras para autores' })
+  @ApiResponse({ status: 200, description: 'Versão e regras de publicação.', schema: { example: { version: '1', rules: ['Publique apenas conteúdo que você tenha direito de compartilhar.', 'Respeite as pessoas e não publique conteúdo abusivo.', 'O primeiro artigo será submetido à aprovação administrativa.'] } } })
+  authorRules() {
+    return { version: '1', rules: ['Publique apenas conteúdo que você tenha direito de compartilhar.', 'Respeite as pessoas e não publique conteúdo abusivo.', 'O primeiro artigo será submetido à aprovação administrativa.'] };
+  }
+
+  @Post('me/author')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Aceitar as regras e solicitar autoria', description: 'Um leitor com e-mail verificado aceita explicitamente a versão atual das regras e é promovido automaticamente, salvo bloqueio administrativo.' })
+  @ApiResponse({ status: 200, description: 'Autoria concedida.', schema: { example: { role: 'AUTHOR', rulesVersion: '1' } } })
+  @ApiResponse({ status: 400, description: 'Aceite ou versão inválidos.' })
+  @ApiResponse({ status: 401, description: 'Autenticação necessária.' })
+  @ApiResponse({ status: 403, description: 'Requisitos não atendidos ou promoção bloqueada.' })
+  becomeAuthor(@Req() request: RequestWithUser, @Body() _dto: AcceptAuthorRulesDto) { return this.usersService.becomeAuthor(request.user.userId); }
 
   @Post('confirm-email')
   @ApiPublicRoute()

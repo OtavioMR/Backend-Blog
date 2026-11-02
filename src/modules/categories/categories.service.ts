@@ -30,6 +30,21 @@ export class CategoriesService {
     private readonly postsService: PostsService,
   ) {}
 
+  private async saveAudited(category: Category, actorId: string | undefined, action: string, remove = false): Promise<Category> {
+    if (!actorId) {
+      const saved = await this.categoriesRepository.save(category);
+      if (remove) await this.categoriesRepository.softRemove(saved);
+      return saved;
+    }
+    return this.categoriesRepository.manager.transaction(async manager => {
+      const repository = manager.getRepository(Category);
+      const saved = await repository.save(category);
+      if (remove) await repository.softRemove(saved);
+      await manager.query(`INSERT INTO audit_logs (actor_id, action, target_type, target_id) VALUES ($1, $2, 'category', $3)`, [actorId, action, saved.id]);
+      return saved;
+    });
+  }
+
   async create(
     createCategoryDto: CreateCategoryDto,
     creatorId?: string,
@@ -63,7 +78,7 @@ export class CategoriesService {
         existingByName.creatorId = creatorId;
       }
 
-      const category = await this.categoriesRepository.save(existingByName);
+      const category = await this.saveAudited(existingByName, creatorId, 'category.reactivated');
       this.logger.log(`Categoria ${category.id} reativada`);
       return category;
     }
@@ -92,7 +107,7 @@ export class CategoriesService {
         existingBySlug.creatorId = creatorId;
       }
 
-      const category = await this.categoriesRepository.save(existingBySlug);
+      const category = await this.saveAudited(existingBySlug, creatorId, 'category.reactivated');
       this.logger.log(`Categoria ${category.id} reativada`);
       return category;
     }
@@ -105,7 +120,7 @@ export class CategoriesService {
       creatorId: creatorId ?? null,
     });
 
-    const savedCategory = await this.categoriesRepository.save(category);
+    const savedCategory = await this.saveAudited(category, creatorId, 'category.created');
     this.logger.log(`Categoria ${savedCategory.id} criada`);
     return savedCategory;
   }
@@ -171,6 +186,7 @@ export class CategoriesService {
   async update(
     id: string,
     updateCategoryDto: UpdateCategoryDto,
+    actorId?: string,
   ): Promise<Category> {
     const category = await this.categoriesRepository.findOne({
       where: { id, isActive: true },
@@ -242,12 +258,12 @@ export class CategoriesService {
       category.isActive = updateCategoryDto.isActive;
     }
 
-    const savedCategory = await this.categoriesRepository.save(category);
+    const savedCategory = await this.saveAudited(category, actorId, 'category.updated');
     this.logger.log(`Categoria ${id} atualizada`);
     return savedCategory;
   }
 
-  async remove(id: string): Promise<void> {
+  async remove(id: string, actorId?: string): Promise<void> {
     const category = await this.categoriesRepository.findOne({
       where: { id, isActive: true },
     });
@@ -257,8 +273,7 @@ export class CategoriesService {
     }
 
     category.isActive = false;
-    await this.categoriesRepository.save(category);
-    await this.categoriesRepository.softRemove(category);
+    await this.saveAudited(category, actorId, 'category.deleted', true);
     this.logger.log(`Categoria ${id} desativada`);
   }
 }

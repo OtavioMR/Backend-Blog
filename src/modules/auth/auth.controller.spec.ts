@@ -57,9 +57,9 @@ describe('AuthController', () => {
         cookie: vi.fn(),
       };
 
-      const result = await controller.login(loginDto, mockRes);
+      const result = await controller.login(loginDto, { get: () => 'test-agent' } as any, mockRes);
 
-      expect(mockAuthService.login).toHaveBeenCalledWith(loginDto);
+      expect(mockAuthService.login).toHaveBeenCalledWith(loginDto, 'test-agent');
       expect(mockRes.cookie).toHaveBeenCalledWith(
         'refreshToken',
         'refresh-456',
@@ -153,7 +153,7 @@ describe('AuthController', () => {
         'refreshToken',
         expect.objectContaining({ httpOnly: true }),
       );
-      expect(mockAuthService.logout).toHaveBeenCalledWith('user-uuid');
+      expect(mockAuthService.logout).toHaveBeenCalledWith('user-uuid', undefined);
       expect(result).toEqual({
         message: 'Logout realizado com sucesso.',
       });

@@ -42,6 +42,14 @@ describe('UsersService', () => {
     expect(service).toBeDefined();
   });
 
+  it('promotes only a verified, active reader who is not blocked', async () => {
+    mockUsersRepository.query = vi.fn().mockResolvedValue([{ target_id: 'user-1' }]);
+    await expect(service.becomeAuthor('user-1')).resolves.toEqual({ role: UserRole.AUTHOR, rulesVersion: '1' });
+    expect(mockUsersRepository.query).toHaveBeenCalledWith(expect.stringContaining('author_promotion_blocked = false'), ['user-1']);
+    mockUsersRepository.query.mockResolvedValue([]);
+    await expect(service.becomeAuthor('user-1')).rejects.toThrow();
+  });
+
   describe('findByIdForRequester', () => {
     const targetUser = {
       id: 'user-1',
@@ -129,7 +137,7 @@ describe('UsersService', () => {
       expect(saved.emailChangeExpiresAt.getTime()).toBeGreaterThan(Date.now());
     });
 
-    it('impede administrador de alterar senha de outro usu?rio', async () => {
+    it('impede administrador de alterar senha de outro usuário', async () => {
       await expect(service.update('user-1', { password: 'nova-senha', currentPassword: 'qualquer' }, { userId: 'admin', role: UserRole.ADMIN })).rejects.toThrow('titular');
       expect(mockUsersRepository.save).not.toHaveBeenCalled();
     });
