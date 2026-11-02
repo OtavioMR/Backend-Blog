@@ -9,6 +9,7 @@ import { randomUUID } from 'node:crypto';
 import { MailService } from '../src/modules/mail/mail.service.js';
 import sharp from 'sharp';
 import { AppModule } from '../src/app.module.js';
+import { getStorageToken } from '@nestjs/throttler';
 
 const request = supertest;
 let png: Buffer;
@@ -25,7 +26,10 @@ describe('Comentários e foto: fluxo completo', () => {
   beforeAll(async () => {
     const module = await Test.createTestingModule({
       imports: [AppModule],
-    }).overrideProvider(MailService).useValue({ sendEmailVerification: async () => undefined }).compile();
+    }).overrideProvider(MailService).useValue({ sendEmailVerification: async () => undefined })
+      // O comportamento dos limites tem testes HTTP próprios; este fluxo precisa criar muitos comentários.
+      .overrideProvider(getStorageToken()).useValue({ increment: async () => ({ totalHits: 1, timeToExpire: 60, isBlocked: false, timeToBlockExpire: 0 }) })
+      .compile();
     png = await sharp({ create: { width: 2, height: 2, channels: 3, background: '#fff' } }).png().toBuffer();
     app = module.createNestApplication<NestExpressApplication>();
     app.useStaticAssets(join(process.cwd(), 'uploads', 'profile-photos'), {

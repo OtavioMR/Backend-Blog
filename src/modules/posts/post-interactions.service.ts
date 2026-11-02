@@ -66,6 +66,9 @@ export class PostInteractionsService {
         { userId },
       )
       .where('post.published = true AND post.is_active = true')
+      .leftJoin('post.author', 'author')
+      .leftJoin('post.categories', 'category', 'category.is_active = true')
+      .leftJoin('post.tags', 'tag')
       .select([
         'post.id',
         'post.title',
@@ -76,6 +79,15 @@ export class PostInteractionsService {
         'post.isActive',
         'post.createdAt',
         'post.updatedAt',
+        'author.id',
+        'author.name',
+        'category.id',
+        'category.name',
+        'category.slug',
+        'category.isActive',
+        'tag.id',
+        'tag.name',
+        'tag.slug',
       ])
       .orderBy('post.createdAt', 'DESC')
       .addOrderBy('post.id', 'DESC')

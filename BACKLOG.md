@@ -44,7 +44,7 @@ Status local dos 55 itens originais: **32 concluídos e 23 pendentes**. A issue 
 | **S12** | #12 | [Segurança] Sanitizar payloads de conteúdo de posts e comentários contra XSS | P1 — Alta | S | 🟢 Concluído |
 | **S13** | #13 | [Segurança] Processamento seguro de upload de fotos de perfil com Sharp e limpeza de órfãos | P1 — Alta | M | 🟢 Concluído |
 | **S14** | #14 | [Segurança/Épico] Modelagem de tabela de sessões ativas com rotação de refresh token por dispositivo | P2 — Média | L | Backlog |
-| **S15** | #15 | [Segurança] Rate limiting granular para criação de comentários, reações e tags | P2 — Média | S | Backlog |
+| **S15** | #15 | [Segurança] Rate limiting granular para criação de comentários, reações e tags | P2 — Média | S | 🟢 Concluído |
 
 #### 🛠️ 2. Melhorias e Bugs (M1 a M14)
 | Código | Issue | Título | Prioridade | Esforço | Status |
@@ -56,7 +56,7 @@ Status local dos 55 itens originais: **32 concluídos e 23 pendentes**. A issue 
 | **M5** | #20 | [Performance] Eliminar problema de query N+1 na listagem de comentários e respostas | P1 — Alta | M | 🟢 Concluído |
 | **M6** | #21 | [Melhoria] Implementar busca textual Full-Text nativa com PostgreSQL (tsvector e GIN) | P2 — Média | M | Backlog |
 | **M7** | #22 | [Bug] Permitir moderação e remoção de comentários mesmo com comentários desativados no post | P1 — Alta | XS | ?? Concluído |
-| **M8** | #23 | [Melhoria] Enriquecer resposta de artigos salvos com autor, categorias e tags | P2 — Média | XS | Backlog |
+| **M8** | #23 | [Melhoria] Enriquecer resposta de artigos salvos com autor, categorias e tags | P2 — Média | XS | 🟢 Concluído |
 | **M9** | #24 | [Refatoração] Padronizar estrutura de metadados de paginação com utilitário compartilhado | P2 — Média | S | 🟢 Concluído |
 | **M10** | #25 | [Melhoria] Padronizar busca de categorias e tags com escape e unaccent | P2 — Média | XS | 🟢 Concluído |
 | **M11** | #26 | [Refatoração] Centralizar serialização de DTOs com ClassSerializerInterceptor e @Exclude | P2 — Média | M | 🟢 Concluído |
@@ -74,14 +74,14 @@ Status local dos 55 itens originais: **32 concluídos e 23 pendentes**. A issue 
 | **F5** | #34 | [Feature] Geração dinâmica de Feeds RSS/Atom e Sitemap XML | P2 — Média | S | Concluído |
 | **F6** | #35 | [Feature] Agrupamento de artigos em séries sequenciais | P3 — Baixa | M | Backlog |
 | **F7** | #36 | [Feature] Histórico de revisões e versionamento de artigos (post_revisions) | P3 — Baixa | M | Backlog |
-| **F8** | #37 | [Feature] Contador de visualizações com deduplicação e endpoint de artigos em alta | P2 — Média | M | Backlog |
+| **F8** | #37 | [Feature] Contador de visualizações com deduplicação e endpoint de artigos em alta | P2 — Média | M | 🟢 Concluído |
 | **F9** | #38 | [Feature] Recomendação de artigos relacionados por similaridade de tags e categorias | P2 — Média | S | Concluído |
 | **F10** | #39 | [Feature] Perfil público do autor com bio, links sociais e contagem de publicações | P2 — Média | S | Concluído |
-| **F11** | #40 | [Feature] Sistema de seguir autores e feed personalizado (GET /feed) | P2 — Média | M | Backlog |
-| **F12** | #41 | [Feature] Sistema de reações e curtidas em comentários | P2 — Média | S | Backlog |
-| **F13** | #42 | [Feature] Organização de artigos salvos em coleções/pastas personalizadas | P3 — Baixa | M | Backlog |
-| **F14** | #43 | [Feature/Épico] Sistema centralizado de notificações in-app (notificações de interações) | P2 — Média | L | Backlog |
-| **F15** | #44 | [Feature] Sistema de Newsletter com double opt-in e disparo automático em novas publicações | P2 — Média | M | Backlog |
+| **F11** | #40 | [Feature] Sistema de seguir autores e feed personalizado (GET /feed) | P2 — Média | M | 🟢 Concluído |
+| **F12** | #41 | [Feature] Sistema de reações e curtidas em comentários | P2 — Média | S | 🟢 Concluído |
+| **F13** | #42 | [Feature] Organização de artigos salvos em coleções/pastas personalizadas | P3 — Baixa | M | 🟢 Concluído |
+| **F14** | #43 | [Feature/Épico] Sistema centralizado de notificações in-app (notificações de interações) | P2 — Média | L | 🟢 Concluído |
+| **F15** | #44 | [Feature] Sistema de Newsletter com double opt-in e disparo automático em novas publicações | P2 — Média | M | 🟢 Concluído |
 | **F16** | #45 | [Feature] Verificação obrigatória de e-mail no cadastro de novos usuários | P1 — Alta | S | 🟢 Concluído |
 | **F17** | #46 | [Feature] Sistema de denúncias (reports) de posts e comentários com painel de moderação | P2 — Média | M | Backlog |
 | **F18** | #47 | [Feature] Promoção de READER a AUTHOR após verificação de e-mail e aceite das regras | P2 — Média | S | Backlog |
@@ -124,7 +124,7 @@ Status local dos 55 itens originais: **32 concluídos e 23 pendentes**. A issue 
 
    O tempo de leitura usa 200 palavras por minuto, arredondado para cima, com mínimo de um minuto. Os slugs são estáveis, com sufixos para duplicatas e compatibilidade com URLs anteriores.
 
-4. **Sprint 4 — Engajamento & Comunidade (P2/P3; próxima, não iniciada):**
+4. **Sprint 4 — Engajamento & Comunidade (P2/P3; concluída localmente, pendente de revisão do usuário):**
    - #15 (Rate limit granular em comentários e reações)
    - #23 (Enriquecimento de artigos salvos)
    - #37 (Contador de visualizações e trending)
@@ -143,6 +143,10 @@ Status local dos 55 itens originais: **32 concluídos e 23 pendentes**. A issue 
    6. #42: coleções de artigos salvos.
    7. #43: notificações in-app; identificar eventos das funcionalidades existentes e definir quais serão cobertos.
    8. #44: newsletter com double opt-in e envio em novas publicações, incluindo publicações agendadas.
+
+   #15: limites por IP e por rota, em memória por instância: 10 comentários, 30 curtidas e 30 remoções de curtidas por minuto; criação e edição de artigos (que também criam tags) limitadas a 10 e 20 por minuto, respectivamente. O limite global existente permanece aplicado às demais rotas. Cada artigo aceita até dez tags.
+   #37: uma visualização por artigo e IP por dia UTC, com IP representado por HMAC; ranking considera hoje e os seis dias UTC anteriores. #41: curtidas idempotentes em comentários ativos de artigos públicos com comentários habilitados.
+   #40: feed mostra artigos públicos de autores ativos seguidos. #42: ao retirar um artigo dos salvos ele fica oculto nas coleções e retorna se for salvo novamente. #43: notifica comentários, respostas, curtidas em artigos e comentários e novos seguidores, sem notificação para ações próprias. #44: confirmação por token de uso único (24 horas), cancelamento por token e entregas de novas publicações manuais ou agendadas; falhas SMTP são retomadas a cada cinco minutos, com processamento de até 50 por minuto. A entrega é pelo menos uma vez: falha após aceitação pelo SMTP e antes do registro pode produzir repetição.
 
    Conclua e valide cada leva antes de avançar, ajustando a ordem se dependências identificadas durante a implementação exigirem. Atualize os status neste documento; alterações e commits permanecem locais até o usuário enviá-los.
 

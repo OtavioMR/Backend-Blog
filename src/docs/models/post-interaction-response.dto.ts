@@ -1,5 +1,8 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, PickType } from '@nestjs/swagger';
 import { PaginationMetaResponseDto } from './pagination-meta-response.dto.js';
+import { PostAuthorResponseDto } from './post-response.dto.js';
+import { CategoryResponseDto } from './category-response.dto.js';
+import { TagResponseDto } from './tag-response.dto.js';
 
 export class PostInteractionResponseDto {
   @ApiProperty({
@@ -18,7 +21,18 @@ export class PostInteractionResponseDto {
   likes: number;
 }
 
+export class SavedPostCategoryResponseDto extends PickType(CategoryResponseDto, ['id', 'name', 'slug', 'isActive'] as const) {}
+
 export class SavedPostResponseDto {
+  @ApiProperty({ type: () => PostAuthorResponseDto })
+  author: PostAuthorResponseDto;
+
+  @ApiProperty({ type: () => [SavedPostCategoryResponseDto], description: 'Categorias ativas do artigo' })
+  categories: SavedPostCategoryResponseDto[];
+
+  @ApiProperty({ type: () => [TagResponseDto] })
+  tags: TagResponseDto[];
+
   @ApiProperty({
     format: 'uuid',
     example: 'b1ffcd88-8b1a-4ce7-aa5c-5cc8ac271b22',

@@ -22,6 +22,7 @@ import {
   getSchemaPath,
 } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
+import { Throttle } from '@nestjs/throttler';
 import { IsInt, IsOptional, Max, Min } from 'class-validator';
 import { CommentsService } from './comments.service.js';
 import { CreateCommentDto } from './dto/create-comment.dto.js';
@@ -130,8 +131,10 @@ export class PostCommentsController {
   @ApiResponse({ status: 401, description: 'Token ausente ou inválido.' })
   @ApiResponse({ status: 201, description: 'Comentário criado.', type: CommentResponseDto })
   @ApiResponse({ status: 403, description: 'Comentários desativados no post.' })
+  @ApiResponse({ status: 429, description: 'Limite de 10 comentários por minuto por IP excedido.' })
   @ApiBearerAuth('JWT-auth')
   @UseGuards(JwtAuthGuard)
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @Post()
   create(
     @Param('postId', ParseUUIDPipe) postId: string,

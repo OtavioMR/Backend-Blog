@@ -15,6 +15,8 @@ import { CategoriesModule } from './modules/categories/categories.module.js';
 import { TagsModule } from './modules/tags/tags.module.js';
 import { CommentsModule } from './modules/comments/comments.module.js';
 import { MailModule } from './modules/mail/mail.module.js';
+import { NotificationsModule } from './modules/notifications/notifications.module.js';
+import { NewsletterModule } from './modules/newsletter/newsletter.module.js';
 import { validate } from './config/env.validation.js';
 
 @Module({
@@ -48,6 +50,8 @@ import { validate } from './config/env.validation.js';
     TagsModule,
     CommentsModule,
     MailModule,
+    NotificationsModule,
+    NewsletterModule,
   ],
   controllers: [HealthController],
   providers: [

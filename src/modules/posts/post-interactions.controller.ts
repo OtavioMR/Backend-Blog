@@ -18,6 +18,7 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { applyDecorators } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import {
   BadRequestResponseDto,
   UnauthorizedResponseDto,
@@ -74,7 +75,7 @@ export class PostInteractionsController {
   @ApiOperation({ summary: 'Listar posts salvos pelo usuário' })
   @ApiResponse({
     status: 200,
-    description: 'Lista paginada de posts publicados e ativos.',
+    description: 'Lista paginada de posts publicados e ativos, com autor, categorias ativas e tags.',
     type: PaginatedSavedPostsResponseDto,
   })
   @ApiResponse({
@@ -102,6 +103,8 @@ export class PostInteractionsController {
   }
 
   @Put(':id/like')
+  @Throttle({ default: { limit: 30, ttl: 60_000 } })
+  @ApiResponse({ status: 429, description: 'Limite de 30 curtidas por minuto por IP excedido.' })
   @HttpCode(204)
   @ApiOperation({ summary: 'Curtir um post' })
   @ApiInteractionErrors()
@@ -117,6 +120,8 @@ export class PostInteractionsController {
   }
 
   @Delete(':id/like')
+  @Throttle({ default: { limit: 30, ttl: 60_000 } })
+  @ApiResponse({ status: 429, description: 'Limite de 30 remoções de curtida por minuto por IP excedido.' })
   @HttpCode(204)
   @ApiOperation({ summary: 'Remover curtida' })
   @ApiInteractionErrors()

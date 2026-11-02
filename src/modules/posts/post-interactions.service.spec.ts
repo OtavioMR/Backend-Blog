@@ -60,4 +60,27 @@ describe('PostInteractionsService', () => {
       likes: 3,
     });
   });
+
+  it('returns saved posts with public relations and pagination', async () => {
+    const { service, posts } = setup();
+    const post = {
+      title: '<b>Title</b>', excerpt: 'Excerpt',
+      author: { id: 'author', name: 'Author' },
+      categories: [{ id: 'category', name: 'Category', slug: 'category', isActive: true }],
+      tags: [{ id: 'tag', name: 'Tag', slug: 'tag' }],
+    };
+    const builder: Record<string, ReturnType<typeof vi.fn>> = {};
+    for (const method of ['innerJoin', 'where', 'leftJoin', 'select', 'orderBy', 'addOrderBy', 'skip', 'take']) {
+      builder[method] = vi.fn().mockReturnValue(builder);
+    }
+    builder.getManyAndCount = vi.fn().mockResolvedValue([[post], 11]);
+    Object.assign(posts, { createQueryBuilder: vi.fn().mockReturnValue(builder) });
+
+    const result = await service.saved('user', { page: 2, limit: 10 });
+    expect(result.data[0]).toMatchObject({ title: 'Title', author: post.author, categories: post.categories, tags: post.tags });
+    expect(result.meta).toMatchObject({ page: 2, limit: 10, total: 11 });
+    expect(builder.leftJoin).toHaveBeenCalledWith('post.categories', 'category', 'category.is_active = true');
+    expect(builder.select.mock.calls[0][0]).not.toContain('author.email');
+    expect(builder.skip).toHaveBeenCalledWith(10);
+  });
 });

@@ -13,14 +13,20 @@ import { TagsModule } from '../tags/tags.module.js';
 import { PostInteraction } from './entities/post-interaction.entity.js';
 import { PostInteractionsService } from './post-interactions.service.js';
 import { PostInteractionsController } from './post-interactions.controller.js';
+import { PostViewsController } from './post-views.controller.js';
+import { PostViewsService } from './post-views.service.js';
+import { AuthorFollowsController } from './author-follows.controller.js';
+import { AuthorFollowsService } from './author-follows.service.js';
+import { SavedCollectionsController } from './saved-collections.controller.js';
+import { SavedCollectionsService } from './saved-collections.service.js';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Post, Category, PostInteraction]),
     TagsModule,
   ],
-  controllers: [AuthorsController, FeedController, PostInteractionsController, PostsController],
-  providers: [PostsService, PostInteractionsService, FeedService, PostSchedulerService],
+  controllers: [AuthorsController, FeedController, AuthorFollowsController, PostInteractionsController, PostViewsController, SavedCollectionsController, PostsController],
+  providers: [PostsService, PostInteractionsService, FeedService, PostSchedulerService, PostViewsService, AuthorFollowsService, SavedCollectionsService],
   exports: [PostsService, TypeOrmModule],
 })
 export class PostsModule {}

@@ -1,4 +1,5 @@
 import { FileInterceptor } from '@nestjs/platform-express';
+import { Throttle } from '@nestjs/throttler';
 import { ApiBearerAuth, ApiBody, ApiConsumes, ApiOperation, ApiParam, ApiResponse } from '@nestjs/swagger';
 import {
   Body,
@@ -77,6 +78,8 @@ export class PostsController {
   }
 
   @ApiCreatePostDoc()
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  @ApiResponse({ status: 429, description: 'Limite de 10 criações de artigos por minuto por IP excedido; tags podem ser criadas nesta operação.' })
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.AUTHOR, UserRole.ADMIN)
   @HttpPost()
@@ -88,6 +91,8 @@ export class PostsController {
   }
 
   @ApiUpdatePostDoc()
+  @Throttle({ default: { limit: 20, ttl: 60_000 } })
+  @ApiResponse({ status: 429, description: 'Limite de 20 edições de artigos por minuto por IP excedido; tags podem ser criadas nesta operação.' })
   @UseGuards(JwtAuthGuard)
   @Patch(':id')
   update(

@@ -1,6 +1,18 @@
 import { AuthorsController } from '../modules/posts/authors.controller.js';
 import { FeedController } from '../modules/posts/feed.controller.js';
 import { FeedService } from '../modules/posts/feed.service.js';
+import { PostViewsController } from '../modules/posts/post-views.controller.js';
+import { PostViewsService } from '../modules/posts/post-views.service.js';
+import { AuthorFollowsController } from '../modules/posts/author-follows.controller.js';
+import { AuthorFollowsService } from '../modules/posts/author-follows.service.js';
+import { SavedCollectionsController } from '../modules/posts/saved-collections.controller.js';
+import { SavedCollectionsService } from '../modules/posts/saved-collections.service.js';
+import { CommentLikesController } from '../modules/comments/comment-likes.controller.js';
+import { CommentLikesService } from '../modules/comments/comment-likes.service.js';
+import { NotificationsController } from '../modules/notifications/notifications.controller.js';
+import { NotificationsService } from '../modules/notifications/notifications.service.js';
+import { NewsletterController } from '../modules/newsletter/newsletter.controller.js';
+import { NewsletterService } from '../modules/newsletter/newsletter.service.js';
 import { describe, it, expect, vi } from 'vitest';
 import { Test } from '@nestjs/testing';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
@@ -36,6 +48,8 @@ describe('Swagger Documentation Configuration', () => {
       controllers: [
         AuthorsController,
         FeedController,
+        PostViewsController, AuthorFollowsController, SavedCollectionsController,
+        CommentLikesController, NotificationsController, NewsletterController,
         UsersController,
         PostsController,
         PostInteractionsController,
@@ -46,6 +60,9 @@ describe('Swagger Documentation Configuration', () => {
       ],
       providers: [
         { provide: FeedService, useValue: {} },
+        { provide: PostViewsService, useValue: {} }, { provide: AuthorFollowsService, useValue: {} },
+        { provide: SavedCollectionsService, useValue: {} }, { provide: CommentLikesService, useValue: {} },
+        { provide: NotificationsService, useValue: {} }, { provide: NewsletterService, useValue: {} },
         { provide: UsersService, useValue: {} },
         { provide: PostsService, useValue: {} },
         { provide: PostInteractionsService, useValue: {} },
@@ -80,6 +97,22 @@ describe('Swagger Documentation Configuration', () => {
       .build();
 
     const document = SwaggerModule.createDocument(app, config);
+
+    for (const [path, method] of [
+      ['/api/v1/posts/trending', 'get'], ['/api/v1/posts/{id}/views', 'post'],
+      ['/api/v1/newsletter/subscribe', 'post'], ['/api/v1/newsletter/confirm', 'post'], ['/api/v1/newsletter/unsubscribe', 'post'],
+    ] as const) {
+      expect(document.paths[path]?.[method]?.security).toEqual([{}]);
+      expect(document.paths[path]?.[method]?.responses).toHaveProperty('200');
+    }
+    for (const [path, method] of [
+      ['/api/v1/feed', 'get'], ['/api/v1/authors/{id}/follow', 'put'],
+      ['/api/v1/collections', 'post'], ['/api/v1/collections/{id}/posts/{postId}', 'put'],
+      ['/api/v1/comments/{id}/like', 'get'], ['/api/v1/notifications', 'get'], ['/api/v1/notifications/{id}/read', 'patch'],
+    ] as const) {
+      expect(document.paths[path]?.[method]?.security).toEqual([{ 'JWT-auth': [] }]);
+      expect(document.paths[path]?.[method]?.responses).toHaveProperty('401');
+    }
 
     expect((document.components?.schemas?.PostResponseDto as any)?.properties.readingTimeMinutes).toMatchObject({ type: 'number', minimum: 1, example: 3 });
     expect(document.info.title).toBe('Backend Blog API');

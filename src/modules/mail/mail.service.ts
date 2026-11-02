@@ -40,6 +40,26 @@ export class MailService {
     });
   }
 
+  async sendNewsletterConfirmation(email: string, token: string): Promise<void> {
+    if (!this.transporter) throw new Error('SMTP not configured');
+    await this.transporter.sendMail({
+      from: this.configService.get<string>('SMTP_FROM', 'noreply@blog.com'), to: email,
+      subject: 'Confirme sua inscrição na newsletter',
+      text: `Para confirmar sua inscrição, envie o token para POST /api/v1/newsletter/confirm em até 24 horas: ${token}\nSe não solicitou a inscrição, ignore esta mensagem.`,
+    });
+  }
+
+  async sendNewsletterPost(email: string, title: string, slug: string, unsubscribeToken: string): Promise<void> {
+    if (!this.transporter) throw new Error('SMTP not configured');
+    const base = this.configService.getOrThrow<string>('FRONTEND_URL').replace(/\/+$/, '');
+    const url = `${base}/posts/${encodeURIComponent(slug)}`;
+    await this.transporter.sendMail({
+      from: this.configService.get<string>('SMTP_FROM', 'noreply@blog.com'), to: email,
+      subject: `Novo artigo: ${title.replace(/[\r\n]/g, ' ')}`,
+      text: `Novo artigo: ${title}\n${url}\n\nPara cancelar, envie este token para POST /api/v1/newsletter/unsubscribe: ${unsubscribeToken}`,
+    });
+  }
+
   async sendEmailChangeConfirmation(email: string, token: string): Promise<void> {
     if (!this.transporter) {
       throw new Error('SMTP não configurado para confirmação de e-mail.');

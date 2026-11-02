@@ -37,9 +37,9 @@ describe('Sprint 1 com PostgreSQL', () => {
     const login = await supertest(app.getHttpServer()).post('/api/v1/auth/login')
       .send({ email, password: 'Password123!' }).expect(200);
     token = login.body.access_token;
-    const draft = await posts.save(posts.create({ title: 'Rascunho particular', content: 'Conteúdo privado para teste.', authorId: userId, published: false, isActive: true }));
+    const draft = await posts.save(posts.create({ title: 'Rascunho particular', slug: `rascunho-${userId}`, content: 'Conteúdo privado para teste.', authorId: userId, published: false, isActive: true }));
     draftId = draft.id;
-    await posts.save(posts.create({ title: 'NestJS artigo', content: 'Conteúdo publicado', authorId: userId, published: true, isActive: true }));
+    await posts.save(posts.create({ title: 'NestJS artigo', slug: `nestjs-${userId}`, content: 'Conteúdo publicado', authorId: userId, published: true, isActive: true, publishedAt: new Date() }));
   });
 
   afterAll(async () => {
