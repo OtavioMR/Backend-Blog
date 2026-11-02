@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { DataSource, EntityManager } from 'typeorm';
 import { AuditLog } from './audit.entity.js';
+import { paginationMeta } from '../../common/utils/pagination.js';
 @Injectable()
 export class AuditService {
   constructor(private readonly dataSource: DataSource) {}
@@ -10,6 +11,6 @@ export class AuditService {
   }
   async list(page = 1, limit = 20) {
     const [items, total] = await this.dataSource.getRepository(AuditLog).findAndCount({ order: { createdAt: 'DESC', id: 'DESC' }, skip: (page - 1) * limit, take: limit });
-    return { items, total, page, limit };
+    return { data: items, meta: paginationMeta(page, limit, total) };
   }
 }

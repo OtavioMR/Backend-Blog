@@ -37,7 +37,7 @@ describe('UsersController', () => {
 
   describe('findAll', () => {
     it('deve possuir a metadata de roles restrita a ADMIN', () => {
-      const roles = Reflect.getMetadata(ROLES_KEY, UsersController.prototype.findAll);
+      const roles = Reflect.getMetadata(ROLES_KEY, Object.getOwnPropertyDescriptor(UsersController.prototype, 'findAll')!.value);
       expect(roles).toBeDefined();
       expect(roles).toEqual([UserRole.ADMIN]);
     });

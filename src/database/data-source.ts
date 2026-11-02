@@ -1,5 +1,7 @@
 import 'dotenv/config';
 import { DataSource } from 'typeorm';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 import { User } from '../modules/users/entities/user.entity.js';
 import { Post } from '../modules/posts/entities/post.entity.js';
@@ -16,6 +18,6 @@ export default new DataSource({
   password: process.env.DB_PASSWORD ?? 'postgres',
   database: process.env.DB_NAME ?? 'blog_db',
   entities: [User, Post, Category, Tag, Comment, PostInteraction],
-  migrations: ['src/database/migrations/*.ts'],
+  migrations: [join(dirname(fileURLToPath(import.meta.url)), 'migrations', '*.{js,ts}')],
   synchronize: false,
 });

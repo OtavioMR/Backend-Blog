@@ -22,6 +22,8 @@ import { AuditModule } from './modules/audit/audit.module.js';
 import { AnalyticsModule } from './modules/analytics/analytics.module.js';
 import { ReportsModule } from './modules/reports/reports.module.js';
 import { validate } from './config/env.validation.js';
+import { PublicCacheModule } from './common/public-cache.module.js';
+import { PublicCacheInterceptor } from './common/public-cache.interceptor.js';
 
 @Module({
   imports: [
@@ -48,6 +50,7 @@ import { validate } from './config/env.validation.js';
       }),
     }),
     UsersModule,
+    PublicCacheModule,
     AuthModule,
     PostsModule,
     CategoriesModule,
@@ -65,6 +68,7 @@ import { validate } from './config/env.validation.js';
   providers: [
     { provide: APP_FILTER, useClass: GlobalExceptionFilter },
     { provide: APP_INTERCEPTOR, useClass: TracingInterceptor },
+    { provide: APP_INTERCEPTOR, useClass: PublicCacheInterceptor },
     { provide: APP_INTERCEPTOR, useClass: ClassSerializerInterceptor },
   ],
 })

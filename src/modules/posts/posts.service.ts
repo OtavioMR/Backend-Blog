@@ -5,6 +5,7 @@ import { randomUUID } from 'node:crypto';
 import { isUUID } from 'class-validator';
 import { shortPostSlug } from './post-slug.js';
 import { paginationMeta } from '../../common/utils/pagination.js';
+import { decodeCursor, encodeCursor } from '../../common/utils/cursor.js';
 import { sanitizePostContent, sanitizePlainText } from '../../common/utils/sanitize-content.js';
 import { likePattern } from '../../common/utils/like-pattern.js';
 import {
@@ -16,7 +17,7 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { FindOptionsWhere, In, Raw, Repository } from 'typeorm';
+import { FindManyOptions, FindOptionsWhere, In, Raw, Repository } from 'typeorm';
 
 import { Post } from './entities/post.entity.js';
 import { Category } from '../categories/entities/category.entity.js';
@@ -55,7 +56,7 @@ export class PostsService {
     return date;
   }
 
-  async findAll(query?: FindPostsQueryDto): Promise<PaginatedResult<Post>> {
+  async findAll(query?: FindPostsQueryDto): Promise<PaginatedResult<Post> | { data: Post[]; meta: { nextCursor: string | null; hasMore: boolean } }> {
     const page = query?.page ?? 1;
     const limit = query?.limit ?? 10;
     const skip = (page - 1) * limit;
@@ -84,11 +85,18 @@ export class PostsService {
       };
     }
     if (tagSlug) base.tags = { slug: tagSlug };
-    const where = search
-      ? [{ ...base, title: matches(search, 'searchTerm') }, { ...base, content: matches(search, 'searchTerm') }]
-      : base;
+    const cursorMode = query?.cursor !== undefined;
+    const cursor = cursorMode && query.cursor !== 'start' ? decodeCursor(query.cursor!) : null;
+    if (search || cursor) base.id = Raw(
+      (column) => [
+        search ? `${column} IN (SELECT id FROM posts WHERE search_vector @@ websearch_to_tsquery('blog_portuguese'::regconfig, :searchTerm) OR search_text LIKE blog_search_text(:partialTerm) ESCAPE '\\')` : '',
+        cursor ? `(${column.replace(/\.id$/, '.publishedAt')}, ${column}) < (CAST(:cursorTime AS timestamptz), CAST(:cursorId AS uuid))` : '',
+      ].filter(Boolean).join(' AND '),
+      { ...(search ? { searchTerm: search, partialTerm: likePattern(search) } : {}), ...(cursor ? { cursorTime: cursor.timestamp, cursorId: cursor.id } : {}) },
+    );
+    const where = base;
 
-    const [data, total] = await this.postsRepository.findAndCount({
+    const options: FindManyOptions<Post> = {
       where,
       relationLoadStrategy: 'query',
       relations: {
@@ -123,9 +131,19 @@ export class PostsService {
         tags: { id: true, name: true, slug: true },
       },
       order: { publishedAt: 'DESC', id: 'DESC' },
-      skip,
-      take: limit,
-    });
+      ...(cursorMode ? {} : { skip }),
+      take: cursorMode ? limit + 1 : limit,
+    };
+    const [data, total] = search && !cursorMode
+      ? await this.postsRepository.createQueryBuilder('post').setFindOptions(options)
+        .addSelect(`ts_rank(post.search_vector, websearch_to_tsquery('blog_portuguese'::regconfig, :searchTerm))`, 'search_rank')
+        .setParameter('searchTerm', search)
+        .orderBy('search_rank', 'DESC').addOrderBy('post.publishedAt', 'DESC').addOrderBy('post.id', 'DESC')
+        .getManyAndCount()
+      : cursorMode ? [await this.postsRepository.find(options), 0] as const : await this.postsRepository.findAndCount(options);
+
+    const hasMore = cursorMode && data.length > limit;
+    if (hasMore) data.pop();
 
     // Garante que posts sem categoria retornem array vazio e remove categorias desativadas
     const formattedData = data.map((post) => {
@@ -139,6 +157,18 @@ export class PostsService {
     });
 
 
+    if (cursorMode) {
+      let nextCursor: string | null = null;
+      if (hasMore && data.length) {
+        const rows: { timestamp: string }[] = await this.postsRepository.query(`SELECT to_char(published_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS timestamp FROM posts WHERE id = $1`, [data[data.length - 1].id]);
+        const last = data[data.length - 1];
+        if (!rows[0]?.timestamp || !last.publishedAt || Date.parse(rows[0].timestamp) !== last.publishedAt.getTime()) {
+          throw new ConflictException('A lista mudou durante a consulta; tente novamente.');
+        }
+        nextCursor = encodeCursor({ timestamp: rows[0].timestamp, id: last.id });
+      }
+      return { data: formattedData, meta: { nextCursor, hasMore } };
+    }
     return {
       data: formattedData,
       meta: paginationMeta(page, limit, total),
@@ -167,7 +197,7 @@ export class PostsService {
     const candidates = await this.postsRepository.find({ where, relations: { tags: true, categories: true } });
     const ranked = candidates.filter(post => post.id !== target.id).map(post => ({ post, score: (post.tags ?? []).filter(tag => tagIds.includes(tag.id)).length + (post.categories ?? []).filter(category => category.isActive && categoryIds.includes(category.id)).length }));
     ranked.sort((a, b) => b.score - a.score || (b.post.publishedAt?.getTime() ?? 0) - (a.post.publishedAt?.getTime() ?? 0) || a.post.id.localeCompare(b.post.id));
-    return Promise.all(ranked.slice(0, 5).map(({ post }) => this.findById(post.id)));
+    return Promise.all(ranked.slice(0, 4).map(({ post }) => this.findById(post.id)));
   }
 
   async findMine(authorId: string, query: PaginationQueryDto): Promise<PaginatedResult<Post>> {
@@ -247,6 +277,23 @@ export class PostsService {
     post.title = sanitizePlainText(post.title);
     post.content = sanitizePostContent(post.content);
     Object.assign(post, { readingTimeMinutes: readingTimeMinutes(post.content ?? '') });
+
+    if (post.published) {
+      const rows: { id: string; title: string; postId: string; slug: string }[] = await this.postsRepository.query(`
+        SELECT s.id, s.title, p.id AS "postId", p.slug
+        FROM post_series_items current_item
+        JOIN post_series s ON s.id = current_item.series_id
+        JOIN users u ON u.id = s.author_id AND u.is_active = true AND u.deleted_at IS NULL AND u.role IN ('AUTHOR', 'ADMIN')
+        JOIN post_series_items item ON item.series_id = s.id
+        JOIN posts p ON p.id = item.post_id AND p.published = true AND p.is_active = true AND p.deleted_at IS NULL
+        WHERE current_item.post_id = $1 ORDER BY item.position`, [post.id]);
+      const index = rows.findIndex(row => row.postId === post.id);
+      const neighbor = (row: typeof rows[number] | undefined) => row ? { id: row.postId, slug: row.slug } : null;
+      Object.assign(post, { series: index < 0 ? null : {
+        id: rows[index].id, title: rows[index].title, totalParts: rows.length,
+        previous: neighbor(rows[index - 1]), next: neighbor(rows[index + 1]),
+      } });
+    }
 
     return post;
   }

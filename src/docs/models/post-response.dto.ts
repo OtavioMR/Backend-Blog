@@ -19,7 +19,22 @@ export class PostAuthorResponseDto {
   name: string;
 }
 
+export class SeriesNeighborDto {
+  @ApiProperty({ format: 'uuid' }) id: string;
+  @ApiProperty({ example: 'meu-artigo' }) slug: string;
+}
+
+export class PostSeriesNavigationDto {
+  @ApiProperty({ format: 'uuid' }) id: string;
+  @ApiProperty({ example: 'Introdução ao NestJS' }) title: string;
+  @ApiProperty({ example: 3 }) totalParts: number;
+  @ApiProperty({ type: () => SeriesNeighborDto, nullable: true }) previous: SeriesNeighborDto | null;
+  @ApiProperty({ type: () => SeriesNeighborDto, nullable: true }) next: SeriesNeighborDto | null;
+}
+
 export class PostResponseDto {
+  @ApiProperty({ type: () => PostSeriesNavigationDto, nullable: true, required: false, description: 'Navegação entre artigos públicos da série; presente no detalhe de artigos publicados.' })
+  series?: PostSeriesNavigationDto | null;
   @ApiProperty({
     description: 'Identificador único do artigo (UUID v4)',
     example: 'b1ffcd88-8b1a-4ce7-aa5c-5cc8ac271b22',
@@ -105,7 +120,7 @@ export class PostResponseDto {
   tags: TagResponseDto[];
 }
 
-export class PostSummaryResponseDto extends OmitType(PostResponseDto, ['content'] as const) {}
+export class PostSummaryResponseDto extends OmitType(PostResponseDto, ['content', 'series'] as const) {}
 
 export class PaginatedPostResponseDto {
   @ApiProperty({

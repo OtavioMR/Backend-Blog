@@ -1,4 +1,5 @@
-import { BadRequestException, ConflictException, ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, Injectable, Logger, NotFoundException, Optional } from '@nestjs/common';
+import { PublicCacheService } from '../../common/public-cache.service.js';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { DataSource, In } from 'typeorm';
 import { User } from '../users/entities/user.entity.js';
@@ -8,7 +9,7 @@ import { AuditService } from '../audit/audit.service.js';
 @Injectable()
 export class ModerationService {
   private readonly logger = new Logger(ModerationService.name);
-  constructor(private readonly dataSource: DataSource, private readonly audit: AuditService) {}
+  constructor(private readonly dataSource: DataSource, private readonly audit: AuditService, @Optional() private readonly cache?: PublicCacheService) {}
   async suspend(actorId: string, userId: string, reason: string, endsAt: string | null, hidePostIds: string[]) {
     if (actorId === userId) throw new ForbiddenException('Não é permitido suspender a própria conta.');
     const end = endsAt ? new Date(endsAt) : null;
@@ -54,5 +55,6 @@ export class ModerationService {
         }
       });
     } catch (error) { this.logger.error('Failed to restore expired suspensions', error instanceof Error ? error.stack : String(error)); }
+    await this.cache?.invalidate();
   }
 }

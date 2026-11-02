@@ -1,0 +1,64 @@
+name: Backend validation
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: blog_db
+        ports: ["5433:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres -d blog_db"
+          --health-interval 5s --health-timeout 3s --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports: ["16379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s --health-timeout 3s --health-retries 10
+    env:
+      NODE_ENV: test
+      PORT: 3000
+      DB_HOST: 127.0.0.1
+      DB_PORT: 5433
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      DB_NAME: blog_db
+      REDIS_URL: redis://127.0.0.1:16379
+      FRONTEND_URL: http://localhost:5173
+      JWT_SECRET: ci-access-secret-for-tests-only-123456789
+      JWT_REFRESH_SECRET: ci-refresh-secret-for-tests-only-987654321
+      SMTP_HOST: localhost
+      SMTP_PORT: 25
+      SMTP_USER: test
+      SMTP_PASS: test
+      SMTP_FROM: test@example.test
+      RUN_DB_TESTS: "1"
+      RUN_REDIS_TESTS: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: npm run migration:run
+      - run: npm run lint
+      - run: npm run test -- --no-file-parallelism
+      - run: npm run test:e2e -- --no-file-parallelism
+      - run: npm run build
+      - run: npm audit --omit=dev
+      - run: docker build -t backend-blog:ci .

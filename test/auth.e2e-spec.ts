@@ -228,12 +228,20 @@ describe('Auth E2E Test Suite (Secure Cookies, Refresh Token Rotation, Logout)',
 
     it('should reject reused old refresh token after rotation (401 Unauthorized)', async () => {
       expect(initialRefreshToken).toBeDefined();
+      const other = await request(app.getHttpServer()).post('/api/v1/auth/login').send({ email: testUser.email, password: testUser.password }).expect(200);
 
       const response = await request(app.getHttpServer())
         .post('/api/v1/auth/refresh')
         .set('Cookie', [`refreshToken=${initialRefreshToken}`]);
 
       expect(response.status).toBe(401);
+      await request(app.getHttpServer()).get('/api/v1/auth/sessions').set('Authorization', `Bearer ${rotatedAccessToken}`).expect(401);
+      await request(app.getHttpServer()).post('/api/v1/auth/refresh').set('Cookie', [`refreshToken=${rotatedRefreshToken}`]).expect(401);
+      await request(app.getHttpServer()).get('/api/v1/auth/sessions').set('Authorization', `Bearer ${other.body.access_token}`).expect(200);
+      await request(app.getHttpServer()).post('/api/v1/auth/logout').set('Authorization', `Bearer ${other.body.access_token}`).expect(200);
+      const fresh = await request(app.getHttpServer()).post('/api/v1/auth/login').send({ email: testUser.email, password: testUser.password }).expect(200);
+      rotatedAccessToken = fresh.body.access_token;
+      rotatedRefreshToken = (fresh.headers['set-cookie'] as unknown as string[]).find(cookie => cookie.startsWith('refreshToken='))!.match(/refreshToken=([^;]+)/)![1];
     });
   });
 

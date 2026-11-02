@@ -17,12 +17,22 @@ describe('PostsService', () => {
 
   beforeEach(async () => {
     mockPostsRepository = {
+      find: vi.fn(),
+      query: vi.fn().mockResolvedValue([]),
       findAndCount: vi.fn(),
       findOne: vi.fn(),
       create: vi.fn((data) => data),
       save: vi.fn((data) => Promise.resolve({ id: 'post-1', ...data })),
       softRemove: vi.fn((data) => Promise.resolve(data)),
     };
+    let searchOptions: unknown;
+    const searchBuilder = {
+      setFindOptions: vi.fn(options => { searchOptions = options; return searchBuilder; }),
+      addSelect: vi.fn().mockReturnThis(), setParameter: vi.fn().mockReturnThis(),
+      orderBy: vi.fn().mockReturnThis(), addOrderBy: vi.fn().mockReturnThis(),
+      getManyAndCount: vi.fn(() => mockPostsRepository.findAndCount(searchOptions)),
+    };
+    mockPostsRepository.createQueryBuilder = vi.fn(() => searchBuilder);
 
     mockCategoriesRepository = {
       find: vi.fn(),
@@ -57,6 +67,16 @@ describe('PostsService', () => {
   });
 
   describe('findAll', () => {
+    it('solicita nova tentativa se o artigo que define o cursor mudar durante a leitura', async () => {
+      const publishedAt = new Date('2026-01-01T00:00:00Z');
+      mockPostsRepository.find.mockResolvedValue([
+        { id: 'one', title: 'One', publishedAt, categories: [], tags: [] },
+        { id: 'two', title: 'Two', publishedAt, categories: [], tags: [] },
+      ]);
+      mockPostsRepository.query.mockResolvedValue([]);
+      await expect(service.findAll({ cursor: 'start', limit: 1 })).rejects.toThrow('A lista mudou durante a consulta');
+    });
+
     it('deve listar todos os artigos mesmo sem categoria associada', async () => {
       const postsFromDb = [
         { id: 'p1', title: 'Post sem categoria', categories: null },
@@ -121,13 +141,9 @@ describe('PostsService', () => {
       mockPostsRepository.findAndCount.mockResolvedValue([[], 0]);
       await service.findAll({ search: ' Nest%_ ', author: ' José ', categoryId: 'id', categorySlug: 'ignorado', tagSlug: 'tag', page: 2, limit: 5 });
       const options = mockPostsRepository.findAndCount.mock.calls[0][0];
-      expect(options.where).toHaveLength(2);
-      for (const branch of options.where) {
-        expect(branch).toMatchObject({ published: true, isActive: true, categories: { id: 'id', isActive: true }, tags: { slug: 'tag' } });
-        expect(branch.author.name.objectLiteralParameters).toEqual({ authorTerm: '%José%' });
-      }
-      expect(options.where[0].title.objectLiteralParameters).toEqual({ searchTerm: '%Nest\\%\\_%' });
-      expect(options.where[1].content).toBeDefined();
+      expect(options.where).toMatchObject({ published: true, isActive: true, categories: { id: 'id', isActive: true }, tags: { slug: 'tag' } });
+      expect(options.where.author.name.objectLiteralParameters).toEqual({ authorTerm: '%José%' });
+      expect(options.where.id.objectLiteralParameters).toEqual({ searchTerm: 'Nest%_', partialTerm: '%Nest\\%\\_%' });
       expect(options.skip).toBe(5);
       expect(options.take).toBe(5);
     });

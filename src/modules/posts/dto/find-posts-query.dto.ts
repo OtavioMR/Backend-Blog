@@ -4,7 +4,13 @@ import { Transform } from 'class-transformer';
 import { PaginationQueryDto } from '../../../common/dto/pagination-query.dto.js';
 
 export class FindPostsQueryDto extends PaginationQueryDto {
-  @ApiPropertyOptional({ description: 'Trecho do título ou conteúdo, sem diferenciar maiúsculas ou acentos', example: 'nestjs' })
+  @ApiPropertyOptional({ description: 'Use start para iniciar a paginação por cursor; depois envie nextCursor da resposta.', example: 'start' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(256)
+  cursor?: string;
+
+  @ApiPropertyOptional({ description: 'Busca textual em português no título e conteúdo, sem diferenciar maiúsculas ou acentos; aceita aspas, OR e trechos literais', example: 'nestjs' })
   @IsOptional()
   @IsString()
   @MaxLength(100)

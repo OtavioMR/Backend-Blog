@@ -60,10 +60,13 @@ describe('First post review', () => {
     await request(app.getHttpServer()).get('/api/v1/reports').set('Authorization', `Bearer ${authorToken}`).expect(403);
     await request(app.getHttpServer()).patch(`/api/v1/reports/${report.body.id}`).set('Authorization', `Bearer ${adminToken}`).send({ status: 'RESOLVED' }).expect(200);
     const audit = await request(app.getHttpServer()).get('/api/v1/admin/audit-logs').set('Authorization', `Bearer ${adminToken}`).expect(200);
-    expect(audit.body.items.some((item: any) => item.targetId === report.body.id && item.action === 'report.review')).toBe(true);
+    expect(audit.body.data.some((item: any) => item.targetId === report.body.id && item.action === 'report.review')).toBe(true);
     await audits.delete({ targetId: report.body.id });
     await request(app.getHttpServer()).patch(`/api/v1/posts/${postId}`).set('Authorization', `Bearer ${authorToken}`).send({ title: 'Altered title' }).expect(200);
     await request(app.getHttpServer()).post(`/api/v1/admin/users/${authorId}/suspension`).set('Authorization', `Bearer ${adminToken}`).send({ reason: 'Repeated abuse', hidePostIds: [postId] }).expect(201);
+    const suspended = await request(app.getHttpServer()).post('/api/v1/auth/login').send({ email: author.email, password: author.password }).expect(403);
+    expect(suspended.body).toMatchObject({ reason: 'Repeated abuse', endsAt: null });
+    await request(app.getHttpServer()).post('/api/v1/auth/login').send({ email: author.email, password: 'wrong-password' }).expect(401);
     await request(app.getHttpServer()).get('/api/v1/auth/sessions').set('Authorization', `Bearer ${authorToken}`).expect(401);
     await request(app.getHttpServer()).get(`/api/v1/posts/${postId}`).expect(404);
     await request(app.getHttpServer()).post(`/api/v1/admin/users/${authorId}/restore`).set('Authorization', `Bearer ${adminToken}`).expect(201);

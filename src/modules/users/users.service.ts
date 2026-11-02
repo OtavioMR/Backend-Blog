@@ -438,15 +438,25 @@ export class UsersService {
       .createQueryBuilder('user')
       .addSelect('user.passwordHash')
       .where('user.email = :email', { email })
-      .andWhere('user.isActive = true')
       .getOne();
   }
 
   async recordFailedLogin(userId: string): Promise<void> {
     await this.usersRepository.createQueryBuilder().update(User).set({
       failedLoginAttempts: () => 'failed_login_attempts + 1',
-      loginLockedUntil: () => `CASE WHEN failed_login_attempts + 1 >= 5 THEN CURRENT_TIMESTAMP + (LEAST(3600, 60 * power(2, LEAST(failed_login_attempts - 4, 6))) * INTERVAL '1 second') ELSE login_locked_until END`,
+      loginLockedUntil: () => `CASE WHEN failed_login_attempts + 1 >= 5 THEN CURRENT_TIMESTAMP + (LEAST(3600, 900 * power(2, LEAST(failed_login_attempts - 4, 6))) * INTERVAL '1 second') ELSE login_locked_until END`,
     }).where('id = :userId AND (login_locked_until IS NULL OR login_locked_until <= CURRENT_TIMESTAMP)', { userId }).execute();
+  }
+
+  async suspensionReason(userId: string): Promise<string> {
+    const rows: { reason: string }[] = await this.usersRepository.query(`SELECT details->>'reason' AS reason FROM audit_logs
+      WHERE target_type = 'user' AND target_id = $1 AND action = 'user.suspend' ORDER BY created_at DESC, id DESC LIMIT 1`, [userId]);
+    return rows[0]?.reason ?? 'Conta suspensa pela administração.';
+  }
+
+  async upgradePasswordHash(userId: string, previousHash: string, passwordHash: string): Promise<void> {
+    // A concurrent password reset must win over a transparent cost upgrade.
+    await this.usersRepository.update({ id: userId, passwordHash: previousHash }, { passwordHash });
   }
 
   async clearFailedLogins(userId: string): Promise<boolean> {
@@ -477,17 +487,11 @@ export class UsersService {
     tokenHash: string,
     expiresAt: Date,
   ): Promise<User | null> {
-    const user = await this.usersRepository.findOne({
-      where: { email, isActive: true },
-    });
-
-    if (!user) {
-      return null;
-    }
-
-    user.resetPasswordTokenHash = tokenHash;
-    user.resetPasswordExpiresAt = expiresAt;
-    return this.usersRepository.save(user);
+    const result = await this.usersRepository.createQueryBuilder().update(User)
+      .set({ resetPasswordTokenHash: tokenHash, resetPasswordExpiresAt: expiresAt })
+      .where('email = :email AND is_active = true AND deleted_at IS NULL', { email })
+      .returning(['id', 'email', 'name']).execute();
+    return (result.raw[0] as User | undefined) ?? null;
   }
 
   async findByResetPasswordToken(tokenHash: string): Promise<User | null> {

@@ -15,6 +15,7 @@ import {
 import {
   ApiBearerAuth,
   ApiBody,
+  ApiExtraModels,
   ApiOperation,
   ApiQuery,
   ApiResponse,
@@ -23,18 +24,21 @@ import {
 } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import { Throttle } from '@nestjs/throttler';
-import { IsInt, IsOptional, Max, Min } from 'class-validator';
+import { IsInt, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator';
 import { CommentsService } from './comments.service.js';
 import { CreateCommentDto } from './dto/create-comment.dto.js';
 import { UpdateCommentDto } from './dto/update-comment.dto.js';
 import { JwtAuthGuard } from '../auth/guard/jwt-auth.guard.js';
 import { ApiPublicRoute } from '../../docs/decorators/public.decorator.js';
 import type { RequestWithUser } from '../auth/interfaces/request-with-user.interface.js';
-import { CommentResponseDto, PaginatedCommentsResponseDto, PaginatedRepliesResponseDto } from '../../docs/models/comment-response.dto.js';
+import { CommentResponseDto, RootCommentResponseDto, PaginatedCommentsResponseDto, PaginatedRepliesResponseDto } from '../../docs/models/comment-response.dto.js';
 
 class PageQuery {
   @IsOptional() @Type(() => Number) @IsInt() @Min(1) page?: number;
   @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(100) limit?: number;
+}
+class CommentPageQuery extends PageQuery {
+  @IsOptional() @IsString() @MaxLength(256) cursor?: string;
 }
 
 @ApiTags('comments')
@@ -42,6 +46,7 @@ class PageQuery {
 export class PostCommentsController {
   constructor(private readonly service: CommentsService) {}
   @ApiPublicRoute()
+  @ApiExtraModels(PaginatedCommentsResponseDto, RootCommentResponseDto)
   @ApiOperation({
     summary: 'Listar comentários do post',
     description:
@@ -61,15 +66,21 @@ export class PostCommentsController {
     example: 20,
     description: 'Comentários principais por página; padrão 20, máximo 100.',
   })
+  @ApiQuery({ name: 'cursor', required: false, type: String, example: 'start', description: 'Use start na primeira página e nextCursor nas seguintes. Retorna meta.hasMore e meta.nextCursor.' })
+  @ApiResponse({ status: 400, description: 'Cursor ou parâmetros inválidos.' })
+  @ApiResponse({ status: 409, description: 'A lista mudou durante a consulta; repita a requisição.' })
   @ApiResponse({ status: 403, description: 'Comentários desativados no post.' })
-  @ApiResponse({ status: 200, description: 'Comentários e primeiras respostas, com metadados de paginação.', type: PaginatedCommentsResponseDto })
+  @ApiResponse({ status: 200, description: 'Comentários e primeiras respostas, com metadados de paginação.', schema: { oneOf: [
+    { $ref: getSchemaPath(PaginatedCommentsResponseDto) },
+    { type: 'object', properties: { data: { type: 'array', items: { $ref: getSchemaPath(RootCommentResponseDto) } }, meta: { type: 'object', properties: { hasMore: { type: 'boolean', example: true }, nextCursor: { type: 'string', nullable: true } } } } },
+  ] } })
   @ApiResponse({ status: 404, description: 'Post não encontrado ou indisponível.' })
   @Get()
   list(
     @Param('postId', ParseUUIDPipe) postId: string,
-    @Query() query: PageQuery,
+    @Query() query: CommentPageQuery,
   ) {
-    return this.service.list(postId, query.page, query.limit);
+    return this.service.list(postId, query.page, query.limit, query.cursor);
   }
   @ApiPublicRoute()
   @ApiOperation({
@@ -131,10 +142,10 @@ export class PostCommentsController {
   @ApiResponse({ status: 401, description: 'Token ausente ou inválido.' })
   @ApiResponse({ status: 201, description: 'Comentário criado.', type: CommentResponseDto })
   @ApiResponse({ status: 403, description: 'Comentários desativados no post.' })
-  @ApiResponse({ status: 429, description: 'Limite de 10 comentários por minuto por IP excedido.' })
+  @ApiResponse({ status: 429, description: 'Limite de 5 comentários por minuto por IP excedido.' })
   @ApiBearerAuth('JWT-auth')
   @UseGuards(JwtAuthGuard)
-  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @Post()
   create(
     @Param('postId', ParseUUIDPipe) postId: string,

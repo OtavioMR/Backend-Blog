@@ -3,6 +3,7 @@ import {
   IsIn,
   IsInt,
   IsNotEmpty,
+  IsOptional,
   IsString,
   IsUrl,
   Matches,
@@ -78,6 +79,10 @@ export class EnvironmentVariables {
   })
   FRONTEND_URL: string;
 
+  @IsOptional()
+  @IsUrl({ require_protocol: true, require_tld: false, protocols: ['http', 'https'] })
+  PUBLIC_API_URL?: string;
+
   @IsString()
   @IsNotEmpty()
   @Matches(/\S/)
@@ -103,6 +108,10 @@ export class EnvironmentVariables {
   @IsNotEmpty()
   @Matches(/\S/)
   SMTP_FROM: string;
+
+  @IsUrl({ require_protocol: true, require_tld: false, protocols: ['redis', 'rediss'] })
+  @Matches(/^rediss?:\/\/[^/?#]+(?:\/\d+)?$/)
+  REDIS_URL = 'redis://127.0.0.1:6379';
 }
 
 export function validate(

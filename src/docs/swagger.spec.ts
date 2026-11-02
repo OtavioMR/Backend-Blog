@@ -1,3 +1,7 @@
+import { PostSeriesController, PostSeriesNavigationController } from '../modules/posts/post-series.controller.js';
+import { PostSeriesService } from '../modules/posts/post-series.service.js';
+import { PostRevisionsController } from '../modules/posts/post-revisions.controller.js';
+import { PostRevisionsService } from '../modules/posts/post-revisions.service.js';
 import { TotpController } from '../modules/auth/totp.controller.js';
 import { TotpService } from '../modules/auth/totp.service.js';
 import { SocialAuthController } from '../modules/auth/social-auth.controller.js';
@@ -60,7 +64,7 @@ describe('Swagger Documentation Configuration', () => {
   it('should generate OpenAPI document containing Auth, Users, and Posts endpoints', async () => {
     const moduleRef = await Test.createTestingModule({
       controllers: [
-        TotpController, SocialAuthController, AuditController, ModerationController, AnalyticsController, PostReviewController, ReportsController,
+        PostSeriesController, PostSeriesNavigationController, PostRevisionsController, TotpController, SocialAuthController, AuditController, ModerationController, AnalyticsController, PostReviewController, ReportsController,
         AuthorsController,
         FeedController,
         PostViewsController, AuthorFollowsController, SavedCollectionsController,
@@ -74,7 +78,7 @@ describe('Swagger Documentation Configuration', () => {
         HealthController,
       ],
       providers: [
-        { provide: TotpService, useValue: {} }, { provide: SocialAuthService, useValue: {} },
+        { provide: PostSeriesService, useValue: {} }, { provide: PostRevisionsService, useValue: {} }, { provide: TotpService, useValue: {} }, { provide: SocialAuthService, useValue: {} },
         { provide: AuditService, useValue: {} }, { provide: ModerationService, useValue: {} },
         { provide: AnalyticsService, useValue: {} },
         { provide: PostReviewService, useValue: {} },
@@ -119,13 +123,20 @@ describe('Swagger Documentation Configuration', () => {
     const document = SwaggerModule.createDocument(app, config);
 
     for (const [path, method] of [
+      ['/api/v1/series/{id}', 'get'], ['/api/v1/posts/{postId}/series', 'get'],
       ['/api/v1/posts/trending', 'get'], ['/api/v1/posts/{id}/views', 'post'],
       ['/api/v1/newsletter/subscribe', 'post'], ['/api/v1/newsletter/confirm', 'post'], ['/api/v1/newsletter/unsubscribe', 'post'],
+      ['/api/v1/newsletter/confirm', 'get'], ['/api/v1/newsletter/unsubscribe', 'get'],
     ] as const) {
       expect(document.paths[path]?.[method]?.security).toEqual([{}]);
       expect(document.paths[path]?.[method]?.responses).toHaveProperty('200');
     }
+    expect(document.paths['/api/v1/newsletter/confirm'].get?.parameters).toEqual(expect.arrayContaining([
+      expect.objectContaining({ name: 'token', in: 'query', required: true }),
+    ]));
     for (const [path, method] of [
+      ['/api/v1/series/me', 'get'], ['/api/v1/series', 'post'], ['/api/v1/series/{id}/manage', 'get'], ['/api/v1/series/{id}/items', 'put'], ['/api/v1/series/{id}', 'patch'], ['/api/v1/series/{id}', 'delete'],
+      ['/api/v1/posts/{postId}/revisions', 'get'], ['/api/v1/posts/{postId}/revisions/{revisionId}', 'get'], ['/api/v1/posts/{postId}/revisions/{revisionId}/restore', 'post'],
       ['/api/v1/feed', 'get'], ['/api/v1/authors/{id}/follow', 'put'],
       ['/api/v1/collections', 'post'], ['/api/v1/collections/{id}/posts/{postId}', 'put'],
       ['/api/v1/comments/{id}/like', 'get'], ['/api/v1/notifications', 'get'], ['/api/v1/notifications/{id}/read', 'patch'],
@@ -154,7 +165,7 @@ describe('Swagger Documentation Configuration', () => {
     expect(securityScheme.scheme).toBe('bearer');
     expect(securityScheme.bearerFormat).toBe('JWT');
 
-    for (const path of ['/api/v1/feed/rss', '/api/v1/feed/atom', '/api/v1/sitemap.xml']) {
+    for (const path of ['/api/v1/feed/rss', '/api/v1/feed.xml', '/api/v1/feed/atom', '/api/v1/sitemap.xml']) {
       expect(document.paths[path].get?.security).toEqual([{}]);
       expect(document.paths[path].get?.responses).toHaveProperty('200');
     }
@@ -212,6 +223,12 @@ describe('Swagger Documentation Configuration', () => {
     expect(document.paths['/api/v1/health'].get?.security).toEqual([{}]);
     expect(document.paths['/api/v1/health'].get?.responses).toHaveProperty('503');
     expect(document.paths['/api/v1/posts/{postId}/comments'].get?.responses).toHaveProperty('200');
+    for (const path of ['/api/v1/posts', '/api/v1/posts/{postId}/comments']) {
+      const operation = document.paths[path].get!;
+      expect(operation.parameters).toEqual(expect.arrayContaining([expect.objectContaining({ name: 'cursor', in: 'query' })]));
+      expect(operation.responses).toHaveProperty('409');
+      expect(operation.responses['200']).toMatchObject({ content: { 'application/json': { schema: { oneOf: expect.any(Array) } } } });
+    }
     expect(document.components?.schemas).toHaveProperty('PaginatedCommentsResponseDto');
     expect(document.components?.schemas).toHaveProperty('PaginatedRepliesResponseDto');
     expect(document.components?.schemas?.PostSummaryResponseDto).toHaveProperty('properties.excerpt');

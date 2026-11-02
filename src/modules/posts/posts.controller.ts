@@ -64,7 +64,7 @@ export class PostsController {
 
   @Get(':id/related')
   @ApiPublicRoute()
-  @ApiOperation({ summary: 'Artigos relacionados', description: 'Informe o UUID, slug atual ou slug antigo de um artigo publicado e ativo. Retorna até cinco artigos completos, também publicados e ativos, que compartilham tags ou categorias ativas. A ordem prioriza a quantidade de correspondências; em empate, a publicação mais recente e depois o ID. O próprio artigo é excluído. Sem correspondências, retorna []. Não requer autenticação.' })
+  @ApiOperation({ summary: 'Artigos relacionados', description: 'Informe o UUID, slug atual ou slug antigo de um artigo publicado e ativo. Retorna até quatro artigos completos, também publicados e ativos, que compartilham tags ou categorias ativas. A ordem prioriza a quantidade de correspondências; em empate, a publicação mais recente e depois o ID. O próprio artigo é excluído. Sem correspondências, retorna []. Não requer autenticação.' })
   @ApiParam({ name: 'id', description: 'UUID ou slug do artigo público.', example: 'meu-artigo' })
   @ApiResponse({ status: 200, description: 'Artigos relacionados completos; lista vazia quando não há correspondência.', type: PostResponseDto, isArray: true })
   @ApiResponse({ status: 404, description: 'Artigo público não encontrado.' })

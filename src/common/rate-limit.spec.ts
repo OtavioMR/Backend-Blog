@@ -92,9 +92,9 @@ describe('comment creation rate limit', () => {
     await app.init();
   });
   afterAll(async () => { await app.close(); });
-  it('rejects the eleventh creation in a minute', async () => {
+  it('rejects the sixth comment creation in a minute', async () => {
     const path = '/posts/b1ffcd88-8b1a-4ce7-aa5c-5cc8ac271b22/comments';
-    for (let i = 0; i < 10; i++) await supertest(app.getHttpServer()).post(path).send({ content: 'test' }).expect(201);
+    for (let i = 0; i < 5; i++) await supertest(app.getHttpServer()).post(path).send({ content: 'test' }).expect(201);
     const response = await supertest(app.getHttpServer()).post(path).send({ content: 'test' }).expect(429);
     expect(Number(response.headers['retry-after'])).toBeGreaterThan(0);
   });

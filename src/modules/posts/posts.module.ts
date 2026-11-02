@@ -1,3 +1,7 @@
+import { PostSeriesController, PostSeriesNavigationController } from './post-series.controller.js';
+import { PostSeriesService } from './post-series.service.js';
+import { PostRevisionsController } from './post-revisions.controller.js';
+import { PostRevisionsService } from './post-revisions.service.js';
 import { PostReviewController } from './post-review.controller.js';
 import { PostReviewService } from './post-review.service.js';
 import { PostSchedulerService } from './post-scheduler.service.js';
@@ -27,8 +31,8 @@ import { SavedCollectionsService } from './saved-collections.service.js';
     TypeOrmModule.forFeature([Post, Category, PostInteraction]),
     TagsModule,
   ],
-  controllers: [PostReviewController, AuthorsController, FeedController, AuthorFollowsController, PostInteractionsController, PostViewsController, SavedCollectionsController, PostsController],
-  providers: [PostReviewService, PostsService, PostInteractionsService, FeedService, PostSchedulerService, PostViewsService, AuthorFollowsService, SavedCollectionsService],
+  controllers: [PostSeriesController, PostSeriesNavigationController, PostRevisionsController, PostReviewController, AuthorsController, FeedController, AuthorFollowsController, PostInteractionsController, PostViewsController, SavedCollectionsController, PostsController],
+  providers: [PostSeriesService, PostRevisionsService, PostReviewService, PostsService, PostInteractionsService, FeedService, PostSchedulerService, PostViewsService, AuthorFollowsService, SavedCollectionsService],
   exports: [PostsService, TypeOrmModule],
 })
 export class PostsModule {}

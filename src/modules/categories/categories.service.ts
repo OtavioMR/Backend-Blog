@@ -180,7 +180,7 @@ export class CategoriesService {
       page: paginationQuery?.page,
       limit: paginationQuery?.limit,
       categoryId: category.id,
-    });
+    }) as Promise<PaginatedResult<Post>>;
   }
 
   async update(

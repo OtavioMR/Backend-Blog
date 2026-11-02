@@ -12,10 +12,19 @@ import { NotificationsService } from '../notifications/notifications.service.js'
 import { User } from '../users/entities/user.entity.js';
 import { NewsletterService } from '../newsletter/newsletter.service.js';
 import { MailService } from '../mail/mail.service.js';
+import { MailQueueService } from '../mail/mail-queue.service.js';
 import { PostSchedulerService } from './post-scheduler.service.js';
 import { PostInteractionsService } from './post-interactions.service.js';
 import { PostInteraction } from './entities/post-interaction.entity.js';
+import { PostRevisionsService } from './post-revisions.service.js';
+import { PostsService } from './posts.service.js';
+import { Category } from '../categories/entities/category.entity.js';
+import { TagsService } from '../tags/tags.service.js';
+import { UserRole } from '../users/enums/user.enum.js';
+import { DataSource } from 'typeorm';
 import type { QueryRunner } from 'typeorm';
+import { PostSeriesService } from './post-series.service.js';
+import { CommentsService } from '../comments/comments.service.js';
 
 describe.skipIf(process.env.RUN_DB_TESTS !== '1')('engagement PostgreSQL integration', () => {
   let runner: QueryRunner;
@@ -26,7 +35,7 @@ describe.skipIf(process.env.RUN_DB_TESTS !== '1')('engagement PostgreSQL integra
     runner = dataSource.createQueryRunner();
     await runner.startTransaction();
     await runner.query('INSERT INTO users (id, name, email, password_hash) VALUES ($1, $2, $3, $4)', [user, 'Test', `${user}@example.test`, 'hash']);
-    await runner.query("UPDATE users SET role = 'AUTHOR' WHERE id = $1", [user]);
+    await runner.query("UPDATE users SET role = 'AUTHOR', first_post_approved = true WHERE id = $1", [user]);
     await runner.query('INSERT INTO users (id, name, email, password_hash) VALUES ($1, $2, $3, $4)', [follower, 'Follower', `${follower}@example.test`, 'hash']);
     await runner.query('INSERT INTO posts (id, author_id, title, slug, content, published, published_at) VALUES ($1, $2, $3, $4, $5, true, now())', [post, user, 'Test', `test-${post}`, 'Content']);
     await runner.query('INSERT INTO comments (id, post_id, author_id, content) VALUES ($1, $2, $3, $4)', [comment, post, user, 'Comment']);
@@ -111,7 +120,8 @@ describe.skipIf(process.env.RUN_DB_TESTS !== '1')('engagement PostgreSQL integra
     await runner.query("UPDATE newsletter_deliveries SET next_attempt_at = now() + interval '1 day' WHERE sent_at IS NULL");
     const sendNewsletterConfirmation = vi.fn().mockResolvedValue(undefined);
     const sendNewsletterPost = vi.fn().mockRejectedValueOnce(new Error('SMTP unavailable')).mockResolvedValue(undefined);
-    const service = new NewsletterService(runner.manager.getRepository(User), { sendNewsletterConfirmation, sendNewsletterPost } as unknown as MailService, { getOrThrow: () => 'secret' } as unknown as ConfigService);
+    const enqueueNewsletter = vi.fn().mockResolvedValue(undefined);
+    const service = new NewsletterService(runner.manager.getRepository(User), { sendNewsletterConfirmation, sendNewsletterPost } as unknown as MailService, { getOrThrow: () => 'secret' } as unknown as ConfigService, { enqueueNewsletter, registerNewsletterHandler: vi.fn() } as unknown as MailQueueService);
     const email = `${randomUUID()}@example.test`;
     await service.subscribe(email);
     const token = sendNewsletterConfirmation.mock.calls[0][1] as string;
@@ -125,6 +135,8 @@ describe.skipIf(process.env.RUN_DB_TESTS !== '1')('engagement PostgreSQL integra
     await new PostSchedulerService(runner.manager.getRepository(Post)).publishDue();
     expect((await runner.query('SELECT post_id FROM newsletter_deliveries WHERE subscriber_id = $1', [subscriber.id])).length).toBe(2);
     await service.deliverPending();
+    expect(enqueueNewsletter).toHaveBeenCalledTimes(2);
+    for (const [delivery] of enqueueNewsletter.mock.calls) await service.processDelivery(delivery);
     const rows = await runner.query('SELECT attempts, sent_at FROM newsletter_deliveries WHERE subscriber_id = $1 ORDER BY sent_at NULLS FIRST', [subscriber.id]);
     expect(rows[0].attempts).toBe(1); expect(rows[0].sent_at).toBeNull(); expect(rows[1].sent_at).not.toBeNull();
     const unsubscribeToken = sendNewsletterPost.mock.calls[1][3] as string;
@@ -132,4 +144,125 @@ describe.skipIf(process.env.RUN_DB_TESTS !== '1')('engagement PostgreSQL integra
     expect((await runner.query('SELECT confirmed FROM newsletter_subscribers WHERE id = $1', [subscriber.id]))[0].confirmed).toBe(false);
     expect((await runner.query('SELECT post_id FROM newsletter_deliveries WHERE subscriber_id = $1 AND sent_at IS NULL', [subscriber.id])).length).toBe(0);
   });
+  it('captures, protects and restores article revisions', async () => {
+    const repository = runner.manager.getRepository(Post);
+    const postService = new PostsService(repository, runner.manager.getRepository(Category), {} as TagsService);
+    const service = new PostRevisionsService(repository, postService);
+    const owner = { userId: user, email: 'owner@example.test', role: UserRole.AUTHOR };
+    const other = { userId: follower, email: 'other@example.test', role: UserRole.AUTHOR };
+    const original = await service.list(post, owner, {});
+    expect(original.data).toHaveLength(1);
+    const originalId = original.data[0].id;
+    await expect(service.list(post, other, {})).rejects.toThrow();
+    await runner.query('UPDATE posts SET title = $2, content = $3 WHERE id = $1', [post, 'Changed title', 'Changed content']);
+    await runner.query('UPDATE posts SET published = published WHERE id = $1', [post]);
+    expect((await service.list(post, owner, {})).data).toHaveLength(2);
+    expect((await service.detail(post, originalId, owner)).title).toBe('Test');
+    await service.restore(post, originalId, owner);
+    const restored = await runner.query('SELECT title, content FROM posts WHERE id = $1', [post]);
+    expect(restored[0]).toEqual({ title: 'Test', content: 'Content' });
+    expect((await service.list(post, owner, {})).data).toHaveLength(3);
+    await expect(service.detail(post, randomUUID(), owner)).rejects.toThrow();
+  });
+
+  it('paginates filtered posts without skipping timestamps in the same millisecond', async () => {
+    const ids = [randomUUID(), randomUUID()];
+    const term = `cursor${randomUUID().replace(/-/g, '')}`;
+    await runner.query(`INSERT INTO posts (id, author_id, title, slug, content, published, published_at) VALUES
+      ($1, $3, $4, $5, 'content', true, '2099-01-01T00:00:00.123456Z'),
+      ($2, $3, $4, $6, 'content', true, '2099-01-01T00:00:00.123123Z')`, [...ids, user, term, `cursor-${ids[0]}`, `cursor-${ids[1]}`]);
+    const service = new PostsService(runner.manager.getRepository(Post), runner.manager.getRepository(Category), {} as TagsService);
+    const first = await service.findAll({ search: term, limit: 1, cursor: 'start' });
+    expect(first.data[0].id).toBe(ids[0]);
+    if (!('nextCursor' in first.meta) || !first.meta.nextCursor) throw new Error('Cursor ausente');
+    const second = await service.findAll({ search: term, limit: 1, cursor: first.meta.nextCursor });
+    expect(second.data.map(item => item.id)).toEqual([ids[1]]);
+    const partial = await service.findAll({ search: term.slice(0, -5), limit: 100 });
+    expect(partial.data.map(item => item.id)).toEqual(expect.arrayContaining(ids));
+  });
+
+  it('ranks title matches first and uses GIN for selective full-text and partial searches', async () => {
+    const term = `search${randomUUID().replace(/-/g, '')}`;
+    const titleId = randomUUID(), contentId = randomUUID();
+    await runner.query(`INSERT INTO posts (id, author_id, title, slug, content, published, published_at) VALUES
+      ($1, $3, $4, $5, 'other content', true, now() - interval '1 day'),
+      ($2, $3, 'Other title', $6, $4, true, now())`, [titleId, contentId, user, term, `rank-${titleId}`, `rank-${contentId}`]);
+    const service = new PostsService(runner.manager.getRepository(Post), runner.manager.getRepository(Category), {} as TagsService);
+    expect((await service.findAll({ search: term })).data.map(item => item.id)).toEqual([titleId, contentId]);
+    await runner.query(`INSERT INTO posts (author_id, title, slug, content, published, published_at)
+      SELECT $1, 'Unrelated entry ' || i, $2 || i, repeat('ordinary padding text ', 60), true, now()
+      FROM generate_series(1, 5000) i`, [user, `plan-${user}-`]);
+    await runner.query('ANALYZE posts');
+    const plan = await runner.query(`EXPLAIN (ANALYZE, FORMAT JSON) SELECT id FROM posts
+      WHERE search_vector @@ websearch_to_tsquery('blog_portuguese'::regconfig, $1)
+      OR search_text LIKE blog_search_text($2)`, [term, `%${term}%`]);
+    const serialized = JSON.stringify(plan);
+    expect(serialized).toContain('Bitmap Index Scan');
+    expect(serialized).toContain('idx_posts_search_vector');
+    expect(serialized).toContain('idx_posts_search_text');
+    expect(serialized).not.toContain('Seq Scan');
+    // Remove the large fixture before subsequent pagination tests.
+    await runner.query('DELETE FROM posts WHERE slug LIKE $1', [`plan-${user}-%`]);
+  }, 30_000);
+
+  it('reads five consecutive cursor pages without duplicates or missing entries', async () => {
+    const term = `fivepages${randomUUID().replace(/-/g, '')}`;
+    const inserted: { id: string }[] = await runner.query(`INSERT INTO posts (author_id, title, slug, content, published, published_at)
+      SELECT $1::uuid, $2::varchar, $2::varchar || i, 'cursor content', true, now() FROM generate_series(1, 25) i RETURNING id`, [user, term]);
+    const service = new PostsService(runner.manager.getRepository(Post), runner.manager.getRepository(Category), {} as TagsService);
+    let cursor = 'start';
+    const seen: string[] = [];
+    for (let page = 0; page < 5; page++) {
+      const result = await service.findAll({ search: term, cursor, limit: 5 });
+      expect(result.data).toHaveLength(5);
+      if (!('nextCursor' in result.meta)) throw new Error('Cursor metadata absent');
+      expect(result.meta.hasMore).toBe(page < 4);
+      seen.push(...result.data.map(item => item.id));
+      cursor = result.meta.nextCursor ?? '';
+    }
+    expect(new Set(seen).size).toBe(25);
+    expect(seen.sort()).toEqual(inserted.map(item => item.id).sort());
+  });
+
+  it('paginates comments without skipping timestamps in the same millisecond', async () => {
+    const ids = [randomUUID(), randomUUID()];
+    await runner.query(`INSERT INTO comments (id, post_id, author_id, content, created_at) VALUES
+      ($1, $3, $4, 'first', '2099-01-01T00:00:00.123456Z'),
+      ($2, $3, $4, 'second', '2099-01-01T00:00:00.123123Z')`, [...ids, post, user]);
+    const service = new CommentsService(runner.manager.getRepository(Comment), runner.manager.getRepository(Post));
+    const first = await service.list(post, 1, 1, 'start');
+    expect(first.data[0].id).toBe(ids[0]);
+    if (!('nextCursor' in first.meta) || !first.meta.nextCursor) throw new Error('Cursor ausente');
+    const second = await service.list(post, 1, 1, first.meta.nextCursor);
+    expect(second.data[0].id).toBe(ids[1]);
+  });
+
+  it('orders series, hides drafts and restricts management', async () => {
+    const db = { query: runner.query.bind(runner), transaction: (fn: (manager: typeof runner.manager) => unknown) => fn(runner.manager) } as unknown as DataSource;
+    const service = new PostSeriesService(db);
+    const owner = { userId: user, email: 'owner@example.test', role: UserRole.AUTHOR };
+    const other = { userId: follower, email: 'other@example.test', role: UserRole.AUTHOR };
+    const draft = randomUUID();
+    await runner.query('INSERT INTO posts (id, author_id, title, slug, content, published) VALUES ($1, $2, $3, $4, $5, false)', [draft, user, 'Draft', `draft-${draft}`, 'Draft content']);
+    const series = await service.create({ title: 'Series' }, owner);
+    await expect(service.detail(series.id)).rejects.toThrow();
+    await service.setItems(series.id, [draft, post], owner);
+    expect((await service.mineDetail(series.id, owner)).posts.map((item: { id: string }) => item.id)).toEqual([draft, post]);
+    expect((await service.detail(series.id)).posts.map((item: { id: string }) => item.id)).toEqual([post]);
+    const postsService = new PostsService(runner.manager.getRepository(Post), runner.manager.getRepository(Category), {} as TagsService);
+    expect(await postsService.findById(post)).toMatchObject({ series: { id: series.id, totalParts: 1, previous: null, next: null } });
+    const next = randomUUID();
+    await runner.query('INSERT INTO posts (id, author_id, title, slug, content, published, published_at) VALUES ($1, $2, $3, $4, $5, true, now())', [next, user, 'Next', `next-${next}`, 'Next content']);
+    await service.setItems(series.id, [draft, post, next], owner);
+    expect(await postsService.findById(post)).toMatchObject({ series: { totalParts: 2, previous: null, next: { id: next } } });
+    expect(await postsService.findById(next)).toMatchObject({ series: { totalParts: 2, previous: { id: post }, next: null } });
+    expect((await service.forPost(post)).id).toBe(series.id);
+    await expect(service.forPost(draft)).rejects.toThrow();
+    await expect(service.setItems(series.id, [post], other)).rejects.toThrow();
+    await service.setItems(series.id, [post, draft], owner);
+    expect((await service.mineDetail(series.id, owner)).posts.map((item: { id: string }) => item.id)).toEqual([post, draft]);
+    await service.remove(series.id, owner);
+    expect((await runner.query('SELECT id FROM posts WHERE id = $1', [post]))).toHaveLength(1);
+  });
+
 });

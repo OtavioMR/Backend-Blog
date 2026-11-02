@@ -1,4 +1,6 @@
+import { commentListQuery } from './comment-list.query.js';
 import { paginationMeta } from '../../common/utils/pagination.js';
+import { decodeCursor, encodeCursor } from '../../common/utils/cursor.js';
 import { sanitizePlainText } from '../../common/utils/sanitize-content.js';
 import {
   BadRequestException,
@@ -7,7 +9,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, IsNull, Repository } from 'typeorm';
+import { Repository } from 'typeorm';
 import { Comment } from './entities/comment.entity.js';
 import { Post } from '../posts/entities/post.entity.js';
 import { UserRole } from '../users/enums/user.enum.js';
@@ -84,44 +86,29 @@ export class CommentsService {
     return this.present(await this.getComment(saved.id));
   }
 
-  async list(postId: string, page = 1, limit = 20) {
+  async list(postId: string, page = 1, limit = 20, cursorValue?: string) {
     await this.availablePost(postId);
-    const [items, total] = await this.comments.findAndCount({
-      where: { postId, rootId: IsNull() },
-      relations: { author: true },
-      withDeleted: true,
-      order: { createdAt: 'DESC', id: 'DESC' },
-      skip: (page - 1) * limit,
-      take: limit,
+    const cursorMode = cursorValue !== undefined;
+    const cursor = cursorMode && cursorValue !== 'start' ? decodeCursor(cursorValue) : null;
+    type Presented = ReturnType<CommentsService['present']>;
+    type Item = { comment: Presented; timestamp: string; replies: Presented[]; replyCount: number };
+    const parameters: unknown[] = [postId, cursorMode ? limit + 1 : limit, cursorMode ? 0 : (page - 1) * limit];
+    if (cursor) parameters.push(cursor.timestamp, cursor.id);
+    const [result]: { items: Item[]; total: number }[] = await this.comments.query(commentListQuery(cursorMode, !!cursor), parameters);
+    const hasMore = cursorMode && result.items.length > limit;
+    if (hasMore) result.items.pop();
+    const present = (comment: Presented): Presented => ({ ...comment,
+      content: comment.isActive ? sanitizePlainText(comment.content) : 'Comentário excluído',
+      createdAt: new Date(comment.createdAt), editedAt: comment.editedAt ? new Date(comment.editedAt) : null,
     });
-    const rootIds = items.map((item) => item.id);
-    const rows: { id: string; root_id: string; total: string }[] = rootIds.length
-      ? await this.comments.query(`SELECT id, root_id, total FROM (
-          SELECT id, root_id, count(*) OVER (PARTITION BY root_id) AS total,
-            row_number() OVER (PARTITION BY root_id ORDER BY created_at ASC, id ASC) AS position
-          FROM comments WHERE post_id = $1 AND root_id = ANY($2::uuid[])
-        ) ranked WHERE position <= 5 ORDER BY root_id, position`, [postId, rootIds])
-      : [];
-    const replies = rows.length ? await this.comments.find({
-      where: { id: In(rows.map((row) => row.id)) },
-      relations: { author: true, replyTo: { author: true } },
-      withDeleted: true,
-    }) : [];
-    const byId = new Map(replies.map((reply) => [reply.id, reply]));
-    const data = items.map((item) => {
-      const related = rows.filter((row) => row.root_id === item.id);
-      return {
-        ...this.present(item),
-        replies: {
-          data: related.map((row) => byId.get(row.id)).filter((reply): reply is Comment => !!reply).map((reply) => this.present(reply)),
-          meta: paginationMeta(1, 5, Number(related[0]?.total ?? 0)),
-        },
-      };
-    });
-    return {
-      data,
-      meta: paginationMeta(page, limit, total),
-    };
+    const data = result.items.map(item => ({ ...present(item.comment), replies: {
+      data: item.replies.map(present), meta: paginationMeta(1, 5, item.replyCount),
+    } }));
+    if (cursorMode) {
+      const last = result.items.at(-1);
+      return { data, meta: { nextCursor: hasMore && last ? encodeCursor({ timestamp: last.timestamp, id: last.comment.id }) : null, hasMore } };
+    }
+    return { data, meta: paginationMeta(page, limit, result.total) };
   }
 
   private async listRepliesUnchecked(

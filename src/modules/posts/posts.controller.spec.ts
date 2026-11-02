@@ -41,14 +41,14 @@ describe('PostsController', () => {
 
   describe('create', () => {
     it('deve possuir os guards JwtAuthGuard e RolesGuard configurados', () => {
-      const guards = Reflect.getMetadata('__guards__', PostsController.prototype.create);
+      const guards = Reflect.getMetadata('__guards__', Object.getOwnPropertyDescriptor(PostsController.prototype, 'create')!.value);
       expect(guards).toBeDefined();
       expect(guards).toContain(JwtAuthGuard);
       expect(guards).toContain(RolesGuard);
     });
 
     it('deve possuir a metadata de roles restrita a AUTHOR e ADMIN', () => {
-      const roles = Reflect.getMetadata(ROLES_KEY, PostsController.prototype.create);
+      const roles = Reflect.getMetadata(ROLES_KEY, Object.getOwnPropertyDescriptor(PostsController.prototype, 'create')!.value);
       expect(roles).toBeDefined();
       expect(roles).toEqual([UserRole.AUTHOR, UserRole.ADMIN]);
     });

@@ -2,7 +2,7 @@
 
 Este documento consolida e rastreia todos os **55 itens acionáveis** originados do relatório técnico `analise_blog.md`, categorizados em 6 Milestones e divididos por prioridades, estimativas de esforço e status de execução.
 
-Status local dos 55 itens originais: **41 concluídos e 14 pendentes**. A issue adicional #57 foi concluída.
+Status da versão 1.0.0: **55 itens originais implementados e validados no escopo da v1**, além da issue #57. A auditoria, evidências por issue e dependências de operação estão em [RELEASE_AUDIT.md](docs/RELEASE_AUDIT.md). Hashes legados são atualizados no próximo login válido; OAuth real requer credenciais dos provedores.
 
 **Decisão de produto — comunidade e autoria:** visitantes leem artigos públicos; contas começam como `READER`. Após verificar o e-mail (#45) e aceitar as regras de publicação, o leitor pode solicitar promoção automática a `AUTHOR`. O primeiro artigo requer aprovação administrativa; depois, novos artigos e edições são publicados imediatamente. Administradores podem revogar a autoria ou suspender a conta e decidir quais artigos publicados ocultar. A moderação posterior deve tratar abusos, inclusive alterações feitas após a aprovação.
 
@@ -54,7 +54,7 @@ Status local dos 55 itens originais: **41 concluídos e 14 pendentes**. A issue 
 | **M3** | #18 | [Melhoria] Adicionar campo publishedAt e ordenar artigos pela data real de publicação | P1 — Alta | S | 🟢 Concluído |
 | **M4** | #19 | [Melhoria] Otimizar listagem de artigos com resumo (excerpt) e exclusão de payload pesado | P1 — Alta | S | 🟢 Concluído |
 | **M5** | #20 | [Performance] Eliminar problema de query N+1 na listagem de comentários e respostas | P1 — Alta | M | 🟢 Concluído |
-| **M6** | #21 | [Melhoria] Implementar busca textual Full-Text nativa com PostgreSQL (tsvector e GIN) | P2 — Média | M | Backlog |
+| **M6** | #21 | [Melhoria] Implementar busca textual Full-Text nativa com PostgreSQL (tsvector e GIN) | P2 — Média | M | Concluído |
 | **M7** | #22 | [Bug] Permitir moderação e remoção de comentários mesmo com comentários desativados no post | P1 — Alta | XS | ?? Concluído |
 | **M8** | #23 | [Melhoria] Enriquecer resposta de artigos salvos com autor, categorias e tags | P2 — Média | XS | 🟢 Concluído |
 | **M9** | #24 | [Refatoração] Padronizar estrutura de metadados de paginação com utilitário compartilhado | P2 — Média | S | 🟢 Concluído |
@@ -62,7 +62,7 @@ Status local dos 55 itens originais: **41 concluídos e 14 pendentes**. A issue 
 | **M11** | #26 | [Refatoração] Centralizar serialização de DTOs com ClassSerializerInterceptor e @Exclude | P2 — Média | M | 🟢 Concluído |
 | **M12** | #27 | [Melhoria] Ativar e configurar módulo de monitoramento e tracing (NestJS Observe / OpenTelemetry) | P1 — Alta | XS | 🟢 Concluído |
 | **M13** | #28 | [Infraestrutura] Implementar health check com Terminus, shutdown hooks e filtro global de exceções | P2 — Média | S | 🟢 Concluído |
-| **M14** | #29 | [Infraestrutura] Implementar processamento assíncrono de e-mails em fila com BullMQ e Redis | P2 — Média | M | Backlog |
+| **M14** | #29 | [Infraestrutura] Implementar processamento assíncrono de e-mails em fila com BullMQ e Redis | P2 — Média | M | Concluído localmente |
 
 #### ✨ 3. Novas Funcionalidades (F1 a F26)
 | Código | Issue | Título | Prioridade | Esforço | Status |
@@ -72,8 +72,8 @@ Status local dos 55 itens originais: **41 concluídos e 14 pendentes**. A issue 
 | **F3** | #32 | [Feature] Agendamento de publicação automática de posts com @nestjs/schedule | P2 — Média | M | Concluído |
 | **F4** | #33 | [Feature] Cálculo e exibição automática do tempo estimado de leitura (readingTimeMinutes) | P2 — Média | XS | Concluído |
 | **F5** | #34 | [Feature] Geração dinâmica de Feeds RSS/Atom e Sitemap XML | P2 — Média | S | Concluído |
-| **F6** | #35 | [Feature] Agrupamento de artigos em séries sequenciais | P3 — Baixa | M | Backlog |
-| **F7** | #36 | [Feature] Histórico de revisões e versionamento de artigos (post_revisions) | P3 — Baixa | M | Backlog |
+| **F6** | #35 | [Feature] Agrupamento de artigos em séries sequenciais | P3 — Baixa | M | Concluído |
+| **F7** | #36 | [Feature] Histórico de revisões e versionamento de artigos (post_revisions) | P3 — Baixa | M | Concluído |
 | **F8** | #37 | [Feature] Contador de visualizações com deduplicação e endpoint de artigos em alta | P2 — Média | M | 🟢 Concluído |
 | **F9** | #38 | [Feature] Recomendação de artigos relacionados por similaridade de tags e categorias | P2 — Média | S | Concluído |
 | **F10** | #39 | [Feature] Perfil público do autor com bio, links sociais e contagem de publicações | P2 — Média | S | Concluído |
@@ -91,8 +91,8 @@ Status local dos 55 itens originais: **41 concluídos e 14 pendentes**. A issue 
 | **F22** | #51 | [Feature] Autenticação social com OAuth2 (Google e GitHub) | P2 — Média | M | Concluído |
 | **F23** | #52 | [Feature] Autenticação de dois fatores (2FA / TOTP) | P2 — Média | M | Concluído |
 | **F24** | #53 | [Feature] Interface e endpoints para visualização e revogação de sessões ativas do usuário | P2 — Média | S | Concluído |
-| **F25** | #54 | [Performance] Camada de cache distribuído em memória com Redis para consultas públicas | P2 — Média | M | Backlog |
-| **F26** | #55 | [Performance] Paginação por cursor (keyset pagination) para feed de artigos e comentários | P3 — Baixa | M | Backlog |
+| **F25** | #54 | [Performance] Camada de cache distribuído em memória com Redis para consultas públicas | P2 — Média | M | Concluído localmente |
+| **F26** | #55 | [Performance] Paginação por cursor (keyset pagination) para feed de artigos e comentários | P3 — Baixa | M | Concluído localmente |
 
 ---
 
@@ -144,7 +144,7 @@ Status local dos 55 itens originais: **41 concluídos e 14 pendentes**. A issue 
    7. #43: notificações in-app; identificar eventos das funcionalidades existentes e definir quais serão cobertos.
    8. #44: newsletter com double opt-in e envio em novas publicações, incluindo publicações agendadas.
 
-   #15: limites por IP e por rota, em memória por instância: 10 comentários, 30 curtidas e 30 remoções de curtidas por minuto; criação e edição de artigos (que também criam tags) limitadas a 10 e 20 por minuto, respectivamente. O limite global existente permanece aplicado às demais rotas. Cada artigo aceita até dez tags.
+   #15: limites por IP e por rota, em memória por instância: 5 comentários, 30 curtidas e 30 remoções de curtidas por minuto; criação e edição de artigos (que também criam tags) limitadas a 10 e 20 por minuto, respectivamente. O limite global existente permanece aplicado às demais rotas. Cada artigo aceita até dez tags.
    #37: uma visualização por artigo e IP por dia UTC, com IP representado por HMAC; ranking considera hoje e os seis dias UTC anteriores. #41: curtidas idempotentes em comentários ativos de artigos públicos com comentários habilitados.
    #40: feed mostra artigos públicos de autores ativos seguidos. #42: ao retirar um artigo dos salvos ele fica oculto nas coleções e retorna se for salvo novamente. #43: notifica comentários, respostas, curtidas em artigos e comentários e novos seguidores, sem notificação para ações próprias. #44: confirmação por token de uso único (24 horas), cancelamento por token e entregas de novas publicações manuais ou agendadas; falhas SMTP são retomadas a cada cinco minutos, com processamento de até 50 por minuto. A entrega é pelo menos uma vez: falha após aceitação pelo SMTP e antes do registro pode produzir repetição.
 
@@ -161,9 +161,11 @@ Status local dos 55 itens originais: **41 concluídos e 14 pendentes**. A issue 
    - #52 — concluída: TOTP com segredo criptografado e proteção contra reutilização de códigos. Não há códigos de recuperação.
 
 6. **Sprint 6 — Performance & Escala (P2/P3):**
-   - #21 (Busca textual Full-Text nativa com tsvector e GIN)
-   - #29 (Fila de e-mails assíncrona com BullMQ)
-   - #35 (Séries de artigos)
-   - #36 (Histórico de revisões)
-   - #54 (Cache distribuído com Redis)
-   - #55 (Paginação por cursor)
+   - #21 — concluída: vetor textual armazenado com pesos por título/conteúdo, ranking por relevância na paginação numérica, busca parcial com índice trigram e EXPLAIN ANALYZE comprovando Bitmap Index Scan nos índices GIN em massa de 5 mil artigos. A paginação por cursor mantém ordem cronológica estável.
+   - #29 — concluída: fila BullMQ e outbox cifrada no PostgreSQL; queda do Redis preserva e-mails pendentes. O agendador encaminha até 100 mensagens a cada dez segundos. Há teste de falha e recuperação.
+   - #35 — concluída: CRUD com autorização, ordem e navegação anterior/próximo no detalhe do artigo; testes de integração e e2e com três partes e proteção de rascunhos.
+   - #36 — concluída: histórico de título e conteúdo criado automaticamente no banco, com listagem, consulta e restauração pelo autor ou administrador. Artigos existentes recebem uma revisão inicial na migration.
+   - #54 — concluída: cache compartilhado Redis sem SQL nos hits, invalidado antes da resposta das escritas e após publicações agendadas; reconexões descartam entradas antigas. Há teste HTTP verificando ausência de consultas SQL.
+   - #55 — concluída: cursor opcional com precisão de microssegundos e índices B-Tree compostos, preservando paginação numérica. Cinco páginas consecutivas são verificadas sem duplicação ou omissão. Complexidade esperada: O(log N + k), conforme funcionamento de um índice B-Tree.
+
+   Validações e resultados atuais estão em [RELEASE_AUDIT.md](docs/RELEASE_AUDIT.md). As 43 migrations foram aplicadas no banco configurado e verificadas desde um banco vazio. A versão inclui imagem Docker de produção, health checks, persistência de uploads e pipeline de CI.

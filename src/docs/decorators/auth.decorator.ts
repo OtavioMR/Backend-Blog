@@ -56,6 +56,8 @@ export function ApiLoginDoc() {
       description: 'Credenciais inválidas, e-mail não verificado ou conta temporariamente bloqueada.',
       type: UnauthorizedResponseDto,
     }),
+    ApiResponse({ status: 403, description: 'Conta suspensa. Exibido após validar a senha; informa justificativa e endsAt (null para banimento permanente).',
+      schema: { example: { statusCode: 403, message: 'Conta suspensa.', reason: 'Violação das regras da comunidade.', endsAt: '2099-01-01T00:00:00Z' } } }),
     ApiResponse({
       status: 500,
       description:
@@ -71,7 +73,7 @@ export function ApiRefreshDoc() {
     ApiOperation({
       summary: 'Renovar par de tokens via cookie HTTP-Only',
       description:
-        'Lê o refresh token do cookie HTTP-Only, valida a assinatura e compara o hash com o banco de dados. Realiza rotação automática (invalida o token anterior no banco, define um novo cookie e retorna um novo access_token).',
+        'Lê o refresh token do cookie HTTP-Only, valida a assinatura e compara o hash com o banco de dados. Realiza rotação automática. A reutilização de um token antigo revoga a sessão afetada, preservando os outros dispositivos. O cliente deve serializar as renovações para não reutilizar tokens em chamadas concorrentes.',
     }),
     ApiResponse({
       status: 200,

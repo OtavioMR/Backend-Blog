@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   Logger,
   UnauthorizedException,
@@ -7,6 +8,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
+import { setTimeout as delay } from 'node:timers/promises';
 import bcrypt from 'bcrypt';
 import type { CookieOptions } from 'express';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -122,7 +124,17 @@ export class AuthService {
     // Compare even for unknown users to avoid a cheap account enumeration oracle.
     const hash = user?.passwordHash ?? '$2b$12$1V0Y5v5dUHYeOwtoasAswuk3ESkRespVkPTfR2TzRFdg.y65Vxk/S';
     const passwordIsValid = await bcrypt.compare(loginDto.password, hash);
+    const rounds = bcrypt.getRounds(hash);
+    // Legacy cost-10 accounts and current/unknown accounts do the same total
+    // bcrypt work (one cost-10 comparison plus one cost-12 comparison).
+    await bcrypt.compare(loginDto.password, rounds === 10
+      ? '$2b$12$1V0Y5v5dUHYeOwtoasAswuk3ESkRespVkPTfR2TzRFdg.y65Vxk/S'
+      : '$2b$10$1V0Y5v5dUHYeOwtoasAswuk3ESkRespVkPTfR2TzRFdg.y65Vxk/S');
     const locked = !!user?.loginLockedUntil && new Date(user.loginLockedUntil).getTime() > Date.now();
+    if (user?.moderationSuspended && passwordIsValid && !locked && Buffer.byteLength(loginDto.password, 'utf8') <= 72) {
+      throw new ForbiddenException({ statusCode: 403, message: 'Conta suspensa.',
+        reason: await this.usersService.suspensionReason(user.id), endsAt: user.suspensionEndsAt });
+    }
     if (!user || !user.isActive || user.emailVerified === false || !passwordIsValid || Buffer.byteLength(loginDto.password, 'utf8') > 72 || locked) {
       if (user && !passwordIsValid && !locked) await this.usersService.recordFailedLogin(user.id);
       throw new UnauthorizedException('E-mail ou senha inv\u00e1lidos.');
@@ -134,6 +146,7 @@ export class AuthService {
     if (!(await this.usersService.clearFailedLogins(user.id))) {
       throw new UnauthorizedException('E-mail ou senha inv\u00e1lidos.');
     }
+    if (rounds < 12) await this.usersService.upgradePasswordHash(user.id, hash, await bcrypt.hash(loginDto.password, 12));
 
     return this.createSession(user, userAgent);
   }
@@ -176,7 +189,10 @@ export class AuthService {
       authVersion: user.authVersion, tokenHash: this.hashToken(refreshToken), expiresAt: MoreThan(now) },
       { tokenHash: this.hashToken(tokens.refreshToken), lastUsedAt: now,
         expiresAt: new Date(now.getTime() + tokens.refreshExpiresIn * 1000) });
-    if (!result.affected) throw new UnauthorizedException('Refresh token inválido ou reutilizado.');
+    if (!result.affected) {
+      await this.revokeSession(user.id, payload.sid);
+      throw new UnauthorizedException('Refresh token inválido ou reutilizado.');
+    }
 
     this.logger.log(`Tokens renovados para usuário ${user.id}`);
     return tokens;
@@ -202,6 +218,7 @@ export class AuthService {
   async forgotPassword(
     forgotPasswordDto: ForgotPasswordDto,
   ): Promise<{ message: string }> {
+    const started = performance.now();
     const email = forgotPasswordDto.email.trim().toLowerCase();
     const token = randomBytes(32).toString('hex');
     const tokenHash = this.hashToken(token);
@@ -219,13 +236,14 @@ export class AuthService {
         'http://localhost:3000',
       );
       const resetLink = `${frontendUrl}/reset-password?token=${token}`;
-      await this.mailService.sendPasswordResetEmail(
-        user.email,
-        resetLink,
-        user.name,
-      );
+      try {
+        await this.mailService.sendPasswordResetEmail(user.email, resetLink, user.name);
+      } catch {
+        this.logger.error('Falha ao enfileirar e-mail de recuperação de senha.');
+      }
     }
 
+    await delay(Math.max(0, 35 - (performance.now() - started)));
     return {
       message:
         'Se o e-mail informado estiver cadastrado, as instruções para redefinição de senha foram enviadas.',

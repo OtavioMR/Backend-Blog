@@ -29,7 +29,7 @@ export class ReportsController {
   @UseGuards(RolesGuard)
   @Roles(UserRole.ADMIN)
   @ApiOperation({ summary: 'Listar denúncias para moderação', description: 'Apenas administradores; resultados paginados, mais recentes primeiro.' })
-  @ApiResponse({ status: 200, description: 'Lista paginada.', schema: { example: { items: [], total: 0, page: 1, limit: 20 } } })
+  @ApiResponse({ status: 200, description: 'Lista paginada.', schema: { example: { data: [], meta: { total: 0, page: 1, limit: 20, totalPages: 0, hasNextPage: false, hasPreviousPage: false } } } })
   @ApiResponse({ status: 400, description: 'Filtros inválidos.' })
   @ApiResponse({ status: 401, description: 'Autenticação necessária.' })
   @ApiResponse({ status: 403, description: 'Apenas administradores.' })

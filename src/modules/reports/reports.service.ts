@@ -1,6 +1,7 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { paginationMeta } from '../../common/utils/pagination.js';
 import { Post } from '../posts/entities/post.entity.js';
 import { Comment } from '../comments/entities/comment.entity.js';
 import { AuditService } from '../audit/audit.service.js';
@@ -33,7 +34,7 @@ export class ReportsService {
   async list(query: ListReportsDto) {
     const page = query.page ?? 1, limit = query.limit ?? 20;
     const [items, total] = await this.reports.findAndCount({ where: query.status ? { status: query.status } : {}, order: { createdAt: 'DESC', id: 'DESC' }, skip: (page - 1) * limit, take: limit });
-    return { items, total, page, limit };
+    return { data: items, meta: paginationMeta(page, limit, total) };
   }
   async review(id: string, moderatorId: string, dto: ReviewReportDto) {
     return this.reports.manager.transaction(async manager => {

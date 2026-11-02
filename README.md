@@ -149,9 +149,9 @@ Fotos sao convertidas para WebP e limitadas a 512 pixels. Para limpar arquivos s
 
 ### Conteudo e publicacao
 
-Feeds publicos em `GET /api/v1/feed/rss` e `GET /api/v1/feed/atom` mostram os 50 artigos publicados mais recentes. `GET /api/v1/sitemap.xml` lista artigos publicados e ativos. Os links usam `FRONTEND_URL` seguido de `/posts/:slug`; configure o frontend para essa rota.
+Feeds publicos em `GET /api/v1/feed/rss` (também disponível em `GET /api/v1/feed.xml`) e `GET /api/v1/feed/atom` mostram os 50 artigos publicados mais recentes. `GET /api/v1/sitemap.xml` lista artigos publicados e ativos. Os links usam `FRONTEND_URL` seguido de `/posts/:slug`; configure o frontend para essa rota.
 
-`GET /api/v1/posts/:id/related` recomenda ate cinco artigos por tags e categorias ativas em comum. `GET /api/v1/authors/:id` mostra perfil e quantidade de publicacoes; `PATCH /api/v1/users/:id` permite editar `bio`, `websiteUrl` e `socialUrl` (use `null` para limpar).
+`GET /api/v1/posts/:id/related` recomenda ate quatro artigos por tags e categorias ativas em comum. `GET /api/v1/authors/:id` mostra perfil e quantidade de publicacoes; `PATCH /api/v1/users/:id` permite editar `bio`, `websiteUrl` e `socialUrl` (use `null` para limpar).
 
 Para agendar um rascunho, informe `scheduledAt` como data futura ISO 8601 com fuso, por exemplo `2030-01-01T12:00:00Z`, em `POST /api/v1/posts` ou `PATCH /api/v1/posts/:id`. Envie `null` para cancelar. Publicacao manual ou desativacao cancela o agendamento. O processo da API verifica publicacoes vencidas a cada minuto; enquanto estiver parado, elas serao processadas na proxima verificacao apos reiniciar.
 
@@ -164,3 +164,31 @@ Configure `TOTP_ENCRYPTION_KEY` com 64 caracteres hexadecimais (32 bytes aleató
 Configure `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` e `GOOGLE_CALLBACK_URL` para Google e/ou `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET` e `GITHUB_CALLBACK_URL` para GitHub. Cadastre as URLs de callback exatas nos respectivos provedores; elas devem usar HTTPS, exceto em localhost. O cliente chama a rota de início com cookies habilitados e navega para a URL retornada. O callback devolve os tokens ou um desafio TOTP. Contas já existentes devem vincular o provedor autenticadas antes de usá-lo para login; o e-mail verificado no provedor deve coincidir com o da conta.
 
 O fluxo TOTP ainda não oferece códigos de recuperação: guarde o aplicativo autenticador e a chave de criptografia com cuidado.
+
+## Redis, fila e cache
+
+Instale as dependências com `npm.cmd ci`, configure `REDIS_URL` e execute `npm.cmd run migration:run` antes de iniciar a aplicação. Para desenvolvimento, `docker compose up -d redis` inicia o Redis local com persistência AOF; o serviço escuta apenas em `127.0.0.1`. Em produção, use uma instância isolada, autenticação, TLS (`rediss://`) e persistência adequada. Cada ambiente deve usar seu próprio banco Redis.
+
+Os e-mails transacionais são persistidos primeiro na outbox do PostgreSQL, encaminhados ao BullMQ e enviados pelo worker da própria aplicação. São feitas até 300 tentativas, com intervalos crescentes limitados a cinco minutos; mensagens expiradas não são enviadas. O conteúdo e os destinatários são cifrados com uma chave derivada de `JWT_SECRET`; todas as instâncias devem compartilhar o mesmo segredo. Alterá-lo impede o processamento de mensagens antigas. Dados cifrados podem permanecer em arquivos AOF e backups mesmo após a remoção do trabalho. Uma queda do Redis preserva os e-mails pendentes na outbox; o cache é dispensado quando indisponível.
+
+As entregas da newsletter permanecem registradas no PostgreSQL até confirmação SMTP; o agendador envia até 50 trabalhos por minuto à fila e retenta falhas após cinco minutos. A entrega é pelo menos uma vez: uma falha depois da aceitação SMTP e antes do registro pode resultar em e-mail duplicado. O processo da aplicação precisa estar ativo para executar o worker e o agendador.
+
+As listagens públicas de artigos, categorias e tags usam cache compartilhado por até 60 segundos, sem SQL nos hits. Escritas HTTP invalidam o cache antes de responder; o agendador também invalida após publicar artigos. Requisições com cookies ou autorização não usam esse cache. Redis indisponível faz a consulta seguir para o banco; reconexões invalidam entradas anteriores. Após alterações SQL manuais, reinicie a API para invalidar o cache imediatamente ou aguarde o TTL. Todas as instâncias de um mesmo ambiente devem compartilhar o Redis; ambientes diferentes devem usar bancos Redis distintos.
+
+Em `GET /api/v1/posts` e `GET /api/v1/posts/:postId/comments`, use `cursor=start` para iniciar a paginação por cursor e envie o `nextCursor` recebido para continuar com os mesmos filtros e limite. A resposta contém `meta.hasMore` e `meta.nextCursor`; sem `cursor`, a paginação por página continua disponível. O cursor é opaco e não representa um snapshot: alterações entre requisições podem mudar os resultados. Se a lista mudar durante a formação do cursor, a API pode responder 409; repita a requisição.
+
+## Versão 1.0.0
+
+A auditoria dos 55 itens originais e da issue adicional #57 está em [docs/RELEASE_AUDIT.md](docs/RELEASE_AUDIT.md). O backlog e os critérios operacionais estão alinhados com a implementação.
+
+Para executar toda a aplicação em Docker, configure os valores de `.env` usando `.env.example` como referência e execute `docker compose --profile app up -d --build --wait`. O serviço da API usa `NODE_ENV=production`, aplica as migrations antes de iniciar e responde em `http://localhost:3000/api/v1/health` (ajuste a porta conforme `PORT`). PostgreSQL e Redis têm health checks e persistência; o volume `uploads` preserva as imagens. Não use `docker compose down -v` se precisar manter os dados.
+
+O Swagger permanece disponível no desenvolvimento em `/api/docs` e desativado no container de produção. Para publicar na internet, configure domínio, HTTPS e o proxy reverso para um único salto confiável, mantendo acesso direto às portas restrito. Configure `PUBLIC_API_URL` com a origem pública da API para os links clicáveis de confirmação/cancelamento da newsletter e `FRONTEND_URL` com a origem do frontend.
+
+A busca usa índices GIN de full-text em português e de trigramas para trechos literais. Com `search` e paginação numérica, o título tem maior peso no ranking; o cursor preserva a ordem cronológica. O detalhe de artigos publicados inclui `series` com total de partes públicas e vizinhos. Revisões podem ser listadas e restauradas pelo autor ou administrador.
+
+E-mails transacionais entram primeiro na outbox cifrada do PostgreSQL; a cada dez segundos até 100 mensagens são encaminhadas ao BullMQ. A indisponibilidade do Redis preserva as mensagens no banco. A fila repete o envio até a validade do token, com intervalos de até cinco minutos. Como em qualquer envio SMTP com confirmação externa, a entrega é pelo menos uma vez e pode haver duplicação após falha entre o envio e o registro. Monitore a outbox e falhas da fila.
+
+Refresh tokens devem ser renovados em série pelo cliente: reutilizar um token antigo revoga a sessão afetada, inclusive seu access token, sem encerrar outros dispositivos. Senhas novas e alteradas usam bcrypt com custo 12; hashes antigos de custo 10 são atualizados no próximo login válido. O primeiro bloqueio após cinco senhas incorretas dura 15 minutos. Contas suspensas recebem o motivo e prazo após validar a senha.
+
+Para a validação completa local: execute `npm.cmd run migration:run`, configure `RUN_DB_TESTS=1` e `RUN_REDIS_TESTS=1`, e rode `npm.cmd run test -- --no-file-parallelism`, `npm.cmd run test:e2e -- --no-file-parallelism`, `npm.cmd run lint` e `npx.cmd tsc --noEmit -p tsconfig.build.json`. As integrações Redis isoladas usam `127.0.0.1:16379`; inicie uma instância de teste nessa porta. O GitHub Actions executa essas verificações com serviços PostgreSQL/Redis novos e compila a imagem Docker.

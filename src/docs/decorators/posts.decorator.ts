@@ -2,16 +2,19 @@ import { applyDecorators } from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiBody,
+  ApiExtraModels,
   ApiOperation,
   ApiParam,
   ApiQuery,
   ApiResponse,
   ApiTags,
+  getSchemaPath,
 } from '@nestjs/swagger';
 import { CreatePostDto } from '../../modules/posts/dto/create-post.dto.js';
 import { UpdatePostDto } from '../../modules/posts/dto/update-post.dto.js';
 import {
   PostResponseDto,
+  PostSummaryResponseDto,
   PaginatedPostResponseDto,
   BadRequestResponseDto,
   UnauthorizedResponseDto,
@@ -28,13 +31,15 @@ export function ApiPostsTag() {
 export function ApiFindAllPostsDoc() {
   return applyDecorators(
     ApiPublicRoute(),
+    ApiExtraModels(PaginatedPostResponseDto, PostSummaryResponseDto),
     ApiOperation({
       summary: 'Listar artigos publicados',
       description:
-        'Retorna resumos de artigos publicados e ativos, ordenados pela data de publicação. Para obter content, consulte o detalhe. Os filtros são combinados por E; a busca corresponde ao título ou conteúdo. categoryId tem prioridade sobre categorySlug.',
+        'Retorna resumos de artigos publicados e ativos. Sem busca, ordena pela data de publicação; com busca e paginação numérica, prioriza a relevância textual, com maior peso no título. A paginação por cursor mantém a ordem cronológica para navegação estável, inclusive com busca. Para obter content, consulte o detalhe. Os filtros são combinados por E. categoryId tem prioridade sobre categorySlug.',
     }),
-    ApiQuery({ name: 'search', required: false, type: String, example: 'nestjs', description: 'Trecho literal do título ou conteúdo, sem diferenciar maiúsculas ou acentos.' }),
+    ApiQuery({ name: 'search', required: false, type: String, example: 'nestjs', description: 'Busca textual em português no título e conteúdo, sem diferenciar maiúsculas ou acentos; aceita aspas e OR e também encontra trechos literais.' }),
     ApiQuery({ name: 'author', required: false, type: String, example: 'maria', description: 'Trecho literal do nome do autor, sem diferenciar maiúsculas ou acentos.' }),
+    ApiQuery({ name: 'cursor', required: false, type: String, example: 'start', description: 'Use start na primeira página e nextCursor nas seguintes. Mantém os filtros entre chamadas. Neste modo a resposta contém meta.hasMore e meta.nextCursor.' }),
     ApiQuery({ name: 'categoryName', required: false, type: String, example: 'tecnologia', description: 'Trecho literal do nome de uma categoria ativa, sem diferenciar maiúsculas ou acentos.' }),
     ApiQuery({
       name: 'page',
@@ -75,13 +80,17 @@ export function ApiFindAllPostsDoc() {
     ApiResponse({
       status: 200,
       description: 'Lista paginada de artigos retornada com sucesso.',
-      type: PaginatedPostResponseDto,
+      schema: { oneOf: [
+        { $ref: getSchemaPath(PaginatedPostResponseDto) },
+        { type: 'object', properties: { data: { type: 'array', items: { $ref: getSchemaPath(PostSummaryResponseDto) } }, meta: { type: 'object', properties: { hasMore: { type: 'boolean', example: true }, nextCursor: { type: 'string', nullable: true, example: 'eyJ0aW1lc3RhbXAiOiIyMDI2LTEwLTAxVDEyOjM0OjU2LjEyMzQ1NloiLCJpZCI6ImIxZmZjZDg4LThiMWEtNGNlNy1hYTVjLTVjYzhhYzI3MWIyMiJ9' } } } } },
+      ] },
     }),
     ApiResponse({
       status: 400,
       description: 'Parâmetros de paginação inválidos.',
       type: BadRequestResponseDto,
     }),
+    ApiResponse({ status: 409, description: 'A lista mudou durante a consulta; repita a requisição.' }),
     ApiResponse({
       status: 500,
       description: 'Erro interno ao consultar lista de artigos.',

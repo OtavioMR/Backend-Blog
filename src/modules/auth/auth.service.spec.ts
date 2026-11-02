@@ -29,6 +29,7 @@ describe('AuthService', () => {
       findByIdForAuth: vi.fn(),
       recordFailedLogin: vi.fn(),
       clearFailedLogins: vi.fn().mockResolvedValue(true),
+      upgradePasswordHash: vi.fn().mockResolvedValue(undefined),
       updateRefreshTokenHash: vi.fn(),
       setResetPasswordToken: vi.fn(),
       findByResetPasswordToken: vi.fn(),
@@ -115,7 +116,7 @@ describe('AuthService', () => {
       email: 'user@example.com',
       role: UserRole.READER,
       isActive: true,
-      passwordHash: 'hashed-password',
+      passwordHash: '$2b$12$1V0Y5v5dUHYeOwtoasAswuk3ESkRespVkPTfR2TzRFdg.y65Vxk/S',
     };
 
     it('should login successfully and return token pair', async () => {
@@ -148,6 +149,17 @@ describe('AuthService', () => {
       await expect(service.login(validLoginDto)).rejects.toThrow(
         UnauthorizedException,
       );
+    });
+
+    it('upgrades a legacy hash only after successful credential verification', async () => {
+      const previousHash = mockUser.passwordHash.replace('$12$', '$10$');
+      mockUsersService.findByEmailForAuth.mockResolvedValue({ ...mockUser, passwordHash: previousHash });
+      vi.spyOn(bcrypt, 'compare').mockResolvedValue(true as never);
+      const hash = vi.spyOn(bcrypt, 'hash').mockResolvedValue('upgraded-hash' as never);
+      mockJwtService.signAsync.mockResolvedValue('token');
+      await service.login(validLoginDto);
+      expect(hash).toHaveBeenCalledWith(validLoginDto.password, 12);
+      expect(mockUsersService.upgradePasswordHash).toHaveBeenCalledWith(mockUser.id, previousHash, 'upgraded-hash');
     });
 
     it('should throw UnauthorizedException when user is inactive', async () => {
@@ -231,6 +243,7 @@ describe('AuthService', () => {
       mockSessions.update.mockResolvedValue({ affected: 0 });
       mockJwtService.signAsync.mockResolvedValue('signed-token');
       await expect(service.refresh(rawRefreshToken)).rejects.toThrow(UnauthorizedException);
+      expect(mockSessions.delete).toHaveBeenCalledWith({ id: 'session-1', userId: 'user-1' });
     });
 
     it('should rotate tokens and update stored hash when refresh token is valid', async () => {

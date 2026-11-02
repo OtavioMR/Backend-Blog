@@ -34,20 +34,16 @@ describe('CommentsService', () => {
   });
 
   it('preserves author and hides content of disabled comments', async () => {
-    comments.findAndCount
-      .mockResolvedValueOnce([
-        [
-          {
+    comments.query.mockResolvedValueOnce([{ items: [{
+        timestamp: '2026-01-01T00:00:00.000000Z', replies: [], replyCount: 0,
+        comment: {
             id: 'c',
             postId: 'post',
             author,
             content: 'secret',
             isActive: false,
           },
-        ],
-        1,
-      ])
-      .mockResolvedValueOnce([[], 0]);
+      }], total: 1 }]);
     const result = await service.list('post');
     expect(result.data[0]).toMatchObject({
       author: { id: 'author', name: 'Ana' },

@@ -15,6 +15,13 @@ export class FeedController {
   @ApiResponse({ status: 200, description: 'Feed RSS 2.0 em XML.', content: { 'application/rss+xml': { schema: { type: 'string', example: '<?xml version="1.0"?><rss version="2.0"><channel><title>Blog</title></channel></rss>' } } } })
   rss() { return this.feed.rss(); }
 
+  @Get('feed.xml')
+  @Header('Content-Type', 'application/rss+xml; charset=utf-8')
+  @ApiPublicRoute()
+  @ApiOperation({ summary: 'Feed RSS público em feed.xml', description: 'Retorna o mesmo feed RSS 2.0 de /feed/rss com até 50 artigos publicados e ativos. Não requer autenticação.' })
+  @ApiResponse({ status: 200, description: 'Feed RSS 2.0 em XML.', content: { 'application/rss+xml': { schema: { type: 'string', example: '<?xml version="1.0"?><rss version="2.0"><channel><title>Blog</title></channel></rss>' } } } })
+  rssXml() { return this.feed.rss(); }
+
   @Get('feed/atom')
   @Header('Content-Type', 'application/atom+xml; charset=utf-8')
   @ApiPublicRoute()
