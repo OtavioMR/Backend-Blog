@@ -29,7 +29,7 @@ class SeriesDetail extends SeriesResponse {
 class SeriesItemsResponse {
   @ApiProperty({ type: [String], format: 'uuid', example: ['a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11'] }) postIds: string[];
 }
-@ApiTags('Series de artigos')
+@ApiTags('Séries de artigos')
 @Controller('series')
 export class PostSeriesController {
   constructor(private readonly service: PostSeriesService) {}
@@ -72,7 +72,7 @@ export class PostSeriesController {
   remove(@Param('id', ParseUUIDPipe) id: string, @Req() req: RequestWithUser) { return this.service.remove(id, req.user); }
 }
 
-@ApiTags('Series de artigos')
+@ApiTags('Séries de artigos')
 @Controller('posts/:postId/series')
 export class PostSeriesNavigationController {
   constructor(private readonly service: PostSeriesService) {}

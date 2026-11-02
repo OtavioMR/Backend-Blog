@@ -20,7 +20,7 @@ class PaginatedRevisionsDto {
   @ApiProperty({ type: () => PaginationMetaResponseDto }) meta: PaginationMetaResponseDto;
 }
 
-@ApiTags('Historico de artigos')
+@ApiTags('Histórico de artigos')
 @ApiBearerAuth('JWT-auth')
 @ApiParam({ name: 'postId', format: 'uuid', example: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11' })
 @ApiResponse({ status: 400, description: 'UUID ou paginacao invalida.' })

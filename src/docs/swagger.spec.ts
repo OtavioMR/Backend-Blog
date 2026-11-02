@@ -298,10 +298,15 @@ describe('Swagger Documentation Configuration', () => {
     expect(setup).toHaveBeenCalledWith('api/docs', app, expect.anything(), expect.objectContaining({
       swaggerOptions: expect.objectContaining({ deepLinking: false }),
     }));
-    setup.mockRestore();
     const setupConfig = createDocument.mock.calls[0][1];
     expect(setupConfig.info.description).toContain('/api/v1/users/confirm-email');
     expect(setupConfig.info.description).toContain('excerpt');
+    const generatedDocument = setup.mock.calls[0][2];
+    expect(generatedDocument.tags?.map((tag) => tag.name)).toEqual(
+      expect.arrayContaining(['Autenticação', 'Usuários', 'Artigos']),
+    );
+    expect(generatedDocument.paths['/api/v1/auth/totp/setup'].post?.summary).toBe('Iniciar configuração do TOTP');
+    setup.mockRestore();
     createDocument.mockRestore();
 
     await app.close();

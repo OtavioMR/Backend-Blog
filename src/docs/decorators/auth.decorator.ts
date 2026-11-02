@@ -17,7 +17,7 @@ import {
 import { ApiPublicRoute } from './public.decorator.js';
 
 export function ApiAuthTag() {
-  return ApiTags('Auth');
+  return ApiTags('Autenticação');
 }
 
 export function ApiLoginDoc() {

@@ -19,7 +19,7 @@ import {
 import { ApiPublicRoute } from './public.decorator.js';
 
 export function ApiUsersTag() {
-  return ApiTags('Users');
+  return ApiTags('Usuários');
 }
 
 export function ApiCreateUserDoc() {

@@ -27,7 +27,7 @@ export function setupSwagger(app: INestApplication, nodeEnv = process.env.NODE_E
         '- Listagens de posts retornam `excerpt` e `publishedAt`; consulte o detalhe do post para obter `content`.\n' +
         '- Listagens paginadas aceitam `page` e `limit` (padrão 1 e 10; limite máximo 100) e retornam `data` e `meta`.\n' +
         '- Respostas `400` indicam parâmetros inválidos; `401`, autenticação ausente ou inválida; `403`, permissão insuficiente; `404`, recurso indisponível; `409`, conflito de unicidade; `500`, erro interno.\n' +
-        '- Exclusões retornam `204 No Content` e desativam o registro logicamente.',
+        '- Consulte a resposta de cada operação: exclusões podem ter comportamentos e status diferentes.\n- Para paginação por cursor em artigos e comentários, envie `cursor=start` e continue com `nextCursor`, mantendo filtros e limite. Uma alteração concorrente pode retornar 409; repita a consulta.\n- O TOTP exige configuração prévia e invalida sessões ao ser ativado ou desativado. O login social usa cookie temporário e pode exigir desafio TOTP.\n- Limites por IP e rota podem retornar 429 com `Retry-After`. Campos desconhecidos e dados inválidos são rejeitados com 400.',
     )
     .setVersion('1.0')
     .addBearerAuth(
@@ -44,11 +44,11 @@ export function setupSwagger(app: INestApplication, nodeEnv = process.env.NODE_E
     )
     .addSecurityRequirements('JWT-auth')
     .addTag(
-      'Auth',
+      'Autenticação',
       'Operações de autenticação, renovação de tokens e encerramento de sessão',
     )
-    .addTag('Users', 'Operações de gerenciamento de usuários')
-    .addTag('Posts', 'Operações de gerenciamento e consulta de artigos')
+    .addTag('Usuários', 'Operações de gerenciamento de usuários')
+    .addTag('Artigos', 'Operações de gerenciamento e consulta de artigos')
     .addTag('Feeds', 'Feeds RSS e Atom e sitemap público em XML')
     .addTag('Autores', 'Perfis públicos de autores e administradores')
     .addTag('Tags', 'Consulta das tags associadas aos artigos')

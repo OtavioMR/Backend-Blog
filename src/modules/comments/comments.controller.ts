@@ -41,7 +41,7 @@ class CommentPageQuery extends PageQuery {
   @IsOptional() @IsString() @MaxLength(256) cursor?: string;
 }
 
-@ApiTags('comments')
+@ApiTags('Comentários')
 @Controller('posts/:postId/comments')
 export class PostCommentsController {
   constructor(private readonly service: CommentsService) {}
@@ -156,7 +156,7 @@ export class PostCommentsController {
   }
 }
 
-@ApiTags('comments')
+@ApiTags('Comentários')
 @ApiBearerAuth('JWT-auth')
 @UseGuards(JwtAuthGuard)
 @Controller('comments')

@@ -25,7 +25,7 @@ import {
 import { ApiPublicRoute } from './public.decorator.js';
 
 export function ApiPostsTag() {
-  return ApiTags('Posts');
+  return ApiTags('Artigos');
 }
 
 export function ApiFindAllPostsDoc() {

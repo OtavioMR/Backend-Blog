@@ -20,6 +20,6 @@ export class LoginDto {
   @IsNotEmpty()
   @MaxLength(72)
   password: string;
-  @ApiPropertyOptional({ description: 'Six-digit authenticator code, required when TOTP is enabled.', example: '123456' })
+  @ApiPropertyOptional({ description: 'Código de seis dígitos do autenticador, obrigatório quando o TOTP está ativado.', example: '123456' })
   @IsOptional() @Matches(/^\d{6}$/) totpCode?: string;
 }

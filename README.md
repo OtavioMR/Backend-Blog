@@ -1,194 +1,308 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# Backend Blog - API RESTful
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+API robusta, moderna e escalável desenvolvida em **NestJS** e **TypeScript**, projetada para alimentar plataformas editoriais completas, blogs corporativos e comunidades de criadores de conteúdo. O sistema conta com persistência em **PostgreSQL**, cache e filas assíncronas com **Redis**, além de documentação interativa via **Swagger/OpenAPI**.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+---
 
-## Description
+## 📖 Sobre o Projeto
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+O **Backend Blog** foi concebido para resolver os principais desafios de uma plataforma de publicação moderna: performance na entrega de conteúdo, segurança e privacidade dos usuários, engajamento comunitário e ferramentas administrativas eficientes para governança.
 
-## Project setup
+### Para que serve?
 
-```bash
-$ npm install
-```
+A aplicação fornece toda a infraestrutura de backend necessária para:
+- **Autores e Criadores:** Escrever, organizar em séries, agendar publicações, versionar revisões e acompanhar métricas de seus artigos.
+- **Leitores:** Consumir conteúdos com busca inteligente e rápida, interagir através de comentários aninhados, curtir, salvar artigos em coleções personalizadas, seguir autores favoritos e assinar newsletters.
+- **Equipes Editoriais e Moderadores:** Analisar denúncias de conteúdo, aplicar políticas de moderação, suspender contas irregulares e auditar operações sensíveis.
+- **Integrações e SEO:** Distribuir conteúdo via feeds RSS/Atom, disponibilizar sitemap XML dinâmico e integrar com frontends modernos de forma segura.
 
-## Compile and run the project
+---
 
-```bash
-# development
-$ npm run start
+## ⚙️ Como Funciona a Plataforma
 
-# watch mode
-$ npm run start:dev
+A arquitetura do sistema é modular e orientada a serviços no NestJS. Os principais módulos e fluxos do sistema incluem:
 
-# production mode
-$ npm run start:prod
-```
+### 1. Ciclo de Vida do Conteúdo (Artigos e Séries)
+- **Rascunhos e Publicação:** Autores criam rascunhos que podem ser submetidos à revisão editorial ou publicados imediatamente.
+- **Agendamento Automático:** Suporte para definir data e hora futuras de publicação, com um agendador interno que publica os artigos pontualmente.
+- **Histórico de Revisões:** Cada alteração significativa em um artigo gera uma revisão histórica, permitindo auditoria e restauração de versões anteriores.
+- **Séries e Coleções:** Artigos interligados podem ser agrupados em séries sequenciais (Ex: "Tutorial NestJS - Parte 1, 2, 3").
+- **Busca Otimizada:** Mecanismo de busca textual integrado em PostgreSQL utilizando índices textuais em português e suporte a correspondência de termos por similaridade.
 
-## Run tests
+### 2. Gestão de Usuários e Permissões
+- **Níveis de Acesso (RBAC):** Suporte nativo a papéis hierárquicos:
+  - `Leitor`: Cadastro padrão, leitura, comentários, curtidas, seguidores e coleções.
+  - `Autor`: Criação e gerenciamento de artigos próprios e séries.
+  - `Moderador`: Moderação de comentários, posts e análise de denúncias.
+  - `Admin`: Controle administrativo geral, auditoria e métricas do sistema.
+- **Perfis Públicos:** Bio, links sociais e upload de foto de perfil com validação e processamento seguro.
 
-```bash
-# unit tests
-$ npm run test
+### 3. Interação Social e Comunidade
+- **Comentários Aninhados:** Discussões estruturadas em tópicos com respostas encadeadas e curtidas em comentários.
+- **Feed Personalizado:** Feed customizado combinando autores seguidos e recomendações de artigos em destaque.
+- **Coleções Salvas:** Leitores podem organizar artigos favoritos em coleções públicas ou privadas.
+- **Central de Notificações:** Notificações automáticas para novas interações (respostas a comentários, novos seguidores e novos posts de autores seguidos).
 
-# e2e tests
-$ npm run test:e2e
+### 4. Segurança e Privacidade
+- **Autenticação Dupla:** Tokens JWT de acesso de curta duração acompanhados de *Refresh Tokens* seguros armazenados em cookies HTTP-Only com proteção contra rotação indevida.
+- **Autenticação em Dois Fatores (2FA / TOTP):** Camada adicional de proteção via aplicativos autenticadores (Google Authenticator, Authy, etc.).
+- **Login Social (OAuth 2.0):** Opção de autenticação simplificada através de provedores como Google e GitHub.
+- **Proteção contra Abusos:** Rate limiting configurável por rota, bloqueio temporário após tentativas consecutivas inválidas e sanitização contra ataques de injeção e XSS.
 
-# test coverage
-$ npm run test:cov
-```
+### 5. Comunicação Assíncrona e Performance
+- **Disparo de E-mails Resiliente:** Confirmações de conta, recuperação de senhas e newsletters são processadas por filas em segundo plano utilizando Redis, garantindo que falhas de rede não afetem a experiência do usuário.
+- **Cache Inteligente:** Listagens e consultas frequentes utilizam cache com invalidação automática sob alterações.
+- **Feeds e SEO:** Rotas abertas para `/feed/rss`, `/feed/atom` e `/sitemap.xml` para indexação em buscadores e agregadores de notícias.
 
-## Deployment
+---
 
-### Alteração de e-mail
+## 🚀 Tecnologias Utilizadas
 
-Execute as migrations antes de iniciar a versão atual. Os tokens de acesso emitidos antes desta atualização deixarão de funcionar e exigirão novo login ou renovação. A solicitação de alteração em `PATCH /api/v1/users/:id` exige `currentPassword` e envia um token ao novo endereço usando o SMTP configurado. O e-mail anterior permanece ativo até a confirmação. Para confirmar sem frontend, envie `{"token":"TOKEN_RECEBIDO"}` para `POST /api/v1/users/confirm-email-change`, por exemplo usando o Swagger em `/api/docs`. O token expira em 30 minutos e é de uso único; após confirmar, o usuário deve autenticar novamente. Se o envio falhar, solicite um novo token.
+- **Linguagem & Framework:** [Node.js](https://nodejs.org/), [TypeScript](https://www.typescriptlang.org/) e [NestJS](https://nestjs.com/)
+- **Banco de Dados Relacional:** [PostgreSQL 16](https://www.postgresql.org/) com [TypeORM](https://typeorm.io/)
+- **Filas e Cache:** [Redis 7](https://redis.io/) e [BullMQ](https://docs.bullmq.io/)
+- **Documentação de API:** [Swagger / OpenAPI](https://swagger.io/)
+- **Segurança:** Helmet, Throttler, Bcrypt, Passport JWT, Cookie-Parser, Sanitize-HTML
+- **Conteinerização:** [Docker](https://www.docker.com/) e Docker Compose
+- **Testes & Qualidade:** [Vitest](https://vitest.dev/) e [Oxlint](https://oxc.rs/)
 
-### Limitação de requisições
+---
 
-As rotas dos controllers aceitam até 100 requisições por minuto, por IP e por rota. Login aceita 20, recuperação de senha 5 e redefinição de senha 10 por minuto; ao exceder o limite, a API responde com HTTP 429 e o cabeçalho `Retry-After`. Os contadores ficam na memória de cada processo e são reiniciados quando ele reinicia. Em múltiplas instâncias, é necessário um armazenamento compartilhado para aplicar um limite consistente.
+## 📋 Pré-requisitos do Sistema
 
-O IP usado é o da conexão. Atrás de um proxy reverso, configure `trust proxy` no Express somente para proxies confiáveis da infraestrutura; sem isso, clientes podem compartilhar o mesmo limite, e confiar indiscriminadamente em cabeçalhos permite falsificar o IP. Arquivos estáticos não passam pelo guard dos controllers e precisam de proteção no proxy ou na infraestrutura. O Swagger fica desativado em produção.
+Antes de iniciar, verifique se você possui os seguintes softwares instalados na sua máquina:
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+1. **Node.js**: Versão `20.x` ou `24.x` (LTS recomendada).
+2. **npm**: Versão `10.x` ou superior (incluso com o Node.js).
+3. **Docker e Docker Compose**: Recomendado para inicializar rapidamente o PostgreSQL e o Redis sem necessidade de instalação manual.
+   - *Alternativa:* Se preferir não usar Docker, certifique-se de ter instâncias ativas do PostgreSQL 16+ e do Redis 7+ instaladas e rodando localmente.
+4. **Servidor SMTP (Opcional no início, recomendado para fluxos de e-mail):** Uma conta de e-mail ou serviço de teste (como Mailtrap, Gmail com senha de app, ou similar) para envio dos e-mails de confirmação e recuperação de senha.
 
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+---
 
-```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
-```
+## 🛠️ Passo a Passo para Instalação e Execução
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
-
-## Observability
-
-In production applications, observability is essential for understanding how your system behaves, detecting issues early, and maintaining reliable performance.
-
-[NestJS Observe](https://observe.nestjs.com) automatically instruments your NestJS application, giving you deep visibility into your system with minimal setup:
-
-- **Distributed tracing:** Follow requests across services and understand how they flow through your system.
-- **Waterfall analysis:** Visualize request execution and identify slow operations, bottlenecks, and unexpected delays.
-- **Performance analysis:** Analyze application performance in real time and quickly pinpoint areas that need optimization.
-- **Metrics:** Track key application and infrastructure metrics to understand system health and performance trends.
-- **Logging:** Centralize and correlate logs with traces and other telemetry to make debugging easier.
-- **Error tracking:** Detect errors quickly and investigate their root causes with the surrounding context.
-- **SLA monitoring:** Track service-level objectives and identify when your application is approaching or exceeding defined thresholds.
-- **Alarms and alerts:** Set up alerts for critical errors, performance degradation, SLA violations, and other anomalies so your team can react quickly.
-
-This project is already instrumented. To connect it, run this and approve the code it prints at [observe.nestjs.com/link](https://observe.nestjs.com/link) - signing up for free if you have no account:
+### Passo 1: Clonar o Repositório
 
 ```bash
-$ npx @nestjs/observe link
+git clone https://github.com/seu-usuario/Backend-Blog.git
+cd Backend-Blog
 ```
 
-It writes the app key and secret into `.env` and makes every `nest start` script (`start`, `start:dev`, `start:debug`) load it. In production, set `OBSERVE_APP_KEY` and `OBSERVE_APP_SECRET` in the environment instead.
+### Passo 2: Instalar as Dependências
 
-Or do it by hand: create an application and an API key at [observe.nestjs.com](https://observe.nestjs.com), and set the pair as `OBSERVE_APP_KEY` and `OBSERVE_APP_SECRET` in the environment the app runs in.
+Instale todos os pacotes necessários utilizando o gerenciador de pacotes `npm`:
 
-The free plan needs no payment details and covers 300,000 events a month. You can also browse the [live demo](https://www.observe-demo.nestjs.com/dashboard) first - the whole dashboard over a busy service's data, with nothing to install.
+```bash
+npm install
+```
 
-## Resources
+---
 
-Check out a few resources that may come in handy when working with NestJS:
+### Passo 3: Configurar as Variáveis de Ambiente
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Auto-instrument your application with [NestJS Observe](https://observe.nestjs.com). Distributed tracing, metrics, and logging made easy. Error tracking and performance monitoring for your NestJS applications.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+O projeto utiliza um arquivo `.env` para carregar as configurações locais de portas, segredos e conexões. Crie o seu arquivo com base no exemplo:
 
-## Support
+**No Linux/macOS:**
+```bash
+cp .env.example .env
+```
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+**No Windows (PowerShell):**
+```powershell
+Copy-Item .env.example .env
+```
 
-## Stay in touch
+Abra o arquivo `.env` gerado e defina valores adequados para o seu ambiente local:
 
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+- **Banco de Dados:** Ajuste `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD` e `DB_NAME`.
+- **JWT:** Preencha `JWT_SECRET` e `JWT_REFRESH_SECRET` com cadeias de texto longas e aleatórias (mínimo de 32 caracteres).
+- **Redis:** Mantenha `REDIS_URL=redis://127.0.0.1:6379` para desenvolvimento padrão.
+- **SMTP:** Insira credenciais válidas para envio de e-mails em `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER` e `SMTP_PASS`.
 
-## License
+> ⚠️ **Aviso de Segurança:** Nunca versione ou compartilhe o seu arquivo `.env` em repositórios públicos.
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+---
 
+### Passo 4: Inicializar o Banco de Dados e o Redis via Docker
 
-### Sprint 2: operacao e compatibilidade
+Com o Docker em execução, suba apenas os serviços de infraestrutura (PostgreSQL e Redis) em segundo plano:
 
-Execute `npm.cmd run migration:run` antes de iniciar a nova versao. Contas existentes permanecem verificadas; novos cadastros recebem um token valido por 24 horas por SMTP. Confirme com `POST /api/v1/users/confirm-email` e `{ "token": "..." }`. Se necessario, solicite outro token com `POST /api/v1/users/resend-verification` e `{ "email": "..." }`; a resposta nao revela se a conta existe. O login exige a confirmacao. Falhas no envio sao registradas e permitem uma nova solicitacao.
+```bash
+docker compose up -d postgres redis
+```
 
-Apos cinco senhas incorretas, a conta fica temporariamente bloqueada; novas falhas apos o vencimento aumentam o prazo ate uma hora. A resposta de autenticacao continua generica.
+Para verificar se os contêineres estão operando com sucesso:
 
-As listagens de posts, rascunhos proprios e salvos retornam `excerpt` em vez de `content`; o conteudo completo permanece no detalhe. `publishedAt` indica a ultima publicacao e e nulo em rascunhos; posts publicados existentes usam `createdAt` como aproximacao. HTML de artigos e limitado a uma lista segura, e comentarios sao tratados como texto. Os metadados de paginacao de comentarios agora incluem `totalPages` e `hasPreviousPage`.
+```bash
+docker compose ps
+```
 
-Fotos sao convertidas para WebP e limitadas a 512 pixels. Para limpar arquivos sem referencia com mais de 24 horas, execute `npm.cmd run photos:clean` para inspecionar os candidatos e `npm.cmd run photos:clean -- --apply` para remove-los, com acesso ao banco correto e ao diretorio de uploads. O comando pode ser agendado na infraestrutura. O endpoint `GET /api/v1/health` verifica o banco. Para exportar traces, configure `OTEL_EXPORTER_OTLP_ENDPOINT` (ou `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT`) e `OTEL_SERVICE_NAME`; o SDK fica desativado sem endpoint. O Swagger fica desativado em producao.
+---
 
+### Passo 5: Executar as Migrations do Banco de Dados
 
-### Conteudo e publicacao
+As **migrations** são responsáveis por criar e atualizar a estrutura de tabelas, índices e relacionamentos no banco de dados de forma versionada e controlada.
 
-Feeds publicos em `GET /api/v1/feed/rss` (também disponível em `GET /api/v1/feed.xml`) e `GET /api/v1/feed/atom` mostram os 50 artigos publicados mais recentes. `GET /api/v1/sitemap.xml` lista artigos publicados e ativos. Os links usam `FRONTEND_URL` seguido de `/posts/:slug`; configure o frontend para essa rota.
+#### Aplicar as migrations:
+Para rodar todas as migrations pendentes no banco configurado, execute:
 
-`GET /api/v1/posts/:id/related` recomenda ate quatro artigos por tags e categorias ativas em comum. `GET /api/v1/authors/:id` mostra perfil e quantidade de publicacoes; `PATCH /api/v1/users/:id` permite editar `bio`, `websiteUrl` e `socialUrl` (use `null` para limpar).
+```bash
+npm run migration:run
+```
 
-Para agendar um rascunho, informe `scheduledAt` como data futura ISO 8601 com fuso, por exemplo `2030-01-01T12:00:00Z`, em `POST /api/v1/posts` ou `PATCH /api/v1/posts/:id`. Envie `null` para cancelar. Publicacao manual ou desativacao cancela o agendamento. O processo da API verifica publicacoes vencidas a cada minuto; enquanto estiver parado, elas serao processadas na proxima verificacao apos reiniciar.
+#### Outros comandos úteis de migration:
+- **Reverter a última migration aplicada:**
+  ```bash
+  npm run migration:revert
+  ```
+- **Gerar uma nova migration a partir das entidades:**
+  ```bash
+  npm run migration:generate -- src/database/migrations/NomeDaSuaMigration
+  ```
 
-## TOTP
+---
 
-Configure `TOTP_ENCRYPTION_KEY` com 64 caracteres hexadecimais (32 bytes aleatórios) antes de ativar o TOTP. Mantenha a chave estável e secreta: perdê-la ou substituí-la torna ilegíveis os segredos existentes. Quando o TOTP está ativo, o login exige um código novo de seis dígitos. A ativação ou desativação invalida todas as sessões existentes.
+### Passo 6: Iniciar o Servidor da Aplicação
 
-## Login social
+Com o banco preparado e as migrations aplicadas, inicie a API:
 
-Configure `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` e `GOOGLE_CALLBACK_URL` para Google e/ou `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET` e `GITHUB_CALLBACK_URL` para GitHub. Cadastre as URLs de callback exatas nos respectivos provedores; elas devem usar HTTPS, exceto em localhost. O cliente chama a rota de início com cookies habilitados e navega para a URL retornada. O callback devolve os tokens ou um desafio TOTP. Contas já existentes devem vincular o provedor autenticadas antes de usá-lo para login; o e-mail verificado no provedor deve coincidir com o da conta.
+#### Modo de Desenvolvimento (com reinicialização automática ao salvar arquivos):
+```bash
+npm run start:dev
+```
 
-O fluxo TOTP ainda não oferece códigos de recuperação: guarde o aplicativo autenticador e a chave de criptografia com cuidado.
+#### Modo de Produção (compilado):
+```bash
+npm run build
+npm run start:prod
+```
 
-## Redis, fila e cache
+---
 
-Instale as dependências com `npm.cmd ci`, configure `REDIS_URL` e execute `npm.cmd run migration:run` antes de iniciar a aplicação. Para desenvolvimento, `docker compose up -d redis` inicia o Redis local com persistência AOF; o serviço escuta apenas em `127.0.0.1`. Em produção, use uma instância isolada, autenticação, TLS (`rediss://`) e persistência adequada. Cada ambiente deve usar seu próprio banco Redis.
+### Passo 7: Acessar a Aplicação e a Documentação
 
-Os e-mails transacionais são persistidos primeiro na outbox do PostgreSQL, encaminhados ao BullMQ e enviados pelo worker da própria aplicação. São feitas até 300 tentativas, com intervalos crescentes limitados a cinco minutos; mensagens expiradas não são enviadas. O conteúdo e os destinatários são cifrados com uma chave derivada de `JWT_SECRET`; todas as instâncias devem compartilhar o mesmo segredo. Alterá-lo impede o processamento de mensagens antigas. Dados cifrados podem permanecer em arquivos AOF e backups mesmo após a remoção do trabalho. Uma queda do Redis preserva os e-mails pendentes na outbox; o cache é dispensado quando indisponível.
+Assim que o servidor for inicializado, você verá logs indicando que a porta está pronta para receber requisições (por padrão `http://localhost:3000`).
 
-As entregas da newsletter permanecem registradas no PostgreSQL até confirmação SMTP; o agendador envia até 50 trabalhos por minuto à fila e retenta falhas após cinco minutos. A entrega é pelo menos uma vez: uma falha depois da aceitação SMTP e antes do registro pode resultar em e-mail duplicado. O processo da aplicação precisa estar ativo para executar o worker e o agendador.
+- **Documentação Interativa (Swagger UI):**
+  Acesse no navegador:
+  👉 [http://localhost:3000/api/docs](http://localhost:3000/api/docs)
+  *(Permite testar todas as rotas, visualizar parâmetros esperados, esquemas de resposta e realizar autenticação).*
 
-As listagens públicas de artigos, categorias e tags usam cache compartilhado por até 60 segundos, sem SQL nos hits. Escritas HTTP invalidam o cache antes de responder; o agendador também invalida após publicar artigos. Requisições com cookies ou autorização não usam esse cache. Redis indisponível faz a consulta seguir para o banco; reconexões invalidam entradas anteriores. Após alterações SQL manuais, reinicie a API para invalidar o cache imediatamente ou aguarde o TTL. Todas as instâncias de um mesmo ambiente devem compartilhar o Redis; ambientes diferentes devem usar bancos Redis distintos.
+- **Verificação de Saúde (Health Check):**
+  Acesse no navegador ou cliente HTTP:
+  👉 [http://localhost:3000/api/v1/health](http://localhost:3000/api/v1/health)
 
-Em `GET /api/v1/posts` e `GET /api/v1/posts/:postId/comments`, use `cursor=start` para iniciar a paginação por cursor e envie o `nextCursor` recebido para continuar com os mesmos filtros e limite. A resposta contém `meta.hasMore` e `meta.nextCursor`; sem `cursor`, a paginação por página continua disponível. O cursor é opaco e não representa um snapshot: alterações entre requisições podem mudar os resultados. Se a lista mudar durante a formação do cursor, a API pode responder 409; repita a requisição.
+- **Feeds Públicos e Sitemap:**
+  - RSS: `http://localhost:3000/api/v1/feed/rss`
+  - Atom: `http://localhost:3000/api/v1/feed/atom`
+  - Sitemap: `http://localhost:3000/api/v1/sitemap.xml`
 
-## Versão 1.0.0
+---
 
-A auditoria dos 55 itens originais e da issue adicional #57 está em [docs/RELEASE_AUDIT.md](docs/RELEASE_AUDIT.md). O backlog e os critérios operacionais estão alinhados com a implementação.
+## 🐳 Executando a Stack Completa com Docker
 
-Para executar toda a aplicação em Docker, configure os valores de `.env` usando `.env.example` como referência e execute `docker compose --profile app up -d --build --wait`. O serviço da API usa `NODE_ENV=production`, aplica as migrations antes de iniciar e responde em `http://localhost:3000/api/v1/health` (ajuste a porta conforme `PORT`). PostgreSQL e Redis têm health checks e persistência; o volume `uploads` preserva as imagens. Não use `docker compose down -v` se precisar manter os dados.
+Se desejar executar toda a solução (incluindo a API, PostgreSQL e Redis) encapsulada em contêineres Docker:
 
-O Swagger permanece disponível no desenvolvimento em `/api/docs` e desativado no container de produção. Para publicar na internet, configure domínio, HTTPS e o proxy reverso para um único salto confiável, mantendo acesso direto às portas restrito. Configure `PUBLIC_API_URL` com a origem pública da API para os links clicáveis de confirmação/cancelamento da newsletter e `FRONTEND_URL` com a origem do frontend.
+1. Certifique-se de que o arquivo `.env` foi configurado.
+2. Execute o comando com o perfil `app`:
 
-A busca usa índices GIN de full-text em português e de trigramas para trechos literais. Com `search` e paginação numérica, o título tem maior peso no ranking; o cursor preserva a ordem cronológica. O detalhe de artigos publicados inclui `series` com total de partes públicas e vizinhos. Revisões podem ser listadas e restauradas pelo autor ou administrador.
+```bash
+docker compose --profile app up -d --build --wait
+```
 
-E-mails transacionais entram primeiro na outbox cifrada do PostgreSQL; a cada dez segundos até 100 mensagens são encaminhadas ao BullMQ. A indisponibilidade do Redis preserva as mensagens no banco. A fila repete o envio até a validade do token, com intervalos de até cinco minutos. Como em qualquer envio SMTP com confirmação externa, a entrega é pelo menos uma vez e pode haver duplicação após falha entre o envio e o registro. Monitore a outbox e falhas da fila.
+Nesse cenário:
+- A aplicação será compilada e executada em contêiner próprio.
+- As migrations serão aplicadas automaticamente na inicialização.
+- Para encerrar os serviços:
+  ```bash
+  docker compose down
+  ```
+  *(Evite utilizar a flag `-v` para não excluir os volumes de dados persistentes do banco e das imagens de upload).*
 
-Refresh tokens devem ser renovados em série pelo cliente: reutilizar um token antigo revoga a sessão afetada, inclusive seu access token, sem encerrar outros dispositivos. Senhas novas e alteradas usam bcrypt com custo 12; hashes antigos de custo 10 são atualizados no próximo login válido. O primeiro bloqueio após cinco senhas incorretas dura 15 minutos. Contas suspensas recebem o motivo e prazo após validar a senha.
+---
 
-Para a validação completa local: execute `npm.cmd run migration:run`, configure `RUN_DB_TESTS=1` e `RUN_REDIS_TESTS=1`, e rode `npm.cmd run test -- --no-file-parallelism`, `npm.cmd run test:e2e -- --no-file-parallelism`, `npm.cmd run lint` e `npx.cmd tsc --noEmit -p tsconfig.build.json`. As integrações Redis isoladas usam `127.0.0.1:16379`; inicie uma instância de teste nessa porta. O GitHub Actions executa essas verificações com serviços PostgreSQL/Redis novos e compila a imagem Docker.
+## 🔐 Configurações e Variáveis de Ambiente
+
+Principais variáveis contidas no arquivo `.env.example`:
+
+| Grupo | Variável | Descrição / Exemplo |
+| :--- | :--- | :--- |
+| **Aplicação** | `NODE_ENV` | Ambiente de execução (`development`, `production` ou `test`). |
+| | `PORT` | Porta HTTP em que a API escuta (padrão: `3000`). |
+| **Banco de Dados** | `DB_HOST`, `DB_PORT` | Endereço do host e porta do PostgreSQL (padrão: `localhost`, `5432` ou `5433`). |
+| | `DB_USER`, `DB_PASSWORD`, `DB_NAME` | Credenciais e nome do banco de dados relacional. |
+| **Autenticação** | `JWT_SECRET`, `JWT_REFRESH_SECRET` | Chaves secretas exclusivas para assinatura dos tokens JWT. |
+| | `JWT_EXPIRES_IN`, `JWT_REFRESH_EXPIRES_IN`| Tempo de validade dos tokens em segundos (ex: `900` e `604800`). |
+| | `TOTP_ENCRYPTION_KEY` | Chave de criptografia para 2FA/TOTP (opcional, 64 caracteres hexadecimais). |
+| **Mensageria** | `REDIS_URL` | URL de conexão com a instância Redis para filas e cache. |
+| | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM` | Configurações do servidor de e-mail para mensagens transacionais. |
+| **Integração** | `FRONTEND_URL` | Origem da aplicação frontend (para redirecionamentos e CORS). |
+| | `PUBLIC_API_URL` | Endereço público da API (usado em links de confirmação e newsletter). |
+
+---
+
+## 🧪 Testes e Qualidade de Código
+
+O projeto conta com uma suíte de testes automatizados e linters para assegurar a consistência do código:
+
+```bash
+# Executar a suíte de testes unitários
+npm run test
+
+# Executar testes em modo assistido (watch)
+npm run test:watch
+
+# Executar testes com relatório de cobertura
+npm run test:cov
+
+# Executar testes ponta a ponta (E2E)
+npm run test:e2e
+
+# Executar análise estática de código (Linter)
+npm run lint
+
+# Formatar o código de acordo com o padrão do projeto
+npm run format
+```
+
+---
+
+## 📂 Estrutura de Diretórios
+
+A estrutura do projeto segue as convenções e padrões recomendados do NestJS:
+
+```text
+Backend-Blog/
+├── src/
+│   ├── common/         # Filtros globais, interceptors, guards e validações compartilhadas
+│   ├── database/       # Configuração da DataSource do TypeORM e migrations versionadas
+│   ├── docs/           # Modelos e configurações da documentação OpenAPI/Swagger
+│   ├── modules/        # Módulos de domínio da aplicação
+│   │   ├── analytics/  # Métricas e visualizações de artigos
+│   │   ├── audit/      # Trilha de auditoria para ações administrativas
+│   │   ├── auth/       # Autenticação JWT, 2FA/TOTP e login social
+│   │   ├── categories/ # Gestão de categorias de artigos
+│   │   ├── comments/   # Comentários e respostas em árvore
+│   │   ├── mail/       # Processamento e envio resiliente de e-mails
+│   │   ├── moderation/ # Moderação de conteúdo e gestão de suspensões
+│   │   ├── newsletter/ # Gestão de inscrições e envios de newsletter
+│   │   ├── notifications/ # Central de notificações para usuários
+│   │   ├── posts/      # Artigos, agendamentos, séries e histórico de versões
+│   │   ├── reports/    # Sistema de denúncias de posts e comentários
+│   │   ├── tags/       # Gestão de tags de conteúdo
+│   │   └── users/      # Usuários, perfis de autores e seguidores
+│   ├── app.module.ts   # Módulo raiz da aplicação
+│   └── main.ts         # Ponto de entrada (bootstrap) da API NestJS
+├── test/               # Suíte de testes de integração e ponta a ponta (E2E)
+├── uploads/            # Armazenamento local de uploads de mídia e avatares
+├── docker-compose.yml  # Definição dos serviços PostgreSQL, Redis e aplicação
+├── Dockerfile          # Imagem de produção da aplicação
+└── package.json        # Dependências e scripts do ecossistema Node.js
+```
+
+---
+
+## 📄 Licença
+
+Este projeto é desenvolvido para fins educacionais e profissionais. Consulte os termos de uso antes de distribuição pública.

@@ -5,7 +5,7 @@ import { JwtAuthGuard } from '../auth/guard/jwt-auth.guard.js';
 import { RolesGuard } from '../auth/guard/roles.guard.js';
 import { UserRole } from '../users/enums/user.enum.js';
 import { AnalyticsService } from './analytics.service.js';
-@ApiTags('Analytics')
+@ApiTags('Indicadores')
 @ApiBearerAuth('JWT-auth')
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles(UserRole.ADMIN)
