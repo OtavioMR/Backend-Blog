@@ -13,7 +13,7 @@ O **Backend Blog** foi concebido para resolver os principais desafios de uma pla
 A aplicação fornece toda a infraestrutura de backend necessária para:
 - **Autores e Criadores:** Escrever, organizar em séries, agendar publicações, versionar revisões e acompanhar métricas de seus artigos.
 - **Leitores:** Consumir conteúdos com busca inteligente e rápida, interagir através de comentários aninhados, curtir, salvar artigos em coleções personalizadas, seguir autores favoritos e assinar newsletters.
-- **Equipes Editoriais e Moderadores:** Analisar denúncias de conteúdo, aplicar políticas de moderação, suspender contas irregulares e auditar operações sensíveis.
+- **Equipes Editoriais e Administradores (Moderação):** Analisar denúncias de conteúdo, aplicar políticas de moderação, suspender contas irregulares e auditar operações sensíveis.
 - **Integrações e SEO:** Distribuir conteúdo via feeds RSS/Atom, disponibilizar sitemap XML dinâmico e integrar com frontends modernos de forma segura.
 
 ---
@@ -30,11 +30,10 @@ A arquitetura do sistema é modular e orientada a serviços no NestJS. Os princi
 - **Busca Otimizada:** Mecanismo de busca textual integrado em PostgreSQL utilizando índices textuais em português e suporte a correspondência de termos por similaridade.
 
 ### 2. Gestão de Usuários e Permissões
-- **Níveis de Acesso (RBAC):** Suporte nativo a papéis hierárquicos:
+- **Níveis de Acesso (RBAC):** Suporte nativo a 3 papéis hierárquicos:
   - `Leitor`: Cadastro padrão, leitura, comentários, curtidas, seguidores e coleções.
   - `Autor`: Criação e gerenciamento de artigos próprios e séries.
-  - `Moderador`: Moderação de comentários, posts e análise de denúncias.
-  - `Admin`: Controle administrativo geral, auditoria e métricas do sistema.
+  - `Admin`: Controle administrativo geral, moderação de comentários/posts, análise de denúncias, auditoria e métricas do sistema (o papel de moderador é acumulado pelo administrador).
 - **Perfis Públicos:** Bio, links sociais e upload de foto de perfil com validação e processamento seguro.
 
 ### 3. Interação Social e Comunidade
