@@ -47,7 +47,7 @@ export class ModerationService {
   }
   async listCategories(page = 1, limit = 10) {
     const [data, count] = await Promise.all([
-      this.dataSource.query(`SELECT c.id, c.name, c.slug, c.is_active AS "isActive", c.deleted_at AS "deletedAt", count(pc.post_id)::int AS "postCount" FROM categories c LEFT JOIN post_categories pc ON pc.category_id = c.id GROUP BY c.id ORDER BY c.name, c.id LIMIT $1 OFFSET $2`, [limit, (page - 1) * limit]),
+      this.dataSource.query(`SELECT c.id, c.name, c.slug, c.description, c.is_active AS "isActive", c.deleted_at AS "deletedAt", count(pc.post_id)::int AS "postCount" FROM categories c LEFT JOIN post_categories pc ON pc.category_id = c.id GROUP BY c.id ORDER BY c.name, c.id LIMIT $1 OFFSET $2`, [limit, (page - 1) * limit]),
       this.dataSource.query('SELECT count(*)::int AS total FROM categories'),
     ]);
     return { data, meta: paginationMeta(page, limit, count[0].total) };

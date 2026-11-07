@@ -250,6 +250,23 @@ describe('CategoriesService', () => {
       expect(mockCategoryRepository.save).toHaveBeenCalledWith(existing);
     });
 
+    it('deve reativar categoria inativa via update quando isActive for true', async () => {
+      const existing = {
+        id: 'cat-inactive',
+        name: 'Inativo',
+        slug: 'inativo',
+        isActive: false,
+        deletedAt: new Date(),
+      };
+      mockCategoryRepository.findOne.mockResolvedValueOnce(existing);
+
+      await service.update('cat-inactive', { isActive: true }, 'admin-1');
+
+      expect(existing.isActive).toBe(true);
+      expect(existing.deletedAt).toBeNull();
+      expect(mockCategoryRepository.save).toHaveBeenCalledWith(existing);
+    });
+
     it('deve lançar NotFoundException se a categoria a ser editada não existir', async () => {
       mockCategoryRepository.findOne.mockResolvedValue(null);
 

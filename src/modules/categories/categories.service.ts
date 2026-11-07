@@ -189,7 +189,8 @@ export class CategoriesService {
     actorId?: string,
   ): Promise<Category> {
     const category = await this.categoriesRepository.findOne({
-      where: { id, isActive: true },
+      where: { id },
+      withDeleted: true,
     });
 
     if (!category) {
@@ -256,9 +257,15 @@ export class CategoriesService {
 
     if (updateCategoryDto.isActive !== undefined) {
       category.isActive = updateCategoryDto.isActive;
+      if (updateCategoryDto.isActive) {
+        category.deletedAt = null;
+      } else if (!category.deletedAt) {
+        category.deletedAt = new Date();
+      }
     }
 
-    const savedCategory = await this.saveAudited(category, actorId, 'category.updated');
+    const auditAction = updateCategoryDto.isActive === true ? 'category.reactivated' : 'category.updated';
+    const savedCategory = await this.saveAudited(category, actorId, auditAction);
     this.logger.log(`Categoria ${id} atualizada`);
     return savedCategory;
   }
