@@ -22,6 +22,17 @@ export class FindPostsQueryDto extends PaginationQueryDto {
   @MaxLength(100)
   author?: string;
 
+  @ApiPropertyOptional({
+    description: 'Filtrar artigos pelo ID (UUID) do autor (opcional)',
+    example: 'b1ffcd88-8b1a-4ce7-aa5c-5cc8ac271b22',
+    required: false,
+  })
+  @IsOptional()
+  @Transform(({ value }) => (value === '' ? undefined : value))
+  @ValidateIf((o) => o.authorId !== undefined && o.authorId !== '')
+  @IsUUID('4')
+  authorId?: string;
+
   @ApiPropertyOptional({ description: 'Trecho do nome da categoria, sem diferenciar maiúsculas ou acentos', example: 'tecnologia' })
   @IsOptional()
   @IsString()

@@ -34,6 +34,7 @@ export class Comment {
   replyTo: Comment | null;
   @Column({ type: 'varchar', length: 1000 }) content: string;
   @Column({ name: 'is_active', default: true }) isActive: boolean;
+  @Column({ name: 'moderation_hidden', default: false }) moderationHidden: boolean;
   @Column({ name: 'edited_at', type: 'timestamptz', nullable: true })
   editedAt: Date | null;
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })

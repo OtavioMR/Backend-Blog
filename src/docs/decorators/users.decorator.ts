@@ -59,7 +59,7 @@ export function ApiFindAllUsersDoc() {
     ApiOperation({
       summary: 'Listar usuários paginado (Admin)',
       description:
-        'Retorna a lista paginada de usuários ativos cadastrados no sistema. Acesso restrito a administradores (ADMIN).',
+        'Retorna a lista paginada de usuários ativos cadastrados no sistema. Acesso restrito a administradores (ADMIN ou SUPER_ADMIN).',
     }),
     ApiQuery({
       name: 'page',
@@ -103,7 +103,7 @@ export function ApiFindUserByIdDoc() {
     ApiOperation({
       summary: 'Buscar usuário por ID',
       description:
-        'Retorna os dados cadastrais do usuário caso seja o próprio solicitante ou ADMIN, ou apenas o perfil público (sem e-mail) para outros usuários.',
+        'Retorna os dados cadastrais do usuário caso seja o próprio solicitante ou administrador, ou apenas o perfil público (sem e-mail) para outros usuários. firstPostApproved só aparece na consulta do próprio titular; o backend continua responsável por autorizar publicações.',
     }),
     ApiParam({
       name: 'id',
@@ -145,7 +145,7 @@ export function ApiUpdateUserDoc() {
     ApiOperation({
       summary: 'Atualizar dados de um usuário',
       description:
-        'Atualiza informações cadastrais. Alterações de senha ou e-mail exigem senha atual e devem ser solicitadas pelo titular. O novo e-mail só é efetivado após confirmação do token enviado ao novo endereço.',
+        'Somente o titular pode atualizar seus dados. Senha e e-mail exigem senha atual; o novo e-mail exige confirmação. Role e status não são aceitos nesta rota: use as rotas administrativas de função e suspensão.',
     }),
     ApiParam({
       name: 'id',
@@ -198,7 +198,7 @@ export function ApiRemoveUserDoc() {
     ApiOperation({
       summary: 'Desativar usuário (Soft Delete)',
       description:
-        'Desativa a conta de um usuário (soft delete) e revoga tokens ativos sem removê-lo fisicamente do banco de dados. Apenas o próprio usuário ou administradores podem executar esta ação.',
+        'Desativa a conta de um usuário (soft delete) e revoga tokens ativos sem removê-lo fisicamente do banco de dados. Apenas o próprio usuário ou administradores podem executar esta ação. Contas administrativas não podem ser desativadas por esta rota.',
     }),
     ApiParam({
       name: 'id',

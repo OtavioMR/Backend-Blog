@@ -161,9 +161,9 @@ export function ApiCreateCategoryDoc() {
   return applyDecorators(
     ApiBearerAuth('JWT-auth'),
     ApiOperation({
-      summary: 'Criar nova categoria (Apenas ADMIN)',
+      summary: 'Criar nova categoria (ADMIN ou SUPER_ADMIN)',
       description:
-        'Cadastra uma nova categoria no blog. Exige token JWT de um usuário com perfil ADMIN.',
+        'Cadastra uma nova categoria no blog. Exige token JWT de um usuário com perfil ADMIN ou SUPER_ADMIN.',
     }),
     ApiResponse({
       status: 201,
@@ -202,9 +202,9 @@ export function ApiUpdateCategoryDoc() {
   return applyDecorators(
     ApiBearerAuth('JWT-auth'),
     ApiOperation({
-      summary: 'Atualizar categoria (Apenas ADMIN)',
+      summary: 'Atualizar categoria (ADMIN ou SUPER_ADMIN)',
       description:
-        'Atualiza os dados de uma categoria existente. Exige token JWT de um usuário com perfil ADMIN.',
+        'Atualiza os dados de uma categoria existente. Exige token JWT de um usuário com perfil ADMIN ou SUPER_ADMIN.',
     }),
     ApiParam({
       name: 'id',
@@ -255,9 +255,9 @@ export function ApiRemoveCategoryDoc() {
   return applyDecorators(
     ApiBearerAuth('JWT-auth'),
     ApiOperation({
-      summary: 'Desativar / remover categoria (Apenas ADMIN)',
+      summary: 'Desativar / remover categoria (ADMIN ou SUPER_ADMIN)',
       description:
-        'Realiza soft delete na categoria. Os artigos vinculados permanecem íntegros. Exige token JWT com perfil ADMIN.',
+        'Realiza soft delete na categoria. Os artigos vinculados permanecem íntegros. Exige token JWT com perfil ADMIN ou SUPER_ADMIN.',
     }),
     ApiParam({
       name: 'id',

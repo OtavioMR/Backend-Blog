@@ -20,6 +20,7 @@ describe('UsersService', () => {
       findAndCount: vi.fn(),
       create: vi.fn((data) => data),
       save: vi.fn((data) => Promise.resolve(data)),
+      update: vi.fn().mockResolvedValue({ affected: 1 }),
       softRemove: vi.fn((data) => Promise.resolve(data)),
     };
     mockMailService = { sendEmailChangeConfirmation: vi.fn().mockResolvedValue(undefined) };
@@ -50,6 +51,18 @@ describe('UsersService', () => {
     await expect(service.becomeAuthor('user-1')).rejects.toThrow();
   });
 
+  it('bloqueia autopromoção, concessão de ADMIN e alterações em outros administradores', async () => {
+    const admin = { userId: 'admin', role: UserRole.ADMIN };
+    mockUsersRepository.findOne.mockResolvedValue({ id: 'admin', role: UserRole.ADMIN, isActive: true });
+    await expect(service.update('admin', { role: UserRole.READER }, admin)).rejects.toThrow('própria função');
+    mockUsersRepository.findOne.mockResolvedValue({ id: 'other', role: UserRole.READER, isActive: true });
+    await expect(service.update('other', { role: UserRole.ADMIN }, admin)).rejects.toThrow('privilégios administrativos');
+    mockUsersRepository.findOne.mockResolvedValue({ id: 'other', role: UserRole.ADMIN, isActive: true });
+    await expect(service.update('other', { role: UserRole.READER }, admin)).rejects.toThrow('outro administrador');
+    await expect(service.remove('other', admin)).rejects.toThrow('conta administrativa');
+    expect(mockUsersRepository.save).not.toHaveBeenCalled();
+  });
+
   describe('findByIdForRequester', () => {
     const targetUser = {
       id: 'user-1',
@@ -57,6 +70,7 @@ describe('UsersService', () => {
       profilePhoto: '/uploads/maria.webp',
       email: 'maria@example.com',
       role: UserRole.AUTHOR,
+      firstPostApproved: false,
       isActive: true,
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -70,6 +84,9 @@ describe('UsersService', () => {
 
       expect(result).toHaveProperty('email', 'maria@example.com');
       expect(result).toHaveProperty('role', UserRole.AUTHOR);
+      expect(result).toHaveProperty('firstPostApproved', false);
+      mockUsersRepository.findOne.mockResolvedValue({ ...targetUser, firstPostApproved: true });
+      await expect(service.findByIdForRequester('user-1', requester)).resolves.toHaveProperty('firstPostApproved', true);
     });
 
     it('deve retornar dados completos incluindo e-mail quando o solicitante for ADMIN', async () => {
@@ -79,6 +96,7 @@ describe('UsersService', () => {
       const result = await service.findByIdForRequester('user-1', requester);
 
       expect(result).toHaveProperty('email', 'maria@example.com');
+      expect(result).not.toHaveProperty('firstPostApproved');
     });
 
     it('deve retornar apenas perfil público SEM e-mail quando for outro usuário comum', async () => {
@@ -92,6 +110,7 @@ describe('UsersService', () => {
       expect(result).toHaveProperty('profilePhoto', '/uploads/maria.webp');
       expect(result).not.toHaveProperty('email');
       expect(result).not.toHaveProperty('role');
+      expect(result).not.toHaveProperty('firstPostApproved');
     });
 
     it('deve lançar NotFoundException se o usuário não for encontrado', async () => {
@@ -118,7 +137,7 @@ describe('UsersService', () => {
     it('altera a senha do titular e revoga o refresh token', async () => {
       vi.spyOn(service, 'findByEmailForAuth').mockResolvedValue({ ...user, passwordHash: await bcrypt.hash('senha-atual', 4) } as User);
       await service.update('user-1', { password: 'nova-senha', currentPassword: 'senha-atual' }, requester);
-      const saved = mockUsersRepository.save.mock.calls[0][0];
+      const saved = mockUsersRepository.update.mock.calls[0][1];
       expect(await bcrypt.compare('nova-senha', saved.passwordHash)).toBe(true);
       expect(saved.refreshTokenHash).toBeNull();
       expect(saved.authVersion).toBe(1);
@@ -128,7 +147,7 @@ describe('UsersService', () => {
       mockUsersRepository.findOne.mockResolvedValueOnce({ ...user }).mockResolvedValueOnce(null);
       vi.spyOn(service, 'findByEmailForAuth').mockResolvedValue({ ...user, passwordHash: await bcrypt.hash('senha-atual', 4) } as User);
       const result = await service.update('user-1', { email: 'novo@example.com', currentPassword: 'senha-atual' }, requester);
-      const saved = mockUsersRepository.save.mock.calls[0][0];
+      const saved = mockUsersRepository.update.mock.calls[0][1];
       const token = mockMailService.sendEmailChangeConfirmation.mock.calls[0][1];
       expect(token).toMatch(/^[a-f0-9]{64}$/);
       expect(result.email).toBe(user.email);
@@ -140,6 +159,12 @@ describe('UsersService', () => {
     it('impede administrador de alterar senha de outro usuário', async () => {
       await expect(service.update('user-1', { password: 'nova-senha', currentPassword: 'qualquer' }, { userId: 'admin', role: UserRole.ADMIN })).rejects.toThrow('titular');
       expect(mockUsersRepository.save).not.toHaveBeenCalled();
+    });
+
+    it('não sobrescreve uma mudança concorrente de permissão ou suspensão', async () => {
+      mockUsersRepository.update.mockResolvedValueOnce({ affected: 0 });
+      await expect(service.update('user-1', { name: 'Novo nome' }, requester)).rejects.toThrow('simultaneamente');
+      expect(mockUsersRepository.update).toHaveBeenCalledWith({ id: 'user-1', isActive: true, authVersion: 0 }, { name: 'Novo nome' });
     });
   });
 

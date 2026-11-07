@@ -4,7 +4,7 @@ import { Repository } from 'typeorm';
 import { PaginationQueryDto } from '../../common/dto/pagination-query.dto.js';
 import { paginationMeta } from '../../common/utils/pagination.js';
 import type { AuthenticatedUser } from '../auth/interfaces/request-with-user.interface.js';
-import { UserRole } from '../users/enums/user.enum.js';
+import { isAdministrator, UserRole } from '../users/enums/user.enum.js';
 import { Post } from './entities/post.entity.js';
 import { PostsService } from './posts.service.js';
 
@@ -17,7 +17,7 @@ export class PostRevisionsService {
   private async authorize(postId: string, user: AuthenticatedUser): Promise<Post> {
     const post = await this.posts.findOne({ where: { id: postId, isActive: true } });
     if (!post) throw new NotFoundException('Artigo nao encontrado.');
-    if (user.role !== UserRole.ADMIN && (user.role !== UserRole.AUTHOR || post.authorId !== user.userId)) {
+    if (!isAdministrator(user.role) && (user.role !== UserRole.AUTHOR || post.authorId !== user.userId)) {
       throw new ForbiddenException('Sem permissao para acessar o historico.');
     }
     return post;

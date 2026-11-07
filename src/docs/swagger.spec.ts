@@ -8,6 +8,10 @@ import { SocialAuthController } from '../modules/auth/social-auth.controller.js'
 import { SocialAuthService } from '../modules/auth/social-auth.service.js';
 import { ModerationController } from '../modules/moderation/moderation.controller.js';
 import { ModerationService } from '../modules/moderation/moderation.service.js';
+import { AdminCommentsController } from '../modules/moderation/admin-comments.controller.js';
+import { AdminPostsController } from '../modules/moderation/admin-posts.controller.js';
+import { AdminTagsController } from '../modules/moderation/admin-tags.controller.js';
+import { AdminCategoriesController } from '../modules/moderation/admin-categories.controller.js';
 import { AuditController } from '../modules/audit/audit.controller.js';
 import { AuditService } from '../modules/audit/audit.service.js';
 import { AnalyticsController } from '../modules/analytics/analytics.controller.js';
@@ -64,7 +68,7 @@ describe('Swagger Documentation Configuration', () => {
   it('should generate OpenAPI document containing Auth, Users, and Posts endpoints', async () => {
     const moduleRef = await Test.createTestingModule({
       controllers: [
-        PostSeriesController, PostSeriesNavigationController, PostRevisionsController, TotpController, SocialAuthController, AuditController, ModerationController, AnalyticsController, PostReviewController, ReportsController,
+        PostSeriesController, PostSeriesNavigationController, PostRevisionsController, TotpController, SocialAuthController, AuditController, ModerationController, AdminCommentsController, AdminPostsController, AdminTagsController, AdminCategoriesController, AnalyticsController, PostReviewController, ReportsController,
         AuthorsController,
         FeedController,
         PostViewsController, AuthorFollowsController, SavedCollectionsController,
@@ -290,6 +294,15 @@ describe('Swagger Documentation Configuration', () => {
     expect(schemas).toHaveProperty('ResetPasswordDto');
     expect(schemas).toHaveProperty('CreateUserDto');
     expect(schemas).toHaveProperty('CreatePostDto');
+    for (const path of ['/api/v1/admin/users', '/api/v1/admin/users/{id}/role', '/api/v1/admin/users/{id}/sessions/revoke', '/api/v1/admin/comments', '/api/v1/admin/posts', '/api/v1/admin/tags', '/api/v1/admin/categories', '/api/v1/reports/{id}/resolve', '/api/v1/admin/analytics/newsletter']) expect(document.paths).toHaveProperty(path);
+    const roleOperation = document.paths['/api/v1/admin/users/{id}/role'].patch;
+    expect(roleOperation?.security).toEqual(expect.arrayContaining([expect.objectContaining({ 'JWT-auth': [] })]));
+    expect(roleOperation?.parameters).toEqual(expect.arrayContaining([expect.objectContaining({ in: 'header', name: 'X-TOTP-Code', required: true })]));
+    expect(schemas).toHaveProperty('ResolveReportDto');
+    const userSchema = schemas?.UserResponseDto;
+    expect(userSchema && 'properties' in userSchema && userSchema.properties?.firstPostApproved).toMatchObject({ type: 'boolean' });
+    expect(userSchema && 'required' in userSchema && userSchema.required).not.toContain('firstPostApproved');
+    expect(document.paths['/api/v1/users/{id}'].get?.description).toContain('firstPostApproved');
 
     // Verify setupSwagger executes without error
     const createDocument = vi.spyOn(SwaggerModule, 'createDocument');

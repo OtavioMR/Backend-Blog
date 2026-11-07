@@ -146,7 +146,7 @@ export function ApiCreatePostDoc() {
     ApiOperation({
       summary: 'Criar novo artigo',
       description:
-        'Cria um artigo associado ao usuário autenticado (AUTHOR ou ADMIN). O slug é gerado a partir do título e recebe sufixo em caso de duplicidade. Para agendar, envie published: false (ou omita) e scheduledAt com data futura e fuso. O artigo fica como rascunho até a execução do agendador, que verifica publicações pendentes a cada minuto enquanto a aplicação está em execução; então published passa a true, publishedAt é preenchido e scheduledAt é limpo.',
+        'Cria um artigo associado ao usuário autenticado (AUTHOR, ADMIN ou SUPER_ADMIN). O slug é gerado a partir do título e recebe sufixo em caso de duplicidade. Para agendar, envie published: false (ou omita) e scheduledAt com data futura e fuso. O artigo fica como rascunho até a execução do agendador, que verifica publicações pendentes a cada minuto enquanto a aplicação está em execução; então published passa a true, publishedAt é preenchido e scheduledAt é limpo.',
     }),
     ApiBody({ type: CreatePostDto, examples: { imediato: { summary: 'Publicar imediatamente', value: { title: 'Introdução ao NestJS', content: 'Conteúdo completo do artigo sobre NestJS.', published: true, categoryIds: ['b1a7d654-2a6c-4876-b9b6-79cf021516e8'], tagNames: ['NestJS', 'TypeScript'] } }, agendado: { summary: 'Criar rascunho agendado', value: { title: 'Introdução ao NestJS', content: 'Conteúdo completo do artigo sobre NestJS.', published: false, scheduledAt: '2099-01-01T12:00:00Z', categoryIds: ['b1a7d654-2a6c-4876-b9b6-79cf021516e8'], tagNames: ['NestJS', 'TypeScript'] } } } }),
     ApiResponse({
@@ -169,7 +169,7 @@ export function ApiCreatePostDoc() {
     ApiResponse({
       status: 403,
       description:
-        'Acesso proibido (apenas usuários com perfil AUTHOR ou ADMIN podem criar artigos).',
+        'Acesso proibido (apenas usuários com perfil AUTHOR, ADMIN ou SUPER_ADMIN podem criar artigos).',
       type: ForbiddenResponseDto,
     }),
     ApiResponse({
@@ -220,7 +220,7 @@ export function ApiUpdatePostDoc() {
     ApiResponse({
       status: 403,
       description:
-        'Ação proibida (usuário autenticado não é o autor deste artigo nem ADMIN).',
+        'Ação proibida (usuário autenticado não é o autor deste artigo nem administrador).',
       type: ForbiddenResponseDto,
     }),
     ApiResponse({
@@ -269,7 +269,7 @@ export function ApiRemovePostDoc() {
     ApiResponse({
       status: 403,
       description:
-        'Ação proibida (usuário autenticado não é o autor deste artigo nem ADMIN).',
+        'Ação proibida (usuário autenticado não é o autor deste artigo nem administrador).',
       type: ForbiddenResponseDto,
     }),
     ApiResponse({

@@ -4,13 +4,13 @@ import { ReportsService } from './reports.service.js';
 import { ReportStatus, ReportTarget } from './reports.entity.js';
 
 describe('ReportsService', () => {
-  let reports: any, posts: any, comments: any, service: ReportsService;
+  let reports: any, posts: any, comments: any, users: any, service: ReportsService;
   beforeEach(() => {
     reports = { create: vi.fn(x => x), save: vi.fn(x => x), update: vi.fn(), exists: vi.fn(), findOneByOrFail: vi.fn(), findAndCount: vi.fn() };
-    posts = { findOne: vi.fn() }; comments = { findOne: vi.fn() };
+    posts = { findOne: vi.fn() }; comments = { findOne: vi.fn() }; users = { findOne: vi.fn() };
     const manager = { getRepository: () => reports };
     reports.manager = { transaction: (callback: any) => callback(manager) };
-    service = new ReportsService(reports, posts, comments, { record: vi.fn() } as any);
+    service = new ReportsService(reports, posts, comments, { record: vi.fn() } as any, users);
   });
   it('creates a report only for available content', async () => {
     posts.findOne.mockResolvedValue({ id: 'post' });
@@ -29,8 +29,13 @@ describe('ReportsService', () => {
   it('allows a pending report to be reviewed once', async () => {
     reports.update.mockResolvedValueOnce({ affected: 1 }).mockResolvedValueOnce({ affected: 0 });
     reports.exists.mockResolvedValue(true); reports.findOneByOrFail.mockResolvedValue({ id: 'report', status: ReportStatus.RESOLVED });
-    await expect(service.review('report', 'admin', { status: ReportStatus.RESOLVED })).resolves.toMatchObject({ status: ReportStatus.RESOLVED });
-    expect(reports.update).toHaveBeenCalledWith({ id: 'report', status: ReportStatus.PENDING }, expect.objectContaining({ moderatorId: 'admin' }));
-    await expect(service.review('report', 'admin', { status: ReportStatus.DISMISSED })).rejects.toThrow(ConflictException);
+    await expect(service.review('report', 'admin', { status: ReportStatus.RESOLVED, note: 'Conteúdo analisado' })).resolves.toMatchObject({ status: ReportStatus.RESOLVED });
+    expect(reports.update).toHaveBeenCalledWith(expect.objectContaining({ id: 'report' }), expect.objectContaining({ moderatorId: 'admin' }));
+    await expect(service.review('report', 'admin', { status: ReportStatus.DISMISSED, note: 'Denúncia improcedente' })).rejects.toThrow(ConflictException);
+  });
+  it('permite denunciar perfil ativo, mas não o próprio perfil', async () => {
+    users.findOne.mockResolvedValue({ id: 'target' });
+    await expect(service.create('reporter', { target: ReportTarget.USER, targetId: 'target', reason: 'assédio' })).resolves.toMatchObject({ userId: 'target' });
+    await expect(service.create('target', { target: ReportTarget.USER, targetId: 'target', reason: 'assédio' })).rejects.toThrow();
   });
 });

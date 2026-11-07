@@ -19,7 +19,7 @@ import { join } from 'node:path';
 import { CreateUserDto } from './dto/create-user.dto.js';
 import { UpdateUserDto } from './dto/update-user.dto.js';
 import { User } from './entities/user.entity.js';
-import { UserRole } from './enums/user.enum.js';
+import { isAdministrator, UserRole } from './enums/user.enum.js';
 import { PaginationQueryDto } from '../../common/dto/pagination-query.dto.js';
 import type { PaginatedResult } from '../../common/interfaces/paginated-result.interface.js';
 import { MailService } from '../mail/mail.service.js';
@@ -78,7 +78,7 @@ export class UsersService {
   }
 
   private assertCanManage(id: string, requester: UserRequester) {
-    if (requester.userId !== id && requester.role !== UserRole.ADMIN) {
+    if (requester.userId !== id && !isAdministrator(requester.role)) {
       throw new ForbiddenException(
         'Você não tem permissão para realizar esta ação neste usuário.',
       );
@@ -91,10 +91,14 @@ export class UsersService {
     requester: UserRequester,
   ) {
     this.assertCanManage(id, requester);
+    if (requester.userId !== id) throw new ForbiddenException('Apenas o titular pode alterar sua foto de perfil.');
     const user = await this.usersRepository.findOne({
       where: { id, isActive: true },
     });
     if (!user) throw new NotFoundException('Usuário não encontrado.');
+    if (requester.userId !== id && isAdministrator(user.role)) {
+      throw new ForbiddenException('Não é permitido alterar outro administrador.');
+    }
     let image: Buffer;
     try {
       const input = sharp(buffer, { limitInputPixels: 40_000_000, failOn: 'error' });
@@ -236,7 +240,10 @@ export class UsersService {
       throw new NotFoundException('Usuário não encontrado.');
     }
 
-    if (requester.userId === id || requester.role === UserRole.ADMIN) {
+    if (requester.userId === id) {
+      return { ...this.toPublic(user), firstPostApproved: user.firstPostApproved };
+    }
+    if (isAdministrator(requester.role)) {
       return this.toPublic(user);
     }
 
@@ -259,12 +266,25 @@ export class UsersService {
       throw new NotFoundException('Usuário não encontrado.');
     }
 
-    const previousRole = user.role;
-    const previousActive = user.isActive;
+    const previousAuthVersion = user.authVersion;
 
-    if ((updateUserDto.role !== undefined || updateUserDto.isActive !== undefined) && requester.role !== UserRole.ADMIN) {
-      throw new ForbiddenException('Apenas administradores podem alterar permissões ou status.');
+    if (requester.userId === id && updateUserDto.role !== undefined) {
+      throw new ForbiddenException('Não é permitido alterar a própria função por esta rota.');
     }
+    if (requester.userId !== id && isAdministrator(user.role)) {
+      throw new ForbiddenException('Não é permitido alterar outro administrador.');
+    }
+    if (updateUserDto.role !== undefined && isAdministrator(updateUserDto.role)) {
+      throw new ForbiddenException('Não é permitido conceder privilégios administrativos por esta rota.');
+    }
+
+    if (updateUserDto.role !== undefined || updateUserDto.isActive !== undefined) {
+      throw new ForbiddenException('Use as rotas administrativas para alterar função ou suspensão.');
+    }
+    if (requester.userId !== id) {
+      throw new ForbiddenException('Apenas o titular pode alterar seus dados de perfil.');
+    }
+
     if (updateUserDto.password !== undefined && Buffer.byteLength(updateUserDto.password, 'utf8') > 72) {
       throw new BadRequestException('A senha é muito longa.');
     }
@@ -337,48 +357,35 @@ export class UsersService {
       }
     }
 
-    if (updateUserDto.role !== undefined) {
-      if (requester.role !== UserRole.ADMIN) {
-        throw new ForbiddenException(
-          'Apenas administradores podem alterar o perfil (role) de usuários.',
-        );
-      }
-      if (user.role === UserRole.AUTHOR && updateUserDto.role === UserRole.READER) user.authorPromotionBlocked = true;
-      if (updateUserDto.role === UserRole.AUTHOR) user.authorPromotionBlocked = false;
-      user.role = updateUserDto.role;
+    // Only persist fields owned by this endpoint. A concurrent role change or
+    // suspension must never be overwritten by an older copy of the user.
+    const changes: Partial<User> = {};
+    if (updateUserDto.name !== undefined) changes.name = user.name;
+    if (updateUserDto.bio !== undefined) changes.bio = user.bio;
+    if (updateUserDto.websiteUrl !== undefined) changes.websiteUrl = user.websiteUrl;
+    if (updateUserDto.socialUrl !== undefined) changes.socialUrl = user.socialUrl;
+    if (confirmation || updateUserDto.password !== undefined) {
+      changes.pendingEmail = user.pendingEmail;
+      changes.emailChangeTokenHash = user.emailChangeTokenHash;
+      changes.emailChangeExpiresAt = user.emailChangeExpiresAt;
     }
-
-    if (updateUserDto.isActive !== undefined) {
-      if (user.moderationSuspended) throw new ConflictException('Use a rota de moderação para restaurar uma conta suspensa.');
-      if (requester.role !== UserRole.ADMIN) {
-        throw new ForbiddenException(
-          'Apenas administradores podem alterar o status de ativação diretamente.',
-        );
-      }
-      if (user.isActive && !updateUserDto.isActive) user.authVersion += 1;
-      user.isActive = updateUserDto.isActive;
-      if (!user.isActive) {
-        user.refreshTokenHash = null;
-      }
+    if (updateUserDto.password !== undefined) {
+      changes.passwordHash = user.passwordHash;
+      changes.authVersion = user.authVersion;
+      changes.refreshTokenHash = null;
+      changes.resetPasswordTokenHash = null;
+      changes.resetPasswordExpiresAt = null;
     }
-
-    const administrativeChange = previousRole !== user.role || previousActive !== user.isActive;
-    const savedUser = administrativeChange
-      ? await this.usersRepository.manager.transaction(async manager => {
-          const saved = await manager.getRepository(User).save(user);
-          if (previousRole === UserRole.AUTHOR && user.role !== UserRole.AUTHOR) {
-            await manager.query("UPDATE posts SET review_status = 'REJECTED' WHERE author_id = $1 AND review_status = 'PENDING'", [id]);
-          }
-          await manager.query(`INSERT INTO audit_logs (actor_id, action, target_type, target_id, details) VALUES ($1, $2, 'user', $3, $4::jsonb)`, [requester.userId, 'user.permissions_changed', id, JSON.stringify({ previousRole, role: user.role, previousActive, isActive: user.isActive })]);
-          return saved;
-        })
-      : await this.usersRepository.save(user);
+    if (Object.keys(changes).length) {
+      const result = await this.usersRepository.update({ id, isActive: true, authVersion: previousAuthVersion }, changes);
+      if (!result.affected) throw new ConflictException('Conta alterada simultaneamente; autentique-se novamente e tente outra vez.');
+    }
     if (confirmation) {
       await this.mailService.sendEmailChangeConfirmation(confirmation.email, confirmation.token);
     }
 
     this.logger.log(`Usuário ${id} atualizado por ${requester.userId}`);
-    return this.toPublic(savedUser);
+    return this.toPublic(user);
   }
 
   async remove(id: string, requester: UserRequester): Promise<void> {
@@ -392,13 +399,20 @@ export class UsersService {
       throw new NotFoundException('Usuário não encontrado.');
     }
 
-    user.isActive = false;
-    user.authVersion += 1;
-    user.refreshTokenHash = null;
+    if (isAdministrator(user.role)) {
+      throw new ForbiddenException('Não é permitido excluir uma conta administrativa por esta rota.');
+    }
+
     await this.usersRepository.manager.transaction(async manager => {
       const repository = manager.getRepository(User);
-      await repository.save(user);
-      await repository.softRemove(user);
+      const locked = await repository.findOne({ where: { id, isActive: true }, lock: { mode: 'pessimistic_write' } });
+      if (!locked) throw new ConflictException('Conta alterada simultaneamente.');
+      if (isAdministrator(locked.role)) throw new ForbiddenException('Não é permitido excluir uma conta administrativa por esta rota.');
+      locked.isActive = false;
+      locked.authVersion += 1;
+      locked.refreshTokenHash = null;
+      await repository.save(locked);
+      await repository.softRemove(locked);
       await manager.query(`INSERT INTO audit_logs (actor_id, action, target_type, target_id) VALUES ($1, 'user.deleted', 'user', $2)`, [requester.userId, id]);
     });
     this.logger.log(`Usuário ${id} desativado por ${requester.userId}`);

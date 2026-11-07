@@ -12,7 +12,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Comment } from './entities/comment.entity.js';
 import { Post } from '../posts/entities/post.entity.js';
-import { UserRole } from '../users/enums/user.enum.js';
+import { isAdministrator } from '../users/enums/user.enum.js';
 import type { AuthenticatedUser } from '../auth/interfaces/request-with-user.interface.js';
 import { CreateCommentDto } from './dto/create-comment.dto.js';
 
@@ -144,7 +144,7 @@ export class CommentsService {
     await this.availablePost(comment.postId);
     if (!comment.isActive)
       throw new BadRequestException('Comentário desativado.');
-    if (comment.authorId !== user.userId && user.role !== UserRole.ADMIN)
+    if (comment.authorId !== user.userId && !isAdministrator(user.role))
       throw new ForbiddenException('Sem permissão para editar.');
     const safeContent = sanitizePlainText(content);
     if (!safeContent) throw new BadRequestException('Conte\u00fado inv\u00e1lido.');
@@ -169,7 +169,7 @@ export class CommentsService {
     if (
       comment.authorId !== user.userId &&
       post.authorId !== user.userId &&
-      user.role !== UserRole.ADMIN
+      !isAdministrator(user.role)
     )
       throw new ForbiddenException('Sem permissão para desativar.');
     comment.isActive = false;

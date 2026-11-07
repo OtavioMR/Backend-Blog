@@ -14,8 +14,8 @@ import { MailService } from '../mail/mail.service.js';
 describe('Atualização de credenciais HTTP', () => {
   let app: INestApplication;
   const id = 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11';
-  const user = { id, email: 'antigo@example.com', isActive: true, role: UserRole.READER };
-  const repository: any = { findOne: vi.fn(), save: vi.fn(async (value) => value) };
+  const user = { id, email: 'antigo@example.com', isActive: true, role: UserRole.READER, authVersion: 0 };
+  const repository: any = { findOne: vi.fn(), save: vi.fn(async (value) => value), update: vi.fn().mockResolvedValue({ affected: 1 }) };
   const mail = { sendEmailChangeConfirmation: vi.fn() };
 
   beforeAll(async () => {

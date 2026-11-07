@@ -49,11 +49,17 @@ export class Post {
   @Column({ name: 'review_status', type: 'varchar', length: 20, default: 'DRAFT' })
   reviewStatus: string;
 
+  @Column({ name: 'review_note', type: 'varchar', length: 1000, nullable: true, select: false })
+  reviewNote: string | null;
+
   @Column({ name: 'comments_enabled', default: true })
   commentsEnabled: boolean;
 
   @Column({ name: 'is_active', default: true })
   isActive: boolean;
+
+  @Column({ name: 'moderation_hidden', default: false })
+  moderationHidden: boolean;
 
   @Column({ name: 'author_id', type: 'uuid' })
   authorId: string;

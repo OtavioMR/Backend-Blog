@@ -58,7 +58,7 @@ describe('First post review', () => {
     const report = await request(app.getHttpServer()).post('/api/v1/reports').set('Authorization', `Bearer ${authorToken}`).send({ target: 'POST', targetId: postId, reason: 'Conteúdo ofensivo' }).expect(201);
     await request(app.getHttpServer()).post('/api/v1/reports').set('Authorization', `Bearer ${authorToken}`).send({ target: 'POST', targetId: postId, reason: 'Conteúdo ofensivo' }).expect(409);
     await request(app.getHttpServer()).get('/api/v1/reports').set('Authorization', `Bearer ${authorToken}`).expect(403);
-    await request(app.getHttpServer()).patch(`/api/v1/reports/${report.body.id}`).set('Authorization', `Bearer ${adminToken}`).send({ status: 'RESOLVED' }).expect(200);
+    await request(app.getHttpServer()).patch(`/api/v1/reports/${report.body.id}`).set('Authorization', `Bearer ${adminToken}`).send({ status: 'RESOLVED', note: 'Conteúdo analisado' }).expect(200);
     const audit = await request(app.getHttpServer()).get('/api/v1/admin/audit-logs').set('Authorization', `Bearer ${adminToken}`).expect(200);
     expect(audit.body.data.some((item: any) => item.targetId === report.body.id && item.action === 'report.review')).toBe(true);
     await audits.delete({ targetId: report.body.id });
@@ -74,5 +74,26 @@ describe('First post review', () => {
     await request(app.getHttpServer()).get('/api/v1/auth/sessions').set('Authorization', `Bearer ${authorToken}`).expect(401);
     await request(app.getHttpServer()).get(`/api/v1/posts/${postId}`).expect(404);
 
+  });
+  it('serializes concurrent decisions for the same author', async () => {
+    const extra = await users.save(users.create({ name: 'Concurrent Author', email: `review-concurrent-${suffix}@example.com`, passwordHash: 'invalid-test-hash', role: UserRole.AUTHOR, emailVerified: true }));
+    const ids: string[] = [];
+    try {
+      for (const index of [1, 2]) {
+        const post = await posts.save(posts.create({ title: `Concurrent review ${index}`, slug: `review-concurrent-${suffix}-${index}`, content: 'Review content', authorId: extra.id }));
+        ids.push(post.id);
+        await posts.update(post.id, { reviewStatus: 'PENDING' });
+      }
+      const decisions = await Promise.all(ids.map(id => request(app.getHttpServer()).post(`/api/v1/post-reviews/${id}/decision`).set('Authorization', `Bearer ${adminToken}`).send({ decision: 'APPROVED' })));
+      expect(decisions.map(response => response.status).sort((a, b) => a - b)).toEqual([201, 409]);
+      const saved = await Promise.all(ids.map(id => posts.findOneBy({ id })));
+      expect(saved.filter(post => post.reviewStatus === 'APPROVED' && post.published)).toHaveLength(1);
+      expect(saved.filter(post => post.reviewStatus === 'REJECTED' && !post.published)).toHaveLength(1);
+    } finally {
+      for (const id of ids) { await audits.delete({ targetId: id }); await posts.delete(id); }
+      await audits.delete({ actorId: extra.id });
+      await audits.delete({ targetId: extra.id });
+      await users.delete(extra.id);
+    }
   });
 });

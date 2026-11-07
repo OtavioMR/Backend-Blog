@@ -10,7 +10,7 @@ export class NotificationsService {
   constructor(@InjectRepository(User) private readonly users: Repository<User>) {}
   async list(userId: string, query: PaginationQueryDto) {
     const page = query.page ?? 1, limit = query.limit ?? 10;
-    const data: unknown[] = await this.users.query(`SELECT n.id, n.type, n.post_id AS "postId", n.comment_id AS "commentId", n.read_at AS "readAt", n.created_at AS "createdAt",
+    const data: unknown[] = await this.users.query(`SELECT n.id, n.type, n.post_id AS "postId", n.comment_id AS "commentId", n.report_id AS "reportId", n.read_at AS "readAt", n.created_at AS "createdAt",
       json_build_object('id', u.id, 'name', u.name) AS actor FROM notifications n JOIN users u ON u.id = n.actor_id
       WHERE n.recipient_id = $1 ORDER BY n.created_at DESC, n.id DESC LIMIT $2 OFFSET $3`, [userId, limit, (page - 1) * limit]);
     const counts: { total: string; unread: string }[] = await this.users.query('SELECT COUNT(*)::int AS total, COUNT(*) FILTER (WHERE read_at IS NULL)::int AS unread FROM notifications WHERE recipient_id = $1', [userId]);

@@ -45,7 +45,7 @@ export class AuthorFollowsController {
 
   @Put('authors/:id/follow')
   @HttpCode(204)
-  @ApiOperation({ summary: 'Seguir autor', description: 'Operação idempotente para AUTHOR ou ADMIN ativo. Não é possível seguir a si mesmo.' })
+  @ApiOperation({ summary: 'Seguir autor', description: 'Operação idempotente para AUTHOR, ADMIN ou SUPER_ADMIN ativo. Não é possível seguir a si mesmo.' })
   @ApiParam({ name: 'id', format: 'uuid', example: 'b1ffcd88-8b1a-4ce7-aa5c-5cc8ac271b22' })
   @ApiResponse({ status: 204, description: 'Autor seguido.' })
   @ApiResponse({ status: 400, description: 'UUID inválido ou tentativa de seguir a si mesmo.' })

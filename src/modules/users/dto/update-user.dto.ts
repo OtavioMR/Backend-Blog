@@ -24,7 +24,7 @@ export class UpdateUserDto extends PartialType(CreateUserDto) {
   currentPassword?: string;
 
   @ApiPropertyOptional({
-    description: 'Papel do usuário (apenas administradores podem alterar)',
+    description: 'Não é aceito nesta rota. Alterações de função usam PATCH /admin/users/:id/role.',
     enum: UserRole,
     example: UserRole.AUTHOR,
   })
@@ -33,7 +33,7 @@ export class UpdateUserDto extends PartialType(CreateUserDto) {
   role?: UserRole;
 
   @ApiPropertyOptional({
-    description: 'Status ativo do usuário',
+    description: 'Não é aceito nesta rota. Use as rotas administrativas de suspensão e restauração.',
     example: true,
   })
   @IsOptional()

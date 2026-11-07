@@ -24,7 +24,8 @@
     "migration:generate": "npm run typeorm -- migration:generate -d src/database/data-source.ts",
     "migration:run": "npm run typeorm -- migration:run -d src/database/data-source.ts",
     "migration:revert": "npm run typeorm -- migration:revert -d src/database/data-source.ts",
-    "photos:clean": "node --loader ts-node/esm src/database/clean-profile-photos.ts"
+    "photos:clean": "node --loader ts-node/esm src/database/clean-profile-photos.ts",
+    "admin:bootstrap": "node --loader ts-node/esm src/database/bootstrap-super-admin.ts"
   },
   "dependencies": {
     "@nestjs/common": "^12.0.1",

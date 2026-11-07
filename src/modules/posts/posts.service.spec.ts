@@ -148,6 +148,16 @@ describe('PostsService', () => {
       expect(options.take).toBe(5);
     });
 
+    it('filtra por authorId', async () => {
+      mockPostsRepository.findAndCount.mockResolvedValue([[], 0]);
+      await service.findAll({ authorId: 'b1ffcd88-8b1a-4ce7-aa5c-5cc8ac271b22' });
+      expect(mockPostsRepository.findAndCount.mock.calls[0][0].where).toMatchObject({
+        published: true,
+        isActive: true,
+        authorId: 'b1ffcd88-8b1a-4ce7-aa5c-5cc8ac271b22',
+      });
+    });
+
     it('ignora texto e autor vazios e retorna paginação vazia', async () => {
       mockPostsRepository.findAndCount.mockResolvedValue([[], 0]);
       const result = await service.findAll({ search: '  ', author: ' ' });

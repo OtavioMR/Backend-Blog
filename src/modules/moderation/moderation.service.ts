@@ -5,12 +5,247 @@ import { DataSource, In } from 'typeorm';
 import { User } from '../users/entities/user.entity.js';
 import { Post } from '../posts/entities/post.entity.js';
 import { AuditService } from '../audit/audit.service.js';
+import { isAdministrator, UserRole } from '../users/enums/user.enum.js';
+import { paginationMeta } from '../../common/utils/pagination.js';
+import { AdminUsersQuery } from './admin-users.dto.js';
+import { Comment } from '../comments/entities/comment.entity.js';
+import { slugify } from '../../common/utils/slugify.util.js';
+import { Tag } from '../tags/entities/tag.entity.js';
 
 @Injectable()
 export class ModerationService {
   private readonly logger = new Logger(ModerationService.name);
   constructor(private readonly dataSource: DataSource, private readonly audit: AuditService, @Optional() private readonly cache?: PublicCacheService) {}
-  async suspend(actorId: string, userId: string, reason: string, endsAt: string | null, hidePostIds: string[]) {
+  async listPosts(filters: { page?: number; limit?: number; authorId?: string; search?: string; status?: 'published' | 'pending' | 'rejected' | 'hidden' | 'draft' }) {
+    const page = filters.page ?? 1, limit = filters.limit ?? 10;
+    const query = this.dataSource.getRepository(Post).createQueryBuilder('p');
+    if (filters.authorId) query.andWhere('p.authorId = :authorId', { authorId: filters.authorId });
+    if (filters.search?.trim()) query.andWhere("p.title ILIKE :search ESCAPE '\\'", { search: `%${filters.search.trim().replace(/[\\%_]/g, '\\$&')}%` });
+    if (filters.status === 'published') query.andWhere('p.published = true AND p.isActive = true');
+    if (filters.status === 'pending') query.andWhere("p.reviewStatus = 'PENDING' AND p.isActive = true");
+    if (filters.status === 'rejected') query.andWhere("p.reviewStatus = 'REJECTED' AND p.isActive = true");
+    if (filters.status === 'hidden') query.andWhere('p.moderationHidden = true');
+    if (filters.status === 'draft') query.andWhere("p.published = false AND p.isActive = true AND p.reviewStatus = 'DRAFT'");
+    const [posts, total] = await query.orderBy('p.createdAt', 'DESC').addOrderBy('p.id', 'DESC').skip((page - 1) * limit).take(limit).getManyAndCount();
+    return { data: posts.map(p => ({ id: p.id, title: p.title, slug: p.slug, authorId: p.authorId, published: p.published, reviewStatus: p.reviewStatus, isActive: p.isActive, moderationHidden: p.moderationHidden, createdAt: p.createdAt, updatedAt: p.updatedAt })), meta: paginationMeta(page, limit, total) };
+  }
+  async postDetail(id: string) {
+    const post = await this.dataSource.getRepository(Post).createQueryBuilder('p').addSelect('p.reviewNote').leftJoinAndSelect('p.author', 'author').where('p.id = :id', { id }).getOne();
+    if (!post) throw new NotFoundException('Artigo não encontrado.');
+    return { id: post.id, title: post.title, slug: post.slug, content: post.content, excerpt: post.excerpt, author: post.author ? { id: post.author.id, name: post.author.name } : null, authorId: post.authorId, published: post.published, publishedAt: post.publishedAt, reviewStatus: post.reviewStatus, reviewNote: post.reviewNote, isActive: post.isActive, moderationHidden: post.moderationHidden, createdAt: post.createdAt, updatedAt: post.updatedAt };
+  }
+  async contentHistory(type: 'post' | 'comment', id: string, page = 1, limit = 10) {
+    const repository = type === 'post' ? this.dataSource.getRepository(Post) : this.dataSource.getRepository(Comment);
+    if (!(await repository.exists({ where: { id } }))) throw new NotFoundException('Conteúdo não encontrado.');
+    return this.audit.list(page, limit, { targetType: type, targetId: id });
+  }
+  async commentDetail(id: string) {
+    const comment = await this.dataSource.getRepository(Comment).findOne({ where: { id } });
+    if (!comment) throw new NotFoundException('Comentário não encontrado.');
+    const reports = await this.dataSource.query(`SELECT id, status, reason, reason_category AS "reasonCategory", created_at AS "createdAt" FROM reports WHERE comment_id = $1 ORDER BY created_at DESC, id DESC LIMIT 100`, [id]);
+    return { id: comment.id, postId: comment.postId, authorId: comment.authorId, rootId: comment.rootId, replyToId: comment.replyToId, content: comment.content, isActive: comment.isActive, moderationHidden: comment.moderationHidden, createdAt: comment.createdAt, reports };
+  }
+  async listCategories(page = 1, limit = 10) {
+    const [data, count] = await Promise.all([
+      this.dataSource.query(`SELECT c.id, c.name, c.slug, c.is_active AS "isActive", c.deleted_at AS "deletedAt", count(pc.post_id)::int AS "postCount" FROM categories c LEFT JOIN post_categories pc ON pc.category_id = c.id GROUP BY c.id ORDER BY c.name, c.id LIMIT $1 OFFSET $2`, [limit, (page - 1) * limit]),
+      this.dataSource.query('SELECT count(*)::int AS total FROM categories'),
+    ]);
+    return { data, meta: paginationMeta(page, limit, count[0].total) };
+  }
+  async moderatePost(id: string, actorId: string, hide: boolean, reason: string) {
+    if (reason.trim().length < 5) throw new BadRequestException('Informe o motivo.');
+    const result = await this.dataSource.transaction(async manager => {
+      const posts = manager.getRepository(Post);
+      const post = await posts.findOne({ where: { id }, lock: { mode: 'pessimistic_write' } });
+      if (!post) throw new NotFoundException('Artigo não encontrado.');
+      if (hide ? !post.isActive || !post.published : post.isActive || !post.moderationHidden) throw new ConflictException('Transição de artigo inválida.');
+      if (!hide) {
+        const author = await manager.getRepository(User).findOne({ where: { id: post.authorId, isActive: true } });
+        if (!author) throw new ConflictException('Autor indisponível.');
+      }
+      await posts.update(id, { isActive: !hide, moderationHidden: hide });
+      await this.audit.record(manager, actorId, hide ? 'post.hide' : 'post.restore', 'post', id, { reason: reason.trim(), authorId: post.authorId });
+      if (post.authorId !== actorId) await manager.query('INSERT INTO notifications(recipient_id, actor_id, type, post_id) VALUES ($1, $2, $3, $4)', [post.authorId, actorId, hide ? 'post_hidden' : 'post_restored', id]);
+      return { id, isActive: !hide, moderationHidden: hide };
+    });
+    await this.cache?.invalidate();
+    return result;
+  }
+  async listTags(page = 1, limit = 10) {
+    const [data, count] = await Promise.all([
+      this.dataSource.query(`SELECT t.id, t.name, t.slug, count(pt.post_id)::int AS "postCount" FROM tags t LEFT JOIN post_tags pt ON pt.tag_id = t.id GROUP BY t.id ORDER BY t.name, t.id LIMIT $1 OFFSET $2`, [limit, (page - 1) * limit]),
+      this.dataSource.query('SELECT count(*)::int AS total FROM tags'),
+    ]);
+    return { data, meta: paginationMeta(page, limit, count[0].total) };
+  }
+  async saveTag(id: string | null, rawName: string, actorId: string) {
+    const name = rawName.trim().replace(/\s+/g, ' '), slug = slugify(name);
+    if (!name || name.length > 50 || !slug || slug.length > 60) throw new BadRequestException('Nome de tag inválido.');
+    try {
+      const result = await this.dataSource.transaction(async manager => {
+        const repository = manager.getRepository(Tag);
+        const tag = id ? await repository.findOne({ where: { id }, lock: { mode: 'pessimistic_write' } }) : repository.create();
+        if (!tag) throw new NotFoundException('Tag não encontrada.');
+        const previous = id ? { name: tag.name, slug: tag.slug } : null;
+        tag.name = name; tag.slug = slug;
+        const saved = await repository.save(tag);
+        await this.audit.record(manager, actorId, id ? 'tag.updated' : 'tag.created', 'tag', saved.id, { previous, name, slug });
+        return { id: saved.id, name: saved.name, slug: saved.slug };
+      });
+      await this.cache?.invalidate();
+      return result;
+    } catch (error) {
+      if ((error as { code?: string }).code === '23505') throw new ConflictException('Já existe uma tag com este slug.');
+      throw error;
+    }
+  }
+  async removeTag(id: string, actorId: string) {
+    await this.dataSource.transaction(async manager => {
+      const rows = await manager.query('SELECT id, name, slug FROM tags WHERE id = $1 FOR UPDATE', [id]);
+      if (!rows.length) throw new NotFoundException('Tag não encontrada.');
+      const usage = await manager.query('SELECT 1 FROM post_tags WHERE tag_id = $1 LIMIT 1', [id]);
+      if (usage.length) throw new ConflictException('A tag está associada a artigos; use a mesclagem.');
+      await manager.query('DELETE FROM tags WHERE id = $1', [id]);
+      await this.audit.record(manager, actorId, 'tag.deleted', 'tag', id, { name: rows[0].name, slug: rows[0].slug });
+    });
+    await this.cache?.invalidate();
+    return { deleted: true };
+  }
+  async mergeTag(id: string, targetId: string, actorId: string) {
+    if (id === targetId) throw new BadRequestException('Origem e destino devem ser diferentes.');
+    await this.dataSource.transaction(async manager => {
+      const rows = await manager.query('SELECT id FROM tags WHERE id = ANY($1::uuid[]) ORDER BY id FOR UPDATE', [[id, targetId]]);
+      if (rows.length !== 2) throw new NotFoundException('Tag não encontrada.');
+      await manager.query('INSERT INTO post_tags (post_id, tag_id) SELECT post_id, $2 FROM post_tags WHERE tag_id = $1 ON CONFLICT DO NOTHING', [id, targetId]);
+      await manager.query('DELETE FROM tags WHERE id = $1', [id]);
+      await this.audit.record(manager, actorId, 'tag.merged', 'tag', id, { targetId });
+    });
+    await this.cache?.invalidate();
+    return { merged: true, targetId };
+  }
+  async listComments(filters: { page?: number; limit?: number; search?: string; authorId?: string; postId?: string; status?: 'active' | 'hidden' | 'deleted'; from?: string; to?: string }) {
+    const page = filters.page ?? 1, limit = filters.limit ?? 10;
+    if (filters.from && filters.to && new Date(filters.from) > new Date(filters.to)) throw new BadRequestException('Intervalo de datas inválido.');
+    const query = this.dataSource.getRepository(Comment).createQueryBuilder('c');
+    if (filters.search?.trim()) query.andWhere("c.content ILIKE :search ESCAPE '\\'", { search: `%${filters.search.trim().replace(/[\\%_]/g, '\\$&')}%` });
+    if (filters.authorId) query.andWhere('c.authorId = :authorId', { authorId: filters.authorId });
+    if (filters.postId) query.andWhere('c.postId = :postId', { postId: filters.postId });
+    if (filters.status === 'active') query.andWhere('c.isActive = true');
+    if (filters.status === 'hidden') query.andWhere('c.moderationHidden = true');
+    if (filters.status === 'deleted') query.andWhere('c.isActive = false AND c.moderationHidden = false');
+    if (filters.from) query.andWhere('c.createdAt >= :from', { from: filters.from });
+    if (filters.to) query.andWhere('c.createdAt <= :to', { to: filters.to });
+    const [data, total] = await query.orderBy('c.createdAt', 'DESC').addOrderBy('c.id', 'DESC').skip((page - 1) * limit).take(limit).getManyAndCount();
+    return { data, meta: paginationMeta(page, limit, total) };
+  }
+  async moderateComment(id: string, actorId: string, hide: boolean, reason: string) {
+    if (reason.trim().length < 5) throw new BadRequestException('Informe o motivo.');
+    const result = await this.dataSource.transaction(async manager => {
+      const repository = manager.getRepository(Comment);
+      const comment = await repository.findOne({ where: { id }, lock: { mode: 'pessimistic_write' } });
+      if (!comment) throw new NotFoundException('Comentário não encontrado.');
+      if (hide ? !comment.isActive : comment.isActive || !comment.moderationHidden) throw new ConflictException('Transição de comentário inválida.');
+      await repository.update(id, { isActive: !hide, moderationHidden: hide });
+      await this.audit.record(manager, actorId, hide ? 'comment.hide' : 'comment.restore', 'comment', id, { reason: reason.trim(), postId: comment.postId });
+      if (comment.authorId !== actorId) await manager.query('INSERT INTO notifications(recipient_id, actor_id, type, post_id, comment_id) VALUES ($1, $2, $3, $4, $5)', [comment.authorId, actorId, hide ? 'comment_hidden' : 'comment_restored', comment.postId, id]);
+      return { id, isActive: !hide, moderationHidden: hide };
+    });
+    await this.cache?.invalidate();
+    return result;
+  }
+  async listUsers(query: AdminUsersQuery) {
+    const page = query.page ?? 1, limit = query.limit ?? 10;
+    if (query.createdFrom && query.createdTo && new Date(query.createdFrom) > new Date(query.createdTo)) throw new BadRequestException('Intervalo de datas inválido.');
+    const qb = this.dataSource.getRepository(User).createQueryBuilder('u');
+    if (query.search?.trim()) {
+      const term = query.search.trim().replace(/[\\%_]/g, '\\$&');
+      qb.andWhere("(u.name ILIKE :search ESCAPE '\\' OR u.email ILIKE :search ESCAPE '\\' OR CAST(u.id AS text) = :id)", { search: `%${term}%`, id: query.search.trim() });
+    }
+    if (query.role) qb.andWhere('u.role = :role', { role: query.role });
+    if (query.status === 'active') qb.andWhere('u.is_active = true');
+    if (query.status === 'suspended') qb.andWhere('u.moderation_suspended = true');
+    if (query.status === 'inactive') qb.andWhere('u.is_active = false AND u.moderation_suspended = false');
+    if (query.createdFrom) qb.andWhere('u.created_at >= :createdFrom', { createdFrom: query.createdFrom });
+    if (query.createdTo) qb.andWhere('u.created_at <= :createdTo', { createdTo: query.createdTo });
+    qb.orderBy(query.sort === 'name' ? 'u.name' : 'u.createdAt', query.order ?? 'DESC').addOrderBy('u.id', 'DESC').skip((page - 1) * limit).take(limit);
+    const [users, total] = await qb.getManyAndCount();
+    return { data: users.map(u => ({ id: u.id, name: u.name, email: u.email, role: u.role, isActive: u.isActive, moderationSuspended: u.moderationSuspended, createdAt: u.createdAt })), meta: paginationMeta(page, limit, total) };
+  }
+  async userDetail(userId: string) {
+    const user = await this.dataSource.getRepository(User).findOne({ where: { id: userId } });
+    if (!user) throw new NotFoundException('Usuário não encontrado.');
+    const [counts] = await this.dataSource.query(`SELECT
+      (SELECT count(*)::int FROM posts WHERE author_id = $1 AND deleted_at IS NULL) AS posts,
+      (SELECT count(*)::int FROM comments WHERE author_id = $1) AS comments`, [userId]);
+    return { id: user.id, name: user.name, email: user.email, role: user.role, isActive: user.isActive,
+      moderationSuspended: user.moderationSuspended, suspensionEndsAt: user.suspensionEndsAt,
+      emailVerified: user.emailVerified, createdAt: user.createdAt, counts };
+  }
+  async userHistory(userId: string, page = 1, limit = 10) {
+    if (!(await this.dataSource.getRepository(User).exists({ where: { id: userId } }))) throw new NotFoundException('Usuário não encontrado.');
+    const [data, count] = await Promise.all([
+      this.dataSource.query(`SELECT id, actor_id AS "actorId", action, target_type AS "targetType", target_id AS "targetId", details, created_at AS "createdAt" FROM audit_logs WHERE target_type = 'user' AND target_id = $1 AND action IN ('user.suspend', 'user.restore', 'user.suspension_expired', 'user.permissions_changed', 'user.sessions_revoked', 'user.author_promoted', 'user.super_admin_bootstrap') ORDER BY created_at DESC, id DESC LIMIT $2 OFFSET $3`, [userId, limit, (page - 1) * limit]),
+      this.dataSource.query(`SELECT count(*)::int AS total FROM audit_logs WHERE target_type = 'user' AND target_id = $1 AND action IN ('user.suspend', 'user.restore', 'user.suspension_expired', 'user.permissions_changed', 'user.sessions_revoked', 'user.author_promoted', 'user.super_admin_bootstrap')`, [userId]),
+    ]);
+    return { data, meta: paginationMeta(page, limit, count[0].total) };
+  }
+  async userReports(userId: string, page = 1, limit = 10) {
+    if (!(await this.dataSource.getRepository(User).exists({ where: { id: userId } }))) throw new NotFoundException('Usuário não encontrado.');
+    const where = `(r.user_id = $1 OR EXISTS (SELECT 1 FROM posts p WHERE p.id = r.post_id AND p.author_id = $1) OR EXISTS (SELECT 1 FROM comments c WHERE c.id = r.comment_id AND c.author_id = $1))`;
+    const [data, count] = await Promise.all([
+      this.dataSource.query(`SELECT r.id, r.post_id AS "postId", r.comment_id AS "commentId", r.user_id AS "userId", r.reason, r.reason_category AS "reasonCategory", r.status, r.moderator_id AS "moderatorId", r.created_at AS "createdAt", r.reviewed_at AS "reviewedAt" FROM reports r WHERE ${where} ORDER BY r.created_at DESC, r.id DESC LIMIT $2 OFFSET $3`, [userId, limit, (page - 1) * limit]),
+      this.dataSource.query(`SELECT count(*)::int AS total FROM reports r WHERE ${where}`, [userId]),
+    ]);
+    return { data, meta: paginationMeta(page, limit, count[0].total) };
+  }
+  async changeRole(actorId: string, userId: string, role: UserRole, reason: string, actorVersion: number) {
+    if (actorId === userId) throw new ForbiddenException('Não é permitido alterar a própria função.');
+    if (reason.trim().length < 5) throw new BadRequestException('Informe o motivo.');
+    return this.dataSource.transaction(async manager => {
+      // Serialize privilege changes, including the check for the last owner.
+      await manager.query("SELECT pg_advisory_xact_lock(hashtext('griforio.admin.roles'))");
+      const users = manager.getRepository(User);
+      const actor = await users.findOne({ where: { id: actorId }, lock: { mode: 'pessimistic_write' } });
+      if (!actor?.isActive || actor.role !== UserRole.SUPER_ADMIN || actor.authVersion !== actorVersion || !actor.totpEnabled) throw new ForbiddenException('Sessão administrativa inválida ou sem TOTP ativo.');
+      const user = await users.findOne({ where: { id: userId }, lock: { mode: 'pessimistic_write' } });
+      if (!user || !user.isActive) throw new NotFoundException('Usuário ativo não encontrado.');
+      if (user.role === role) throw new ConflictException('Usuário já possui esta função.');
+      if (isAdministrator(role) && !user.emailVerified) throw new ConflictException('A conta precisa ter e-mail verificado para receber privilégios administrativos.');
+      if (role === UserRole.AUTHOR && (!user.emailVerified || !user.authorRulesAcceptedAt || user.authorRulesVersion !== '1')) throw new ConflictException('A autoria exige e-mail verificado e aceite da versão atual das regras.');
+      if (user.role === UserRole.SUPER_ADMIN) {
+        const remaining = await users.count({ where: { role: UserRole.SUPER_ADMIN, isActive: true } });
+        if (remaining <= 1) throw new ConflictException('O último SUPER_ADMIN não pode ser rebaixado.');
+      }
+      const previousRole = user.role;
+      await users.update(userId, { role, authVersion: () => 'auth_version + 1', refreshTokenHash: null,
+        ...(isAdministrator(role) ? { firstPostApproved: true } : {}),
+        ...(previousRole === UserRole.AUTHOR && role !== UserRole.AUTHOR ? { authorPromotionBlocked: true } : {}),
+        ...(role === UserRole.AUTHOR ? { authorPromotionBlocked: false } : {}) });
+      if (previousRole === UserRole.AUTHOR && role !== UserRole.AUTHOR) {
+        const rejected: { id: string }[] = await manager.query("UPDATE posts SET review_status = 'REJECTED', review_note = 'A função de autoria foi alterada; a revisão foi encerrada.' WHERE author_id = $1 AND review_status = 'PENDING' RETURNING id", [userId]);
+        for (const post of rejected) await this.audit.record(manager, actorId, 'post.review_cancelled', 'post', post.id, { reason: 'Função de autoria alterada', userId });
+      }
+      await this.audit.record(manager, actorId, 'user.permissions_changed', 'user', userId, { previousRole, role, reason: reason.trim() });
+      await manager.query("INSERT INTO notifications(recipient_id, actor_id, type) VALUES ($1, $2, 'role_changed')", [userId, actorId]);
+      return { id: userId, role };
+    });
+  }
+  async revokeUserSessions(actorId: string, userId: string, actorVersion: number, reason: string) {
+    if (reason.trim().length < 5) throw new BadRequestException('Informe o motivo.');
+    return this.dataSource.transaction(async manager => {
+      const users = manager.getRepository(User);
+      const actor = await users.findOne({ where: { id: actorId }, lock: { mode: 'pessimistic_write' } });
+      if (!actor?.isActive || !isAdministrator(actor.role) || actor.authVersion !== actorVersion) throw new ForbiddenException('Sessão administrativa inválida.');
+      const target = actorId === userId ? actor : await users.findOne({ where: { id: userId }, lock: { mode: 'pessimistic_write' } });
+      if (!target) throw new NotFoundException('Usuário não encontrado.');
+      if (actorId !== userId && isAdministrator(target.role) && actor.role !== UserRole.SUPER_ADMIN) throw new ForbiddenException('Não é permitido alterar outro administrador.');
+      await users.update(userId, { authVersion: () => 'auth_version + 1', refreshTokenHash: null });
+      await this.audit.record(manager, actorId, 'user.sessions_revoked', 'user', userId, { reason: reason.trim() });
+      if (actorId !== userId) await manager.query("INSERT INTO notifications(recipient_id, actor_id, type) VALUES ($1, $2, 'sessions_revoked')", [userId, actorId]);
+      return { revoked: true };
+    });
+  }
+  async suspend(actorId: string, userId: string, reason: string, endsAt: string | null, hidePostIds: string[], actorVersion: number) {
     if (actorId === userId) throw new ForbiddenException('Não é permitido suspender a própria conta.');
     const end = endsAt ? new Date(endsAt) : null;
     if (endsAt && !/(?:Z|[+-]\d{2}:\d{2})$/i.test(endsAt)) throw new BadRequestException('Informe o fuso horário do fim da suspensão.');
@@ -19,8 +254,11 @@ export class ModerationService {
     if (new Set(hidePostIds).size !== hidePostIds.length) throw new BadRequestException('Há identificadores de artigos repetidos.');
     return this.dataSource.transaction(async manager => {
       const users = manager.getRepository(User);
+      const actor = await users.findOne({ where: { id: actorId }, lock: { mode: 'pessimistic_write' } });
+      if (!actor?.isActive || !isAdministrator(actor.role) || actor.authVersion !== actorVersion) throw new ForbiddenException('Sessão administrativa inválida.');
       const user = await users.findOne({ where: { id: userId }, lock: { mode: 'pessimistic_write' } });
       if (!user) throw new NotFoundException('Usuário não encontrado.');
+      if (user.role === UserRole.SUPER_ADMIN || (user.role === UserRole.ADMIN && actor.role !== UserRole.SUPER_ADMIN)) throw new ForbiddenException('Não é permitido suspender esta conta administrativa.');
       if (!user.isActive) throw new ConflictException('Usuário já está inativo.');
       if (hidePostIds.length) {
         const posts = manager.getRepository(Post);
@@ -30,17 +268,22 @@ export class ModerationService {
       }
       await users.update(userId, { isActive: false, moderationSuspended: true, suspensionEndsAt: end, authVersion: () => 'auth_version + 1' });
       await this.audit.record(manager, actorId, 'user.suspend', 'user', userId, { reason: reason.trim(), endsAt: end?.toISOString() ?? null, hiddenPostIds: hidePostIds });
+      await manager.query("INSERT INTO notifications(recipient_id, actor_id, type) VALUES ($1, $2, 'account_suspended')", [userId, actorId]);
       return { suspended: true, endsAt: end };
     });
   }
-  async restore(actorId: string, userId: string) {
+  async restore(actorId: string, userId: string, actorVersion: number) {
     return this.dataSource.transaction(async manager => {
       const users = manager.getRepository(User);
+      const actor = await users.findOne({ where: { id: actorId }, lock: { mode: 'pessimistic_write' } });
+      if (!actor?.isActive || !isAdministrator(actor.role) || actor.authVersion !== actorVersion) throw new ForbiddenException('Sessão administrativa inválida.');
       const user = await users.findOne({ where: { id: userId }, lock: { mode: 'pessimistic_write' } });
       if (!user) throw new NotFoundException('Usuário não encontrado.');
+      if (user.role === UserRole.SUPER_ADMIN || (user.role === UserRole.ADMIN && actor.role !== UserRole.SUPER_ADMIN)) throw new ForbiddenException('Não é permitido restaurar esta conta administrativa.');
       if (!user.moderationSuspended) throw new ConflictException('Usuário não está suspenso.');
       await users.update(userId, { isActive: true, moderationSuspended: false, suspensionEndsAt: null });
       await this.audit.record(manager, actorId, 'user.restore', 'user', userId);
+      await manager.query("INSERT INTO notifications(recipient_id, actor_id, type) VALUES ($1, $2, 'account_restored')", [userId, actorId]);
       return { suspended: false };
     });
   }

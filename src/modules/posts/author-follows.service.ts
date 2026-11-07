@@ -12,10 +12,10 @@ export class AuthorFollowsService {
   async follow(authorId: string, userId: string) {
     if (authorId === userId) throw new BadRequestException('Você não pode seguir a si mesmo.');
     const result: { author_id: string }[] = await this.posts.query(`INSERT INTO author_follows (follower_id, author_id)
-      SELECT $1, id FROM users WHERE id = $2 AND is_active = true AND deleted_at IS NULL AND role IN ('AUTHOR', 'ADMIN')
+      SELECT $1, id FROM users WHERE id = $2 AND is_active = true AND deleted_at IS NULL AND role IN ('AUTHOR', 'ADMIN', 'SUPER_ADMIN')
       ON CONFLICT DO NOTHING RETURNING author_id`, [userId, authorId]);
     if (!result.length) {
-      const author: { id: string }[] = await this.posts.query("SELECT id FROM users WHERE id = $1 AND is_active = true AND deleted_at IS NULL AND role IN ('AUTHOR', 'ADMIN')", [authorId]);
+      const author: { id: string }[] = await this.posts.query("SELECT id FROM users WHERE id = $1 AND is_active = true AND deleted_at IS NULL AND role IN ('AUTHOR', 'ADMIN', 'SUPER_ADMIN')", [authorId]);
       if (!author.length) throw new NotFoundException('Autor não encontrado.');
     }
   }
@@ -30,7 +30,7 @@ export class AuthorFollowsService {
     const page = query.page ?? 1, limit = query.limit ?? 10;
     const where = `FROM posts p JOIN author_follows f ON f.author_id = p.author_id JOIN users u ON u.id = p.author_id
       WHERE f.follower_id = $1 AND p.published = true AND p.is_active = true AND p.deleted_at IS NULL
-      AND u.is_active = true AND u.deleted_at IS NULL AND u.role IN ('AUTHOR', 'ADMIN')`;
+      AND u.is_active = true AND u.deleted_at IS NULL AND u.role IN ('AUTHOR', 'ADMIN', 'SUPER_ADMIN')`;
     const rows: { id: string; slug: string; title: string; excerpt: string; coverImage: string | null; publishedAt: Date; authorId: string; authorName: string }[] = await this.posts.query(
       `SELECT p.id, p.slug, p.title, p.excerpt, p.cover_image AS "coverImage", p.published_at AS "publishedAt", u.id AS "authorId", u.name AS "authorName" ${where}
        ORDER BY p.published_at DESC NULLS LAST, p.id DESC LIMIT $2 OFFSET $3`, [userId, limit, (page - 1) * limit]);

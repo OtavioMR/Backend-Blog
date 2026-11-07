@@ -103,4 +103,15 @@ describe('CommentsService', () => {
       service.update('c', 'novo', { ...user, userId: 'other' }),
     ).rejects.toBeInstanceOf(ForbiddenException);
   });
+
+  it('allows only the comment owner or an administrator to edit, not the post author', async () => {
+    const comment = { id: 'c', postId: 'post', authorId: 'author', author, isActive: true, content: 'Olá' };
+    comments.findOne.mockResolvedValue(comment);
+    await expect(service.update('c', 'alterado', { ...user, userId: 'owner', role: UserRole.AUTHOR })).rejects.toBeInstanceOf(ForbiddenException);
+    await expect(service.update('c', 'alterado', { ...user, userId: 'other' })).rejects.toBeInstanceOf(ForbiddenException);
+    await service.update('c', 'texto próprio', user);
+    expect(comments.save).toHaveBeenCalledWith(expect.objectContaining({ content: 'texto próprio' }));
+    await service.update('c', 'texto moderado', { ...user, userId: 'admin', role: UserRole.ADMIN });
+    expect(comment.content).toBe('texto moderado');
+  });
 });

@@ -27,7 +27,7 @@ import { UpdatePostDto } from './dto/update-post.dto.js';
 import { FindPostsQueryDto } from './dto/find-posts-query.dto.js';
 import type { PaginatedResult } from '../../common/interfaces/paginated-result.interface.js';
 import { PaginationQueryDto } from '../../common/dto/pagination-query.dto.js';
-import { UserRole } from '../users/enums/user.enum.js';
+import { isAdministrator, UserRole } from '../users/enums/user.enum.js';
 import type { AuthenticatedUser } from '../auth/interfaces/request-with-user.interface.js';
 
 function readingTimeMinutes(content: string): number {
@@ -61,6 +61,7 @@ export class PostsService {
     const limit = query?.limit ?? 10;
     const skip = (page - 1) * limit;
 
+    const authorId = query?.authorId?.trim();
     const categoryId = query?.categoryId?.trim();
     const categorySlug = query?.categorySlug?.trim();
     const tagSlug = query?.tagSlug?.trim();
@@ -76,6 +77,7 @@ export class PostsService {
       { [key]: likePattern(value) },
     );
 
+    if (authorId) base.authorId = authorId;
     if (author) base.author = { name: matches(author, 'authorTerm') };
     if (categoryName || categoryId || categorySlug) {
       base.categories = {
@@ -177,7 +179,7 @@ export class PostsService {
 
   async authorProfile(id: string) {
     const user = await this.postsRepository.manager.getRepository('User').findOne({ where: { id, isActive: true } });
-    if (!user || ![UserRole.AUTHOR, UserRole.ADMIN].includes(user.role)) throw new NotFoundException('Autor não encontrado.');
+    if (!user || !(user.role === UserRole.AUTHOR || isAdministrator(user.role))) throw new NotFoundException('Autor não encontrado.');
     const publicationCount = await this.postsRepository.count({ where: { authorId: id, published: true, isActive: true } });
     return { id: user.id, name: user.name, profilePhoto: user.profilePhoto, bio: user.bio, websiteUrl: user.websiteUrl, socialUrl: user.socialUrl, publicationCount };
   }
@@ -268,7 +270,7 @@ export class PostsService {
       },
     });
 
-    if (!post || (!post.published && (!user || (user.role !== UserRole.ADMIN && post.authorId !== user.userId)))) {
+    if (!post || (!post.published && (!user || (!isAdministrator(user.role) && post.authorId !== user.userId)))) {
       throw new NotFoundException('Artigo não encontrado.');
     }
 
@@ -283,7 +285,7 @@ export class PostsService {
         SELECT s.id, s.title, p.id AS "postId", p.slug
         FROM post_series_items current_item
         JOIN post_series s ON s.id = current_item.series_id
-        JOIN users u ON u.id = s.author_id AND u.is_active = true AND u.deleted_at IS NULL AND u.role IN ('AUTHOR', 'ADMIN')
+        JOIN users u ON u.id = s.author_id AND u.is_active = true AND u.deleted_at IS NULL AND u.role IN ('AUTHOR', 'ADMIN', 'SUPER_ADMIN')
         JOIN post_series_items item ON item.series_id = s.id
         JOIN posts p ON p.id = item.post_id AND p.published = true AND p.is_active = true AND p.deleted_at IS NULL
         WHERE current_item.post_id = $1 ORDER BY item.position`, [post.id]);
@@ -369,7 +371,7 @@ export class PostsService {
       throw new NotFoundException('Artigo não encontrado.');
     }
 
-    if (user.role !== UserRole.ADMIN && (post.authorId !== user.userId || user.role !== UserRole.AUTHOR)) {
+    if (!isAdministrator(user.role) && (post.authorId !== user.userId || user.role !== UserRole.AUTHOR)) {
       throw new ForbiddenException(
         'Você não tem permissão para editar este artigo.',
       );
@@ -416,7 +418,7 @@ export class PostsService {
     if (postData.published === true && !post.published) post.publishedAt = new Date();
     if (postData.published === false || postData.isActive === false) post.publishedAt = null;
     Object.assign(post, postData);
-    const savedPost = user.role === UserRole.ADMIN && post.authorId !== user.userId
+    const savedPost = isAdministrator(user.role) && post.authorId !== user.userId
       ? await this.postsRepository.manager.transaction(async manager => {
           const saved = await manager.getRepository(Post).save(post);
           await manager.query(`INSERT INTO audit_logs (actor_id, action, target_type, target_id, details) VALUES ($1, 'post.admin_updated', 'post', $2, $3::jsonb)`, [user.userId, id, JSON.stringify({ fields: Object.keys(updatePostDto) })]);
@@ -430,7 +432,7 @@ export class PostsService {
   private async changeCover(id: string, user: AuthenticatedUser, buffer?: Buffer): Promise<{ coverImage: string | null }> {
     const post = await this.postsRepository.findOne({ where: { id, isActive: true } });
     if (!post) throw new NotFoundException('Artigo não encontrado.');
-    if (user.role !== UserRole.ADMIN && (post.authorId !== user.userId || user.role !== UserRole.AUTHOR)) throw new ForbiddenException('Sem permissão para editar este artigo.');
+    if (!isAdministrator(user.role) && (post.authorId !== user.userId || user.role !== UserRole.AUTHOR)) throw new ForbiddenException('Sem permissão para editar este artigo.');
 
     const directory = join(process.cwd(), 'uploads', 'post-covers');
     let path: string | undefined;
@@ -457,7 +459,7 @@ export class PostsService {
         .where('id = :id AND is_active = true AND deleted_at IS NULL', { id })
         .andWhere(post.coverImage == null ? 'cover_image IS NULL' : 'cover_image = :oldCover', { oldCover: post.coverImage })
         .execute();
-      const result = user.role === UserRole.ADMIN && post.authorId !== user.userId
+      const result = isAdministrator(user.role) && post.authorId !== user.userId
         ? await this.postsRepository.manager.transaction(async manager => {
             const updated = await updateCover(manager.getRepository(Post));
             if (updated.affected) await manager.query(`INSERT INTO audit_logs (actor_id, action, target_type, target_id) VALUES ($1, 'post.admin_cover_changed', 'post', $2)`, [user.userId, id]);
@@ -491,7 +493,7 @@ export class PostsService {
       throw new NotFoundException('Artigo não encontrado.');
     }
 
-    if (user.role !== UserRole.ADMIN && (post.authorId !== user.userId || user.role !== UserRole.AUTHOR)) {
+    if (!isAdministrator(user.role) && (post.authorId !== user.userId || user.role !== UserRole.AUTHOR)) {
       throw new ForbiddenException(
         'Você não tem permissão para desativar este artigo.',
       );

@@ -1,7 +1,10 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { UserRole } from '../../modules/users/enums/user.enum.js';
 
 export class UserResponseDto {
+  @ApiPropertyOptional({ description: 'Estado da primeira aprovação editorial; presente somente ao consultar o próprio perfil por ID. Não substitui a autorização da API.', example: false })
+  firstPostApproved?: boolean;
+
   @ApiProperty({
     description: 'Identificador único do usuário (UUID v4)',
     example: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',

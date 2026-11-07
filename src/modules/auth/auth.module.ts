@@ -36,6 +36,6 @@ import { JwtStrategy } from './strategies/jwt.strategy.js';
   ],
   controllers: [AuthController, TotpController, SocialAuthController],
   providers: [AuthService, JwtStrategy, TotpService, SocialAuthService],
-  exports: [AuthService],
+  exports: [AuthService, TotpService],
 })
 export class AuthModule {}

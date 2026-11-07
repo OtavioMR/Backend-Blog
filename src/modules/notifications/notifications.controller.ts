@@ -9,9 +9,10 @@ import { NotificationsService } from './notifications.service.js';
 
 class NotificationDto {
   @ApiProperty({ format: 'uuid' }) id: string;
-  @ApiProperty({ enum: ['post_like', 'comment', 'reply', 'comment_like', 'follow'] }) type: string;
+  @ApiProperty({ enum: ['post_like', 'comment', 'reply', 'comment_like', 'follow', 'post_approved', 'post_rejected', 'post_hidden', 'post_restored', 'comment_hidden', 'comment_restored', 'role_changed', 'sessions_revoked', 'account_suspended', 'account_restored', 'report_assigned'] }) type: string;
   @ApiProperty({ type: String, format: 'uuid', nullable: true }) postId: string | null;
   @ApiProperty({ type: String, format: 'uuid', nullable: true }) commentId: string | null;
+  @ApiProperty({ type: String, format: 'uuid', nullable: true, description: 'Denúncia atribuída, quando aplicável.' }) reportId: string | null;
   @ApiProperty({ type: String, format: 'date-time', nullable: true }) readAt: Date | null;
   @ApiProperty({ type: String, format: 'date-time' }) createdAt: Date;
   @ApiProperty({ type: () => PostAuthorResponseDto }) actor: PostAuthorResponseDto;
@@ -30,7 +31,7 @@ class NotificationListDto {
 export class NotificationsController {
   constructor(private readonly service: NotificationsService) {}
   @Get()
-  @ApiOperation({ summary: 'Listar minhas notificações', description: 'Inclui número total de notificações não lidas. Eventos: curtidas em artigos e comentários, comentários, respostas e seguidores; ações próprias não geram notificação.' })
+  @ApiOperation({ summary: 'Listar minhas notificações', description: 'Inclui número total de notificações não lidas e eventos sociais e administrativos; ações próprias não geram notificação.' })
   @ApiResponse({ status: 200, description: 'Notificações paginadas.', type: NotificationListDto })
   @ApiResponse({ status: 400, description: 'Paginação inválida.' })
   list(@Req() req: RequestWithUser, @Query() query: PaginationQueryDto) { return this.service.list(req.user.userId, query); }

@@ -2,7 +2,7 @@ import { BadRequestException, ConflictException, ForbiddenException, Injectable,
 import { DataSource, EntityManager } from 'typeorm';
 import { sanitizePlainText } from '../../common/utils/sanitize-content.js';
 import type { AuthenticatedUser } from '../auth/interfaces/request-with-user.interface.js';
-import { UserRole } from '../users/enums/user.enum.js';
+import { isAdministrator, UserRole } from '../users/enums/user.enum.js';
 import { CreateSeriesDto, UpdateSeriesDto } from './dto/series.dto.js';
 
 type Series = { id: string; authorId: string; title: string; description: string; createdAt: Date; updatedAt: Date };
@@ -12,7 +12,7 @@ export class PostSeriesService {
   private async owned(manager: EntityManager, id: string, user: AuthenticatedUser): Promise<Series> {
     const rows: Series[] = await manager.query('SELECT id, author_id AS "authorId", title, description, created_at AS "createdAt", updated_at AS "updatedAt" FROM post_series WHERE id = $1 FOR UPDATE', [id]);
     if (!rows.length) throw new NotFoundException('Serie nao encontrada.');
-    if (user.role !== UserRole.ADMIN && (user.role !== UserRole.AUTHOR || rows[0].authorId !== user.userId)) throw new ForbiddenException('Sem permissao para editar a serie.');
+    if (!isAdministrator(user.role) && (user.role !== UserRole.AUTHOR || rows[0].authorId !== user.userId)) throw new ForbiddenException('Sem permissao para editar a serie.');
     return rows[0];
   }
   private title(value: string): string {
@@ -54,7 +54,7 @@ export class PostSeriesService {
   async detail(id: string) {
     const rows: Series[] = await this.db.query(`SELECT s.id, s.author_id AS "authorId", s.title, s.description, s.created_at AS "createdAt", s.updated_at AS "updatedAt"
       FROM post_series s JOIN users u ON u.id = s.author_id
-      WHERE s.id = $1 AND u.is_active = true AND u.deleted_at IS NULL AND u.role IN ('AUTHOR', 'ADMIN')
+      WHERE s.id = $1 AND u.is_active = true AND u.deleted_at IS NULL AND u.role IN ('AUTHOR', 'ADMIN', 'SUPER_ADMIN')
       AND EXISTS (SELECT 1 FROM post_series_items si JOIN posts p ON p.id = si.post_id WHERE si.series_id = s.id AND p.published = true AND p.is_active = true AND p.deleted_at IS NULL)`, [id]);
     if (!rows.length) throw new NotFoundException('Serie nao encontrada.');
     const posts = await this.db.query(`SELECT p.id, p.slug, p.title, p.excerpt, p.published_at AS "publishedAt", si.position
