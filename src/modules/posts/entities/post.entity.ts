@@ -31,7 +31,7 @@ export class Post {
   @Column({ type: 'text' })
   content: string;
 
-  @Column({ type: 'varchar', length: 200, default: '' })
+  @Column({ type: 'varchar', length: 500, default: '' })
   excerpt: string;
 
   @Column({ name: 'cover_image', type: 'varchar', nullable: true })

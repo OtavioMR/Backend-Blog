@@ -32,7 +32,7 @@ describe('Administração e privilégios', () => {
     for (const account of accounts) {
       const response = await supertest(app.getHttpServer()).post('/api/v1/users').send(account).expect(201);
       ids.push(response.body.id);
-      await users.update(response.body.id, { emailVerified: true });
+      await users.update(response.body.id, { emailVerified: true, recoveryEmail: `recovery-${response.body.id}@example.invalid`, recoveryEmailVerifiedAt: new Date() });
     }
     await users.update(ids[0], { role: UserRole.SUPER_ADMIN });
     await users.update(ids[1], { role: UserRole.ADMIN });
@@ -48,7 +48,7 @@ describe('Administração e privilégios', () => {
     const login = async (index: number, extra: object = {}) => (await supertest(server).post('/api/v1/auth/login').send({ email: accounts[index].email, password, ...extra }).expect(200)).body.access_token;
     const readerToken = await login(2), adminToken = await login(1), initialOwnerToken = await login(0);
     await supertest(server).get('/api/v1/admin/users').set('Authorization', `Bearer ${readerToken}`).expect(403);
-    await supertest(server).get('/api/v1/admin/users').set('Authorization', `Bearer ${adminToken}`).expect(200);
+    await supertest(server).get('/api/v1/admin/users').set('Authorization', `Bearer ${adminToken}`).expect(403);
     await supertest(server).patch(`/api/v1/admin/users/${ids[2]}/role`).set('Authorization', `Bearer ${adminToken}`).send({ role: 'ADMIN', reason: 'Promoção de teste' }).expect(403);
     await supertest(server).patch(`/api/v1/users/${ids[2]}`).set('Authorization', `Bearer ${readerToken}`).send({ role: 'ADMIN' }).expect(403);
     const setup = await supertest(server).post('/api/v1/auth/totp/setup').set('Authorization', `Bearer ${initialOwnerToken}`).send({ password }).expect(200);

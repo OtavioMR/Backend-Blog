@@ -98,6 +98,14 @@ export class User {
   @Column({ name: 'totp_enabled', default: false })
   totpEnabled: boolean;
 
+  @Column({ name: 'recovery_email', type: 'varchar', length: 255, nullable: true, select: false })
+  @Exclude()
+  recoveryEmail: string | null;
+
+  @Column({ name: 'recovery_email_verified_at', type: 'timestamptz', nullable: true, select: false })
+  @Exclude()
+  recoveryEmailVerifiedAt: Date | null;
+
   @Column({ name: 'totp_secret', type: 'text', nullable: true, select: false })
   @Exclude()
   totpSecret: string | null;
@@ -131,6 +139,9 @@ export class User {
 
   @Column({ name: 'author_promotion_blocked', default: false })
   authorPromotionBlocked: boolean;
+
+  @Column({ name: 'author_access_requested_at', type: 'timestamptz', nullable: true })
+  authorAccessRequestedAt: Date | null;
 
   @Column({ name: 'auth_version', type: 'integer', default: 0 })
   authVersion: number;

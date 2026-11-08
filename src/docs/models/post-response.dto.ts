@@ -63,7 +63,7 @@ export class PostResponseDto {
   @ApiProperty({ description: 'Caminho público da imagem de capa, ou null.', type: String, nullable: true, example: '/uploads/post-covers/550e8400-e29b-41d4-a716-446655440000.webp' })
   coverImage: string | null;
 
-  @ApiProperty({ description: 'Resumo do artigo', maxLength: 200 })
+  @ApiProperty({ description: 'Descrição de apresentação do artigo, editável pelo autor', maxLength: 500 })
   excerpt: string;
 
   @ApiProperty({ description: 'Data da última publicação; nula para rascunhos.', type: String, format: 'date-time', nullable: true })

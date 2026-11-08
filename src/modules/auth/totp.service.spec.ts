@@ -39,6 +39,8 @@ describe('TotpService', () => {
       isActive: true,
       role: UserRole.READER,
       totpEnabled: false,
+      recoveryEmail: 'recovery@example.invalid',
+      recoveryEmailVerifiedAt: new Date(),
       totpSecret: null,
       totpPendingSecret: null,
       totpPendingExpiresAt: null,
@@ -116,6 +118,15 @@ describe('TotpService', () => {
 
   it('rejeita setup se a senha estiver incorreta', async () => {
     await expect(service.setup('user-1', 'WrongPassword!')).rejects.toThrow(UnauthorizedException);
+  });
+  it('exige e-mail de recuperação confirmado no setup e novamente na ativação', async () => {
+    const user = mockUsers.get('user-1');
+    user.recoveryEmailVerifiedAt = null;
+    await expect(service.setup('user-1', 'Password123!')).rejects.toThrow(ConflictException);
+    user.recoveryEmailVerifiedAt = new Date();
+    const setup = await service.setup('user-1', 'Password123!');
+    user.recoveryEmail = null;
+    await expect(service.enable('user-1', generateSync({ secret: setup.secret }))).rejects.toThrow(ConflictException);
   });
 
   it('ativa o TOTP com código de 6 dígitos válido e emite códigos de recuperação', async () => {

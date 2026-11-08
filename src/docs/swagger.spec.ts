@@ -4,6 +4,10 @@ import { PostRevisionsController } from '../modules/posts/post-revisions.control
 import { PostRevisionsService } from '../modules/posts/post-revisions.service.js';
 import { TotpController } from '../modules/auth/totp.controller.js';
 import { TotpService } from '../modules/auth/totp.service.js';
+import { TotpRecoveryController } from '../modules/auth/totp-recovery.controller.js';
+import { TotpRecoveryService } from '../modules/auth/totp-recovery.service.js';
+import { RecoveryEmailController } from '../modules/auth/recovery-email.controller.js';
+import { RecoveryEmailService } from '../modules/auth/recovery-email.service.js';
 import { SocialAuthController } from '../modules/auth/social-auth.controller.js';
 import { SocialAuthService } from '../modules/auth/social-auth.service.js';
 import { ModerationController } from '../modules/moderation/moderation.controller.js';
@@ -69,7 +73,7 @@ describe('Swagger Documentation Configuration', () => {
     const moduleRef = await Test.createTestingModule({
       controllers: [
         PostSeriesController, PostSeriesNavigationController, PostRevisionsController, TotpController, SocialAuthController, AuditController, ModerationController, AdminCommentsController, AdminPostsController, AdminTagsController, AdminCategoriesController, AnalyticsController, PostReviewController, ReportsController,
-        AuthorsController,
+        TotpRecoveryController, RecoveryEmailController, AuthorsController,
         FeedController,
         PostViewsController, AuthorFollowsController, SavedCollectionsController,
         CommentLikesController, NotificationsController, NewsletterController,
@@ -82,6 +86,8 @@ describe('Swagger Documentation Configuration', () => {
         HealthController,
       ],
       providers: [
+        { provide: TotpRecoveryService, useValue: {} },
+        { provide: RecoveryEmailService, useValue: {} },
         { provide: PostSeriesService, useValue: {} }, { provide: PostRevisionsService, useValue: {} }, { provide: TotpService, useValue: {} }, { provide: SocialAuthService, useValue: {} },
         { provide: AuditService, useValue: {} }, { provide: ModerationService, useValue: {} },
         { provide: AnalyticsService, useValue: {} },
@@ -192,6 +198,19 @@ describe('Swagger Documentation Configuration', () => {
     const paths = Object.keys(document.paths);
     expect(paths).toContain('/api/v1/auth/login');
     expect(document.paths['/api/v1/auth/totp/setup'].post?.security).toEqual([{ 'JWT-auth': [] }]);
+    expect(document.paths['/api/v1/admin/users/{id}/totp-recovery'].post?.security).toEqual([{ 'JWT-auth': [] }]);
+    expect(document.paths['/api/v1/auth/recovery-email'].get?.security).toEqual([{ 'JWT-auth': [] }]);
+    expect(document.paths['/api/v1/auth/recovery-email/request'].post?.security).toEqual([{ 'JWT-auth': [] }]);
+    for (const path of ['/api/v1/auth/recovery-email/confirm', '/api/v1/auth/recovery-email/cancel', '/api/v1/auth/totp-recovery/request']) {
+      expect(document.paths[path].post?.security).toEqual([{}]);
+      expect(document.paths[path].post?.requestBody).toBeDefined();
+    }
+    for (const action of ['setup', 'complete', 'cancel']) {
+      const operation = document.paths[`/api/v1/auth/totp-recovery/${action}`].post;
+      expect(operation?.security).toEqual([{}]);
+      expect(operation?.responses['401']).toBeDefined();
+      expect(operation?.requestBody).toBeDefined();
+    }
     expect(document.paths['/api/v1/auth/social/{provider}/link'].post?.security).toEqual([{ 'JWT-auth': [] }]);
     expect(document.paths['/api/v1/auth/social/{provider}/callback'].get?.security).toEqual([{}]);
     expect(document.paths['/api/v1/auth/social/challenge'].post?.security).toEqual([{}]);

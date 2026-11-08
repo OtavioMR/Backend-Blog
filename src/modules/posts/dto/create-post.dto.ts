@@ -38,6 +38,12 @@ export class CreatePostDto {
   @MaxLength(50000)
   content: string;
 
+  @ApiPropertyOptional({ description: 'Descrição apresentada abaixo do título e nas listagens; gerada a partir do conteúdo quando omitida na criação.', maxLength: 500, example: 'Uma apresentação do artigo.' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  excerpt?: string;
+
   @ApiPropertyOptional({
     description: 'Status de publicação do artigo',
     example: true,

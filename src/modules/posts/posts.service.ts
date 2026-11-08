@@ -278,6 +278,7 @@ export class PostsService {
     post.tags = post.tags || [];
     post.title = sanitizePlainText(post.title);
     post.content = sanitizePostContent(post.content);
+    post.excerpt = sanitizePlainText(post.excerpt ?? '');
     Object.assign(post, { readingTimeMinutes: readingTimeMinutes(post.content ?? '') });
 
     if (post.published) {
@@ -332,7 +333,7 @@ export class PostsService {
       scheduledAt: schedule,
       coverImage: null,
       slug: shortPostSlug(postData.title),
-      excerpt: sanitizePlainText(postData.content).slice(0, 200),
+      excerpt: postData.excerpt === undefined ? sanitizePlainText(postData.content).slice(0, 200) : sanitizePlainText(postData.excerpt ?? ''),
       publishedAt: postData.published ? new Date() : null,
       authorId,
       isActive: true,
@@ -414,7 +415,7 @@ export class PostsService {
       post.tags = await this.tagsService.resolveNames(tagNames);
     }
 
-    if (postData.content !== undefined) post.excerpt = sanitizePlainText(postData.content).slice(0, 200);
+    if (postData.excerpt !== undefined) postData.excerpt = sanitizePlainText(postData.excerpt ?? '');
     if (postData.published === true && !post.published) post.publishedAt = new Date();
     if (postData.published === false || postData.isActive === false) post.publishedAt = null;
     Object.assign(post, postData);
@@ -433,6 +434,7 @@ export class PostsService {
     const post = await this.postsRepository.findOne({ where: { id, isActive: true } });
     if (!post) throw new NotFoundException('Artigo não encontrado.');
     if (!isAdministrator(user.role) && (post.authorId !== user.userId || user.role !== UserRole.AUTHOR)) throw new ForbiddenException('Sem permissão para editar este artigo.');
+    if (post.reviewStatus === 'PENDING') throw new ConflictException('Artigo aguarda revisão e não pode ser editado.');
 
     const directory = join(process.cwd(), 'uploads', 'post-covers');
     let path: string | undefined;
@@ -456,7 +458,7 @@ export class PostsService {
     try {
       const updateCover = (repository: Repository<Post>) => repository.createQueryBuilder().update(Post)
         .set({ coverImage })
-        .where('id = :id AND is_active = true AND deleted_at IS NULL', { id })
+        .where("id = :id AND is_active = true AND deleted_at IS NULL AND review_status <> 'PENDING'", { id })
         .andWhere(post.coverImage == null ? 'cover_image IS NULL' : 'cover_image = :oldCover', { oldCover: post.coverImage })
         .execute();
       const result = isAdministrator(user.role) && post.authorId !== user.userId

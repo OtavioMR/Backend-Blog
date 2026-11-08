@@ -1,5 +1,9 @@
 # Blog API — Documentação Técnica Completa e Guia de Integração Frontend
 
+Recuperação de autenticador perdido: consulte o [procedimento de recuperação assistida e de emergência](docs/TOTP_RECOVERY.md), incluindo autorizações com expiração, confirmação do novo fator e o comando de operação no servidor.
+
+Para ativar o 2FA, o titular precisa cadastrar e confirmar um e-mail de recuperação diferente do principal. A recuperação de READER/AUTHOR/ADMIN envia o link somente a esse endereço; o principal recebe avisos e cancelamento. SUPER_ADMIN continua exigindo o procedimento no servidor. Contas com 2FA já ativo são preservadas e podem cadastrar o endereço com senha e TOTP atual.
+
 > Para as alterações administrativas mais recentes, incluindo SUPER_ADMIN, TOTP para mudanças de função e incompatibilidades do PATCH de usuários, consulte [README-ADMIN.md](README-ADMIN.md). Em caso de divergência com seções anteriores, esse contrato prevalece.
 
 API RESTful em **NestJS 11 + TypeScript**, **TypeORM + PostgreSQL** e **Redis** para plataforma editorial e de blog multiusuário com controle de acesso baseado em papéis (`READER`, `AUTHOR`, `ADMIN`), fluxo de revisão editorial do primeiro artigo, autenticação JWT com rotação de refresh token em cookie `HttpOnly`, autenticação em dois fatores (TOTP), login social OAuth2 (Google e GitHub), agendamento de publicações, revisões de artigos, séries, coleções salvas, comentários aninhados, notificações, newsletter (double opt-in), denúncias, moderação administrativa, métricas e trilha de auditoria.
@@ -832,7 +836,7 @@ Controller: `src/modules/posts/posts.controller.ts`
 - **Erros:** `401` (se enviar JWT inválido), `404` (`"Post com identificador ... não encontrado"`).
 
 #### `POST /api/v1/posts`
-- **Descrição:** Cria um novo artigo, gera `slug` único a partir do título, gera `excerpt` automático (primeiros 300 caracteres do texto limpo), vincula categorias existentes e cria/reutiliza tags automaticamente.
+- **Descrição:** Cria um novo artigo, gera `slug` único a partir do título, aceita `excerpt` opcional (descrição de até 500 caracteres; quando omitido, usa os primeiros 200 caracteres do conteúdo limpo), vincula categorias existentes e cria/reutiliza tags automaticamente.
 - **Autenticação / Roles:** JWT + `RolesGuard` (`@Roles(UserRole.AUTHOR, UserRole.ADMIN)`). Rate limit: **10 req/min**.
 - **Request Body (`CreatePostDto`):**
   | Campo | Tipo | Obrigatório | Validação e Regras de Negócio |

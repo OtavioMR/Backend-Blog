@@ -31,6 +31,11 @@ describe('capa de artigo', () => {
     repo.findOne.mockResolvedValue(null);
     await expect(service.removeCover('id', owner)).rejects.toBeInstanceOf(NotFoundException);
   });
+  it('impede alterar a capa enquanto o artigo aguarda revisão', async () => {
+    repo.findOne.mockResolvedValue({ authorId: 'author', coverImage: null, reviewStatus: 'PENDING' });
+    await expect(service.removeCover('id', owner)).rejects.toBeInstanceOf(ConflictException);
+    expect(builder.execute).not.toHaveBeenCalled();
+  });
   it('remove a capa anterior depois da atualização', async () => {
     repo.findOne.mockResolvedValue({ authorId: 'author', coverImage: '/uploads/post-covers/550e8400-e29b-41d4-a716-446655440000.webp' });
     expect(await service.removeCover('id', owner)).toEqual({ coverImage: null });

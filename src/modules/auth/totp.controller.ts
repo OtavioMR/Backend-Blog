@@ -46,7 +46,7 @@ export class TotpController {
   @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @ApiOperation({
     summary: 'Iniciar configuração do TOTP',
-    description: 'Exige a senha atual. Retorna o segredo, a URI otpauth e o QR Code em DataURL. A configuração expira em dez minutos.',
+    description: 'Exige a senha atual e e-mail de recuperação diferente do principal já confirmado. Retorna o segredo, a URI otpauth e o QR Code em DataURL. A configuração expira em dez minutos.',
   })
   @ApiResponse({
     status: 200,
@@ -62,7 +62,7 @@ export class TotpController {
   })
   @ApiResponse({ status: 400, description: 'Dados inválidos.' })
   @ApiResponse({ status: 401, description: 'Token ou senha inválidos.' })
-  @ApiResponse({ status: 409, description: 'TOTP já ativado.' })
+  @ApiResponse({ status: 409, description: 'TOTP já ativado ou e-mail de recuperação não confirmado.' })
   @ApiResponse({ status: 503, description: 'Chave de criptografia do TOTP não configurada.' })
   setup(@Req() req: RequestWithUser, @Body() dto: PasswordDto) {
     return this.service.setup(req.user.userId, dto.password);
@@ -73,7 +73,7 @@ export class TotpController {
   @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @ApiOperation({
     summary: 'Confirmar e ativar TOTP',
-    description: 'Valida o código de seis dígitos do Google Authenticator. Ativa o 2FA e emite os códigos de recuperação de uso único.',
+    description: 'Valida o código de seis dígitos do Google Authenticator e exige e-mail de recuperação confirmado. Ativa o 2FA e emite os códigos de recuperação de uso único.',
   })
   @ApiResponse({
     status: 200,

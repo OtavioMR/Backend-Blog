@@ -47,7 +47,12 @@ export class UsersService {
       INSERT INTO audit_logs (actor_id, action, target_type, target_id, details)
       SELECT id, 'user.author_promoted', 'user', id, '{"rulesVersion":"1"}'::jsonb FROM promoted RETURNING target_id
     ) SELECT target_id FROM logged`, [userId]);
-    if (!result.length) throw new ForbiddenException('A promoção exige uma conta de leitor ativa, verificada e elegível.');
+    if (!result.length) {
+      const requested = await this.usersRepository.query(`UPDATE users SET author_access_requested_at = COALESCE(author_access_requested_at, now())
+        WHERE id = $1 AND role = 'READER' AND email_verified = true AND is_active = true AND deleted_at IS NULL AND author_promotion_blocked = true RETURNING id`, [userId]);
+      if (requested.length) return { requested: true };
+      throw new ForbiddenException('A promoção exige uma conta de leitor ativa, verificada e elegível.');
+    }
     return { role: UserRole.AUTHOR, rulesVersion: '1' };
   }
 
@@ -437,6 +442,7 @@ export class UsersService {
         .where('email_change_token_hash = :tokenHash', { tokenHash })
         .andWhere('email_change_expires_at > CURRENT_TIMESTAMP')
         .andWhere('pending_email IS NOT NULL AND is_active = true AND deleted_at IS NULL')
+        .andWhere('(recovery_email IS NULL OR lower(pending_email) <> lower(recovery_email))')
         .execute();
       if (!result.affected) throw new BadRequestException('Token inválido ou expirado.');
     } catch (error) {

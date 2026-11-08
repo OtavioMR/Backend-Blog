@@ -32,7 +32,7 @@ export class ModerationService {
   async postDetail(id: string) {
     const post = await this.dataSource.getRepository(Post).createQueryBuilder('p').addSelect('p.reviewNote').leftJoinAndSelect('p.author', 'author').where('p.id = :id', { id }).getOne();
     if (!post) throw new NotFoundException('Artigo não encontrado.');
-    return { id: post.id, title: post.title, slug: post.slug, content: post.content, excerpt: post.excerpt, author: post.author ? { id: post.author.id, name: post.author.name } : null, authorId: post.authorId, published: post.published, publishedAt: post.publishedAt, reviewStatus: post.reviewStatus, reviewNote: post.reviewNote, isActive: post.isActive, moderationHidden: post.moderationHidden, createdAt: post.createdAt, updatedAt: post.updatedAt };
+    return { id: post.id, title: post.title, slug: post.slug, content: post.content, excerpt: post.excerpt, coverImage: post.coverImage, author: post.author ? { id: post.author.id, name: post.author.name } : null, authorId: post.authorId, published: post.published, publishedAt: post.publishedAt, reviewStatus: post.reviewStatus, reviewNote: post.reviewNote, isActive: post.isActive, moderationHidden: post.moderationHidden, createdAt: post.createdAt, updatedAt: post.updatedAt };
   }
   async contentHistory(type: 'post' | 'comment', id: string, page = 1, limit = 10) {
     const repository = type === 'post' ? this.dataSource.getRepository(Post) : this.dataSource.getRepository(Comment);
@@ -180,6 +180,19 @@ export class ModerationService {
     const byUser = new Map(grants.map(grant => [grant.targetId, grant]));
     return { data: users.map(u => { const grant = byUser.get(u.id); return { id: u.id, name: u.name, email: u.email, emailVerified: u.emailVerified, profilePhoto: u.profilePhoto, role: u.role, isActive: u.isActive, moderationSuspended: u.moderationSuspended, createdAt: u.createdAt, grantedAt: grant?.role === u.role ? grant.grantedAt : null, grantedBy: grant?.role === u.role ? grant.grantedBy : null }; }), meta: paginationMeta(page, limit, total) };
   }
+  async blockedAuthorAccounts(page = 1, limit = 10, search = '', filter: 'requested' | 'all' = 'all') {
+    const query = this.dataSource.getRepository(User).createQueryBuilder('u')
+      .where('u.author_promotion_blocked = true AND u.role = :role AND u.is_active = true AND u.deleted_at IS NULL', { role: UserRole.READER });
+    const pendingTotal = await query.clone().andWhere('u.author_access_requested_at IS NOT NULL').getCount();
+    if (filter === 'requested') query.andWhere('u.author_access_requested_at IS NOT NULL');
+    if (search.trim()) {
+      const term = search.trim().replace(/[\\%_]/g, '\\$&');
+      query.andWhere("(u.name ILIKE :search ESCAPE '\\' OR u.email ILIKE :search ESCAPE '\\' OR CAST(u.id AS text) = :id)", { search: `%${term}%`, id: search.trim() });
+    }
+    query.orderBy('u.author_access_requested_at', 'DESC', 'NULLS LAST').addOrderBy('u.name', 'ASC').addOrderBy('u.id', 'ASC').skip((page - 1) * limit).take(limit);
+    const [users, total] = await query.getManyAndCount();
+    return { data: users.map(user => ({ id: user.id, name: user.name, email: user.email, requestedAt: user.authorAccessRequestedAt })), pendingTotal, meta: paginationMeta(page, limit, total) };
+  }
   async userDetail(userId: string) {
     const user = await this.dataSource.getRepository(User).findOne({ where: { id: userId } });
     if (!user) throw new NotFoundException('Usuário não encontrado.');
@@ -188,13 +201,13 @@ export class ModerationService {
       (SELECT count(*)::int FROM comments WHERE author_id = $1) AS comments`, [userId]);
     return { id: user.id, name: user.name, email: user.email, role: user.role, isActive: user.isActive,
       moderationSuspended: user.moderationSuspended, suspensionEndsAt: user.suspensionEndsAt,
-      emailVerified: user.emailVerified, createdAt: user.createdAt, counts };
+      emailVerified: user.emailVerified, totpEnabled: user.totpEnabled, authorPromotionBlocked: user.authorPromotionBlocked, createdAt: user.createdAt, counts };
   }
   async userHistory(userId: string, page = 1, limit = 10) {
     if (!(await this.dataSource.getRepository(User).exists({ where: { id: userId } }))) throw new NotFoundException('Usuário não encontrado.');
     const [data, count] = await Promise.all([
-      this.dataSource.query(`SELECT a.id, a.actor_id AS "actorId", CASE WHEN u.deleted_at IS NULL THEN u.name ELSE NULL END AS "actorName", a.action, a.target_type AS "targetType", a.target_id AS "targetId", a.details, a.created_at AS "createdAt" FROM audit_logs a LEFT JOIN users u ON u.id = a.actor_id WHERE a.target_type = 'user' AND a.target_id = $1 AND a.action IN ('user.suspend', 'user.restore', 'user.suspension_expired', 'user.permissions_changed', 'user.sessions_revoked', 'user.author_promoted', 'user.super_admin_bootstrap') ORDER BY a.created_at DESC, a.id DESC LIMIT $2 OFFSET $3`, [userId, limit, (page - 1) * limit]),
-      this.dataSource.query(`SELECT count(*)::int AS total FROM audit_logs WHERE target_type = 'user' AND target_id = $1 AND action IN ('user.suspend', 'user.restore', 'user.suspension_expired', 'user.permissions_changed', 'user.sessions_revoked', 'user.author_promoted', 'user.super_admin_bootstrap')`, [userId]),
+      this.dataSource.query(`SELECT a.id, a.actor_id AS "actorId", CASE WHEN u.deleted_at IS NULL THEN u.name ELSE NULL END AS "actorName", a.action, a.target_type AS "targetType", a.target_id AS "targetId", a.details, a.created_at AS "createdAt" FROM audit_logs a LEFT JOIN users u ON u.id = a.actor_id WHERE a.target_type = 'user' AND a.target_id = $1 AND a.action IN ('user.suspend', 'user.restore', 'user.suspension_expired', 'user.permissions_changed', 'user.sessions_revoked', 'user.author_promoted', 'user.author_request_unblocked', 'user.super_admin_bootstrap', 'auth.totp_recovery_authorized', 'auth.totp_recovery_cancelled', 'auth.totp_recovered') ORDER BY a.created_at DESC, a.id DESC LIMIT $2 OFFSET $3`, [userId, limit, (page - 1) * limit]),
+      this.dataSource.query(`SELECT count(*)::int AS total FROM audit_logs WHERE target_type = 'user' AND target_id = $1 AND action IN ('user.suspend', 'user.restore', 'user.suspension_expired', 'user.permissions_changed', 'user.sessions_revoked', 'user.author_promoted', 'user.author_request_unblocked', 'user.super_admin_bootstrap', 'auth.totp_recovery_authorized', 'auth.totp_recovery_cancelled', 'auth.totp_recovered')`, [userId]),
     ]);
     return { data, meta: paginationMeta(page, limit, count[0].total) };
   }
@@ -206,6 +219,22 @@ export class ModerationService {
       this.dataSource.query(`SELECT count(*)::int AS total FROM reports r WHERE ${where}`, [userId]),
     ]);
     return { data, meta: paginationMeta(page, limit, count[0].total) };
+  }
+  async allowAuthorRequest(actorId: string, userId: string, reason: string, actorVersion: number) {
+    if (actorId === userId) throw new ForbiddenException('Não é permitido liberar a própria conta.');
+    if (reason.trim().length < 5) throw new BadRequestException('Informe o motivo.');
+    return this.dataSource.transaction(async manager => {
+      await manager.query("SELECT pg_advisory_xact_lock(hashtext('griforio.admin.roles'))");
+      const users = manager.getRepository(User);
+      const actor = await users.findOne({ where: { id: actorId }, lock: { mode: 'pessimistic_write' } });
+      if (!actor?.isActive || actor.role !== UserRole.SUPER_ADMIN || actor.authVersion !== actorVersion || !actor.totpEnabled) throw new ForbiddenException('Sessão administrativa inválida ou sem TOTP ativo.');
+      const user = await users.findOne({ where: { id: userId }, lock: { mode: 'pessimistic_write' } });
+      if (!user || !user.isActive) throw new NotFoundException('Usuário ativo não encontrado.');
+      if (user.role !== UserRole.READER || !user.authorPromotionBlocked) throw new ConflictException('A conta não possui solicitação de autoria bloqueada.');
+      await users.update(userId, { authorPromotionBlocked: false, authorAccessRequestedAt: null });
+      await this.audit.record(manager, actorId, 'user.author_request_unblocked', 'user', userId, { reason: reason.trim() });
+      return { allowed: true };
+    });
   }
   async changeRole(actorId: string, userId: string, role: UserRole, reason: string, actorVersion: number) {
     if (role === UserRole.SUPER_ADMIN) throw new BadRequestException('Não é permitido atribuir a função SUPER_ADMIN por esta rota.');
@@ -221,6 +250,7 @@ export class ModerationService {
       if (!user || !user.isActive) throw new NotFoundException('Usuário ativo não encontrado.');
       if (user.role === role) throw new ConflictException('Usuário já possui esta função.');
       if (isAdministrator(role) && !user.emailVerified) throw new ConflictException('A conta precisa ter e-mail verificado para receber privilégios administrativos.');
+      if (isAdministrator(role) && !user.totpEnabled) throw new ConflictException('A conta precisa ativar a autenticação em dois fatores antes de receber privilégios administrativos.');
       if (isAdministrator(role) && user.moderationSuspended) throw new ConflictException('Contas suspensas não podem receber privilégios administrativos.');
       if (role === UserRole.AUTHOR && (!user.emailVerified || !user.authorRulesAcceptedAt || user.authorRulesVersion !== '1')) throw new ConflictException('A autoria exige e-mail verificado e aceite da versão atual das regras.');
       if (user.role === UserRole.SUPER_ADMIN) {
@@ -234,8 +264,8 @@ export class ModerationService {
         authVersion: () => 'auth_version + 1',
         refreshTokenHash: null,
         ...(isAdministrator(role) ? { firstPostApproved: true } : {}),
-        ...(isDemotedToReader ? { authorPromotionBlocked: true } : {}),
-        ...(role === UserRole.AUTHOR ? { authorPromotionBlocked: false } : {}),
+        ...(isDemotedToReader ? { authorPromotionBlocked: true, authorAccessRequestedAt: null } : {}),
+        ...(role === UserRole.AUTHOR ? { authorPromotionBlocked: false, authorAccessRequestedAt: null } : {}),
       });
       await manager.query("DELETE FROM auth_sessions WHERE user_id = $1", [userId]);
       if (isDemotedToReader) {

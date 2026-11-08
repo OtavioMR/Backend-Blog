@@ -12,6 +12,7 @@ import { Comment } from '../comments/entities/comment.entity.js';
 import { User } from '../users/entities/user.entity.js';
 import { AuditLog } from '../audit/audit.entity.js';
 import { AuditService } from '../audit/audit.service.js';
+import { UsersService } from '../users/users.service.js';
 
 describe.skipIf(process.env.RUN_DB_TESTS !== '1')('operações administrativas no PostgreSQL', () => {
   let runner: QueryRunner, service: ModerationService, reportsService: ReportsService;
@@ -54,13 +55,43 @@ describe.skipIf(process.env.RUN_DB_TESTS !== '1')('operações administrativas n
   });
   it('concede e revoga ADMIN com auditoria e invalidação das credenciais', async () => {
     const target = randomUUID();
-    await runner.query("INSERT INTO users(id, name, email, password_hash, role, email_verified) VALUES ($1, 'Pessoa sintética', $2, 'hash', 'READER', true)", [target, `${target}@example.invalid`]);
+    await runner.query("INSERT INTO users(id, name, email, password_hash, role, email_verified, totp_enabled) VALUES ($1, 'Pessoa sintética', $2, 'hash', 'READER', true, true)", [target, `${target}@example.invalid`]);
     await service.changeRole(admin, target, UserRole.ADMIN, 'Concessão sintética', 0);
     await service.changeRole(admin, target, UserRole.READER, 'Revogação sintética', 0);
     const [user] = await runner.query('SELECT role, auth_version FROM users WHERE id = $1', [target]);
     expect(user).toMatchObject({ role: 'READER', auth_version: 2 });
     const events = await runner.query("SELECT details->>'role' AS role FROM audit_logs WHERE target_id = $1 AND action = 'user.permissions_changed' ORDER BY created_at, id", [target]);
     expect(events.map((event: { role: string }) => event.role)).toEqual(expect.arrayContaining(['ADMIN', 'READER']));
+  });
+  it('impede conceder ADMIN sem 2FA e permite após sua ativação', async () => {
+    const target = randomUUID();
+    await runner.query("INSERT INTO users(id, name, email, password_hash, role, email_verified) VALUES ($1, 'Pessoa sintética sem 2FA', $2, 'hash', 'READER', true)", [target, `${target}@example.invalid`]);
+    await expect(service.changeRole(admin, target, UserRole.ADMIN, 'Concessão sintética', 0)).rejects.toThrow('autenticação em dois fatores');
+    const [before] = await runner.query('SELECT role, auth_version FROM users WHERE id = $1', [target]);
+    expect(before).toMatchObject({ role: 'READER', auth_version: 0 });
+    expect(await runner.query("SELECT id FROM audit_logs WHERE target_id = $1 AND action = 'user.permissions_changed'", [target])).toHaveLength(0);
+    await runner.query('UPDATE users SET totp_enabled = true WHERE id = $1', [target]);
+    await expect(service.changeRole(admin, target, UserRole.ADMIN, 'Concessão sintética', 0)).resolves.toMatchObject({ role: 'ADMIN' });
+  });
+  it('permite liberar leitor rebaixado para aceitar as regras, sem conceder autoria antecipadamente', async () => {
+    const target = randomUUID();
+    await runner.query("INSERT INTO users(id, name, email, password_hash, role, email_verified, totp_enabled) VALUES ($1, 'Pessoa sintética', $2, 'hash', 'ADMIN', true, true)", [target, `${target}@example.invalid`]);
+    await service.changeRole(admin, target, UserRole.READER, 'Alteração de função', 0);
+    expect((await service.blockedAuthorAccounts(1, 100)).data).toEqual(expect.arrayContaining([expect.objectContaining({ id: target })]));
+    const users = new UsersService(runner.manager.getRepository(User), {} as any);
+    await expect(users.becomeAuthor(target)).resolves.toEqual({ requested: true });
+    await expect(users.becomeAuthor(target)).resolves.toEqual({ requested: true });
+    const pending = await service.blockedAuthorAccounts(1, 10, target, 'requested');
+    expect(pending.data).toEqual([expect.objectContaining({ id: target, requestedAt: expect.any(Date) })]);
+    expect(pending.pendingTotal).toBeGreaterThanOrEqual(1);
+    await expect(service.allowAuthorRequest(author, target, 'Liberação solicitada', 0)).rejects.toThrow();
+    await expect(service.allowAuthorRequest(admin, target, 'Liberação solicitada', 0)).resolves.toEqual({ allowed: true });
+    expect((await service.blockedAuthorAccounts(1, 100)).data).not.toEqual(expect.arrayContaining([expect.objectContaining({ id: target })]));
+    const [before] = await runner.query('SELECT role, author_rules_accepted_at, author_promotion_blocked FROM users WHERE id=$1', [target]);
+    expect(before).toMatchObject({ role: 'READER', author_rules_accepted_at: null, author_promotion_blocked: false });
+    expect((await service.userHistory(target)).data).toEqual(expect.arrayContaining([expect.objectContaining({ action: 'user.author_request_unblocked' })]));
+    await expect(users.becomeAuthor(target)).resolves.toMatchObject({ role: UserRole.AUTHOR });
+    await expect(service.allowAuthorRequest(admin, target, 'Liberação repetida', 0)).rejects.toThrow();
   });
   it('filtra a fila por responsável e apresenta o comentário e moderador', async () => {
     const id = randomUUID();
@@ -151,7 +182,9 @@ describe.skipIf(process.env.RUN_DB_TESTS !== '1')('operações administrativas n
     expect(comments.data).toEqual(expect.arrayContaining([expect.objectContaining({ id: comment })]));
     const posts = await service.listPosts({ authorId: author, search: 'Artigo de teste' });
     expect(posts.data).toEqual(expect.arrayContaining([expect.objectContaining({ id: post })]));
-    await expect(service.postDetail(post)).resolves.toMatchObject({ id: post, authorId: author });
+    const coverImage = '/uploads/post-covers/550e8400-e29b-41d4-a716-446655440000.webp';
+    await runner.query('UPDATE posts SET cover_image = $2 WHERE id = $1', [post, coverImage]);
+    await expect(service.postDetail(post)).resolves.toMatchObject({ id: post, authorId: author, coverImage });
   });
   it('mescla tags sem duplicar associações e mantém auditoria', async () => {
     const source = await service.saveTag(null, `origem-${randomUUID()}`, admin);
@@ -184,7 +217,7 @@ describe.skipIf(process.env.RUN_DB_TESTS !== '1')('operações administrativas n
   });
   it('permite publicação direta após concessão administrativa', async () => {
     const newAdmin = randomUUID(), newPost = randomUUID();
-    await runner.query("INSERT INTO users(id, name, email, password_hash, role, email_verified) VALUES ($1, 'Novo admin', $2, 'hash', 'READER', true)", [newAdmin, `${newAdmin}@example.invalid`]);
+    await runner.query("INSERT INTO users(id, name, email, password_hash, role, email_verified, totp_enabled) VALUES ($1, 'Novo admin', $2, 'hash', 'READER', true, true)", [newAdmin, `${newAdmin}@example.invalid`]);
     await service.changeRole(admin, newAdmin, UserRole.ADMIN, 'Promoção aprovada', 0);
     await runner.query("INSERT INTO posts(id, title, slug, content, author_id, published) VALUES ($1, 'Artigo admin', $2, 'Conteúdo', $3, true)", [newPost, `admin-${newPost}`, newAdmin]);
     const [row] = await runner.query('SELECT u.first_post_approved, p.published FROM users u JOIN posts p ON p.author_id = u.id WHERE p.id = $1', [newPost]);

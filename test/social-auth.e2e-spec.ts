@@ -63,6 +63,7 @@ describe('Social authentication', () => {
     const login = await request(app.getHttpServer()).get('/api/v1/auth/social/google/callback').set('Cookie', nextCookie).query({ code: 'code', state: nextState }).expect(200);
     expect(login.body.access_token).toBeTruthy();
     expect(login.headers['set-cookie'].some((value: string) => value.startsWith('refreshToken='))).toBe(true);
+    await users.update(id, { recoveryEmail: `recovery-${id}@example.invalid`, recoveryEmailVerifiedAt: new Date() });
     const setup = await request(app.getHttpServer()).post('/api/v1/auth/totp/setup').set('Authorization', `Bearer ${login.body.access_token}`).send({ password: account.password }).expect(200);
     const now = Math.floor(Date.now() / 30000);
     await request(app.getHttpServer()).post('/api/v1/auth/totp/enable').set('Authorization', `Bearer ${login.body.access_token}`).send({ code: code(setup.body.secret, now) }).expect(200);

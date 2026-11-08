@@ -28,7 +28,7 @@ describe('TOTP authentication', () => {
     app = module.createNestApplication(); app.use(cookieParser()); app.setGlobalPrefix('api/v1'); app.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true })); await app.init();
     users = module.get(getRepositoryToken(User)); audits = module.get(getRepositoryToken(AuditLog));
     const created = await request(app.getHttpServer()).post('/api/v1/users').send(account).expect(201); id = created.body.id;
-    await users.update(id, { emailVerified: true });
+    await users.update(id, { emailVerified: true, recoveryEmail: `recovery-${id}@example.invalid`, recoveryEmailVerifiedAt: new Date() });
     token = (await request(app.getHttpServer()).post('/api/v1/auth/login').send({ email: account.email, password: account.password }).expect(200)).body.access_token;
   });
   afterAll(async () => {

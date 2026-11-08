@@ -17,6 +17,11 @@ describe('RolesGuard', () => {
     expect(() => guard.canActivate(context(UserRole.ADMIN, true))).toThrow(ForbiddenException);
     expect(guard.canActivate(context(UserRole.SUPER_ADMIN, true))).toBe(true);
   });
+  it('bloqueia operações administrativas sem segundo fator ativo', () => {
+    const guard = new RolesGuard({ getAllAndOverride: vi.fn().mockReturnValue([UserRole.ADMIN]) } as any);
+    expect(() => guard.canActivate(context(UserRole.ADMIN, false))).toThrow(ForbiddenException);
+    expect(() => guard.canActivate(context(UserRole.SUPER_ADMIN, false))).toThrow(ForbiddenException);
+  });
   it('permite ADMIN e SUPER_ADMIN em rotas destinadas a AUTHOR', () => {
     const guard = new RolesGuard({ getAllAndOverride: vi.fn().mockReturnValue([UserRole.AUTHOR]) } as any);
     expect(guard.canActivate(context(UserRole.SUPER_ADMIN, true))).toBe(true);

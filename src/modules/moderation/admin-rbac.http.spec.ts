@@ -16,7 +16,7 @@ describe('permissões administrativas HTTP', () => {
   const totp = { verifyLogin: vi.fn(async (_id: string, code: string) => code === '123456') };
   beforeAll(async () => {
     const module = await Test.createTestingModule({ controllers: [ModerationController], providers: [RolesGuard, { provide: ModerationService, useValue: moderation }, { provide: TotpService, useValue: totp }] })
-      .overrideGuard(JwtAuthGuard).useValue({ canActivate: (context: any) => { const req = context.switchToHttp().getRequest(); req.user = { userId: 'actor', role: req.headers['x-test-role'], authVersion: 1 }; return true; } }).compile();
+      .overrideGuard(JwtAuthGuard).useValue({ canActivate: (context: any) => { const req = context.switchToHttp().getRequest(); req.user = { userId: 'actor', role: req.headers['x-test-role'], authVersion: 1, totpEnabled: req.headers['x-test-no-totp'] !== 'true' }; return true; } }).compile();
     app = module.createNestApplication();
     app.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }));
     await app.init();
@@ -27,6 +27,9 @@ describe('permissões administrativas HTTP', () => {
   });
   it('permite a consulta para ADMIN e SUPER_ADMIN', async () => {
     for (const role of [UserRole.ADMIN, UserRole.SUPER_ADMIN]) await supertest(app.getHttpServer()).get('/admin/users').set('x-test-role', role).expect(200);
+  });
+  it('nega acesso administrativo a conta sem 2FA ativo', async () => {
+    await supertest(app.getHttpServer()).get('/admin/users').set('x-test-role', UserRole.SUPER_ADMIN).set('x-test-no-totp', 'true').expect(403);
   });
   it('reserva mudança de função ao SUPER_ADMIN com TOTP válido', async () => {
     const body = { role: UserRole.ADMIN, reason: 'Promoção aprovada' };

@@ -8,6 +8,8 @@ import { Post } from './entities/post.entity.js';
 import { Category } from '../categories/entities/category.entity.js';
 import { TagsService } from '../tags/tags.service.js';
 import { UserRole } from '../users/enums/user.enum.js';
+import { validate } from 'class-validator';
+import { CreatePostDto } from './dto/create-post.dto.js';
 
 describe('PostsService', () => {
   let service: PostsService;
@@ -64,6 +66,24 @@ describe('PostsService', () => {
 
   it('should be defined', () => {
     expect(service).toBeDefined();
+  });
+
+  it('aceita descrição de 500 caracteres e rejeita 501', async () => {
+    const dto = Object.assign(new CreatePostDto(), { title: 'Artigo', content: 'Conteúdo do artigo', excerpt: 'a'.repeat(500) });
+    expect(await validate(dto)).toHaveLength(0);
+    dto.excerpt += 'a';
+    expect((await validate(dto)).some(error => error.property === 'excerpt')).toBe(true);
+  });
+
+  it('salva a descrição escolhida e a preserva ao alterar o conteúdo', async () => {
+    const created = await service.create({ title: 'Artigo', content: 'Conteúdo do artigo', excerpt: '<b>Apresentação</b>' }, 'autor');
+    expect(created.excerpt).toBe('Apresentação');
+    mockPostsRepository.findOne.mockResolvedValue({ ...created, authorId: 'autor' });
+    const user = { userId: 'autor', role: UserRole.AUTHOR } as any;
+    const updated = await service.update(created.id, { content: 'Outro conteúdo do artigo' }, user);
+    expect(updated.excerpt).toBe('Apresentação');
+    const changed = await service.update(created.id, { excerpt: 'Nova descrição' }, user);
+    expect(changed.excerpt).toBe('Nova descrição');
   });
 
   describe('findAll', () => {

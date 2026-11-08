@@ -13,3 +13,7 @@ export class AdminUsersQuery extends PaginationQueryDto {
   @ApiPropertyOptional({ enum: ['createdAt', 'name'], default: 'createdAt' }) @IsOptional() @IsIn(['createdAt', 'name']) sort?: 'createdAt' | 'name';
   @ApiPropertyOptional({ enum: ['ASC', 'DESC'], default: 'DESC' }) @IsOptional() @IsIn(['ASC', 'DESC']) order?: 'ASC' | 'DESC';
 }
+export class BlockedAuthorQuery extends PaginationQueryDto {
+  @ApiPropertyOptional({ maxLength: 255 }) @IsOptional() @IsString() @MaxLength(255) search?: string;
+  @ApiPropertyOptional({ enum: ['requested', 'all'] }) @IsOptional() @IsIn(['requested', 'all']) filter?: 'requested' | 'all';
+}

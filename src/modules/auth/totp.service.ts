@@ -100,6 +100,31 @@ export class TotpService {
     }
   }
 
+  // Recovery grants keep provisioning separate from the still-active authenticator.
+  async prepareRecovery(email: string) {
+    const secret = generateSecret();
+    const otpauthUri = generateURI({ issuer: 'Grifório', label: email, secret });
+    const qrCode = await QRCode.toDataURL(otpauthUri, { errorCorrectionLevel: 'M', margin: 2, width: 280 });
+    return { secret, otpauthUri, qrCode, encryptedSecret: this.encrypt(secret), expiresIn: 600 };
+  }
+
+  async replaceRecoveredFactor(manager: EntityManager, userId: string, encryptedSecret: string, code: string): Promise<string[] | null> {
+    const timeStep = this.match(this.decrypt(encryptedSecret), code, null);
+    if (timeStep === null) return null;
+    const codes = generateRecoveryCodes(8);
+    const repo = manager.getRepository(UserRecoveryCode);
+    await repo.delete({ userId });
+    await repo.save(codes.map(plain => repo.create({ userId, codeHash: hashRecoveryCode(plain), usedAt: null })));
+    await manager.getRepository(User).update(userId, {
+      totpEnabled: true, totpSecret: encryptedSecret, totpPendingSecret: null, totpPendingExpiresAt: null,
+      totpLastCounter: String(timeStep), authVersion: () => 'auth_version + 1', refreshTokenHash: null,
+      resetPasswordTokenHash: null, resetPasswordExpiresAt: null,
+      pendingEmail: null, emailChangeTokenHash: null, emailChangeExpiresAt: null,
+    });
+    await manager.query('DELETE FROM auth_sessions WHERE user_id = $1', [userId]);
+    return codes;
+  }
+
   private async lockedUser(manager: EntityManager, id: string): Promise<User> {
     const user = await manager
       .getRepository(User)
@@ -110,6 +135,8 @@ export class TotpService {
         'u.totpPendingSecret',
         'u.totpPendingExpiresAt',
         'u.totpLastCounter',
+        'u.recoveryEmail',
+        'u.recoveryEmailVerifiedAt',
       ])
       .where('u.id = :id AND u.is_active = true AND u.deleted_at IS NULL', { id })
       .setLock('pessimistic_write')
@@ -130,6 +157,7 @@ export class TotpService {
       if (user.totpEnabled) {
         throw new ConflictException('A autenticação em dois fatores já está ativada.');
       }
+      if (!user.recoveryEmail || !user.recoveryEmailVerifiedAt) throw new ConflictException('Cadastre e confirme um e-mail de recuperação diferente do principal antes de ativar o 2FA.');
       const secret = generateSecret();
       const otpauthUri = generateURI({
         issuer: 'Grifório',
@@ -156,6 +184,7 @@ export class TotpService {
       if (user.totpEnabled) {
         throw new ConflictException('A autenticação em dois fatores já está ativada.');
       }
+      if (!user.recoveryEmail || !user.recoveryEmailVerifiedAt) throw new ConflictException('Confirme seu e-mail de recuperação antes de ativar o 2FA.');
       if (
         !user.totpPendingSecret ||
         !user.totpPendingExpiresAt ||
@@ -231,8 +260,8 @@ export class TotpService {
 
   async verifyLogin(userId: string, code?: string, existingManager?: EntityManager, existingUser?: User): Promise<boolean> {
     if (!code) return false;
-    if (existingManager && existingUser) {
-      return this.verifyLoginWithManager(existingManager, existingUser, code);
+    if (existingManager) {
+      return this.verifyLoginWithManager(existingManager, existingUser ?? await this.lockedUser(existingManager, userId), code);
     }
     return this.dataSource.transaction(async (manager) => {
       const user = await this.lockedUser(manager, userId);

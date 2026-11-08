@@ -3,6 +3,10 @@ import { SocialAuthController } from './social-auth.controller.js';
 import { SocialAuthService } from './social-auth.service.js';
 import { TotpController } from './totp.controller.js';
 import { TotpService } from './totp.service.js';
+import { TotpRecoveryService } from './totp-recovery.service.js';
+import { TotpRecoveryController } from './totp-recovery.controller.js';
+import { RecoveryEmailController } from './recovery-email.controller.js';
+import { RecoveryEmailService } from './recovery-email.service.js';
 import { AuthSession } from './entities/session.entity.js';
 import { UserRecoveryCode } from './entities/recovery-code.entity.js';
 import { Module } from '@nestjs/common';
@@ -35,8 +39,8 @@ import { JwtStrategy } from './strategies/jwt.strategy.js';
       }),
     }),
   ],
-  controllers: [AuthController, TotpController, SocialAuthController],
-  providers: [AuthService, JwtStrategy, TotpService, SocialAuthService],
+  controllers: [AuthController, TotpController, SocialAuthController, TotpRecoveryController, RecoveryEmailController],
+  providers: [AuthService, JwtStrategy, TotpService, SocialAuthService, TotpRecoveryService, RecoveryEmailService],
   exports: [AuthService, TotpService],
 })
 export class AuthModule {}

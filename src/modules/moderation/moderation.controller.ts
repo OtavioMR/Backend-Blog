@@ -8,7 +8,7 @@ import { RolesGuard } from '../auth/guard/roles.guard.js';
 import type { RequestWithUser } from '../auth/interfaces/request-with-user.interface.js';
 import { UserRole } from '../users/enums/user.enum.js';
 import { ModerationService } from './moderation.service.js';
-import { AdminUsersQuery } from './admin-users.dto.js';
+import { AdminUsersQuery, BlockedAuthorQuery } from './admin-users.dto.js';
 import { PaginationQueryDto } from '../../common/dto/pagination-query.dto.js';
 import { TotpService } from '../auth/totp.service.js';
 class SuspendDto {
@@ -35,10 +35,14 @@ export class ModerationController {
   @ApiResponse({ status: 401, description: 'Autenticação necessária.' })
   @ApiResponse({ status: 403, description: 'Requer administrador.' })
   listUsers(@Query() query: AdminUsersQuery) { return this.service.listUsers(query); }
+  @Get('author-access/blocked')
+  @Roles(UserRole.SUPER_ADMIN)
+  @ApiOperation({ summary: 'Listar leitores com autoria bloqueada', description: 'O bloqueio não indica necessariamente uma solicitação do titular.' })
+  blockedAuthorAccounts(@Query() query: BlockedAuthorQuery) { return this.service.blockedAuthorAccounts(query.page, query.limit, query.search, query.filter); }
   @Get(':id')
   @ApiOperation({ summary: 'Consultar usuário para moderação', description: 'ADMIN ou SUPER_ADMIN; inclui estado da conta e contagens de publicações e comentários.' })
   @ApiParam({ name: 'id', format: 'uuid' })
-  @ApiResponse({ status: 200, description: 'Detalhes de moderação.', schema: { example: { id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', name: 'Ana', email: 'ana@example.com', role: 'READER', isActive: true, moderationSuspended: false, suspensionEndsAt: null, emailVerified: true, createdAt: '2026-01-01T00:00:00.000Z', counts: { posts: 0, comments: 2 } } } })
+  @ApiResponse({ status: 200, description: 'Detalhes de moderação.', schema: { example: { id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', name: 'Ana', email: 'ana@example.com', role: 'READER', isActive: true, moderationSuspended: false, suspensionEndsAt: null, emailVerified: true, totpEnabled: true, createdAt: '2026-01-01T00:00:00.000Z', counts: { posts: 0, comments: 2 } } } })
   @ApiResponse({ status: 400, description: 'UUID inválido.' })
   @ApiResponse({ status: 401, description: 'Autenticação necessária.' })
   @ApiResponse({ status: 403, description: 'Requer administrador.' })
@@ -68,13 +72,22 @@ export class ModerationController {
   @ApiResponse({ status: 401, description: 'Autenticação necessária ou código TOTP inválido, reutilizado ou não configurado.' })
   @ApiResponse({ status: 403, description: 'Requer SUPER_ADMIN e impede alteração da própria função.' })
   @ApiResponse({ status: 404, description: 'Usuário ativo não encontrado.' })
-  @ApiResponse({ status: 409, description: 'Função inalterada ou último SUPER_ADMIN.' })
+  @ApiResponse({ status: 409, description: 'Função inalterada, último SUPER_ADMIN ou requisitos administrativos não atendidos (incluindo 2FA ativo e e-mail verificado).' })
   async changeRole(@Param('id', ParseUUIDPipe) id: string, @Req() req: RequestWithUser, @Body() dto: ChangeRoleDto, @Headers('x-totp-code') code?: string) {
     if (dto.role === UserRole.SUPER_ADMIN) {
       throw new BadRequestException('Não é permitido atribuir a função SUPER_ADMIN por esta rota. Superadministradores só podem ser configurados via procedimento de bootstrap seguro.');
     }
     if (!(await this.totp.verifyLogin(req.user.userId, code))) throw new UnauthorizedException('Código TOTP inválido ou não configurado.');
     return this.service.changeRole(req.user.userId, id, dto.role, dto.reason, req.user.authVersion);
+  }
+  @Post(':id/author-request/unblock')
+  @Roles(UserRole.SUPER_ADMIN)
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  @ApiOperation({ summary: 'Permitir nova solicitação de autoria', description: 'SUPER_ADMIN com TOTP atual libera um leitor bloqueado; o titular ainda precisa aceitar as regras.' })
+  @ApiHeader({ name: 'X-TOTP-Code', required: true })
+  async unblockAuthor(@Param('id', ParseUUIDPipe) id: string, @Req() req: RequestWithUser, @Body() dto: RevokeSessionsDto, @Headers('x-totp-code') code?: string) {
+    if (!(await this.totp.verifyLogin(req.user.userId, code))) throw new UnauthorizedException('Código TOTP inválido ou não configurado.');
+    return this.service.allowAuthorRequest(req.user.userId, id, dto.reason, req.user.authVersion);
   }
   @Post(':id/sessions/revoke')
   @ApiOperation({ summary: 'Revogar sessões de uma conta', description: 'ADMIN pode revogar sessões de contas comuns; SUPER_ADMIN também pode revogar sessões de administradores. A alteração invalida tokens e é auditada.' })
