@@ -10,12 +10,14 @@ import { Report, ReportStatus, ReportTarget } from '../reports/reports.entity.js
 import { Post } from '../posts/entities/post.entity.js';
 import { Comment } from '../comments/entities/comment.entity.js';
 import { User } from '../users/entities/user.entity.js';
+import { AuditLog } from '../audit/audit.entity.js';
+import { AuditService } from '../audit/audit.service.js';
 
 describe.skipIf(process.env.RUN_DB_TESTS !== '1')('operações administrativas no PostgreSQL', () => {
   let runner: QueryRunner, service: ModerationService, reportsService: ReportsService;
   const admin = randomUUID(), author = randomUUID(), post = randomUUID(), comment = randomUUID();
   beforeAll(async () => {
-    dataSource.setOptions({ migrations: [], entities: [...(dataSource.options.entities as any[]), Report] });
+    dataSource.setOptions({ migrations: [], entities: [...(dataSource.options.entities as any[]), Report, AuditLog] });
     await dataSource.initialize();
     runner = dataSource.createQueryRunner();
     await runner.startTransaction();
@@ -32,6 +34,57 @@ describe.skipIf(process.env.RUN_DB_TESTS !== '1')('operações administrativas n
     if (runner?.isTransactionActive) await runner.rollbackTransaction();
     if (runner) await runner.release();
     if (dataSource.isInitialized) await dataSource.destroy();
+  });
+  it('enriquece e pesquisa eventos de auditoria sem alterar dados históricos', async () => {
+    await runner.query("INSERT INTO audit_logs(actor_id, action, target_type, target_id, details) VALUES ($1, 'comment.hide', 'comment', $2, $3::jsonb)", [admin, comment, JSON.stringify({ reason: 'Teste sintético' })]);
+    const db = { getRepository: runner.manager.getRepository.bind(runner.manager), query: runner.query.bind(runner) } as unknown as DataSource;
+    const result = await new AuditService(db).list(1, 20, { actorId: admin, search: 'Comentário de teste' });
+    expect(result.data).toEqual(expect.arrayContaining([expect.objectContaining({ actorName: 'Admin de teste', targetLabel: 'Comentário de teste', action: 'comment.hide' })]));
+  });
+  it('inclui nomes de autor e artigo nas filas administrativas', async () => {
+    const posts = await service.listPosts({ authorId: author });
+    const comments = await service.listComments({ authorId: author });
+    expect(posts.data).toEqual(expect.arrayContaining([expect.objectContaining({ id: post, author: expect.objectContaining({ name: 'Autor de teste' }) })]));
+    expect(comments.data).toEqual(expect.arrayContaining([expect.objectContaining({ id: comment, author: expect.objectContaining({ name: 'Autor de teste' }), post: expect.objectContaining({ title: 'Artigo de teste' }) })]));
+  });
+  it('mostra a concessão administrativa quando há evento histórico correspondente', async () => {
+    await runner.query("INSERT INTO audit_logs(actor_id, action, target_type, target_id, details) VALUES ($1, 'user.permissions_changed', 'user', $1, $2::jsonb)", [admin, JSON.stringify({ role: 'SUPER_ADMIN' })]);
+    const result = await service.listUsers({ role: UserRole.SUPER_ADMIN, search: admin });
+    expect(result.data).toEqual(expect.arrayContaining([expect.objectContaining({ id: admin, grantedAt: expect.any(Date), grantedBy: 'Admin de teste' })]));
+  });
+  it('concede e revoga ADMIN com auditoria e invalidação das credenciais', async () => {
+    const target = randomUUID();
+    await runner.query("INSERT INTO users(id, name, email, password_hash, role, email_verified) VALUES ($1, 'Pessoa sintética', $2, 'hash', 'READER', true)", [target, `${target}@example.invalid`]);
+    await service.changeRole(admin, target, UserRole.ADMIN, 'Concessão sintética', 0);
+    await service.changeRole(admin, target, UserRole.READER, 'Revogação sintética', 0);
+    const [user] = await runner.query('SELECT role, auth_version FROM users WHERE id = $1', [target]);
+    expect(user).toMatchObject({ role: 'READER', auth_version: 2 });
+    const events = await runner.query("SELECT details->>'role' AS role FROM audit_logs WHERE target_id = $1 AND action = 'user.permissions_changed' ORDER BY created_at, id", [target]);
+    expect(events.map((event: { role: string }) => event.role)).toEqual(expect.arrayContaining(['ADMIN', 'READER']));
+  });
+  it('filtra a fila por responsável e apresenta o comentário e moderador', async () => {
+    const id = randomUUID();
+    await runner.query("INSERT INTO reports(id, reporter_id, comment_id, reason) VALUES ($1, $2, $3, 'Motivo sintético')", [id, admin, comment]);
+    const unassigned = await reportsService.list({ assignee: 'unassigned', target: ReportTarget.COMMENT }, admin);
+    expect(unassigned.data).toEqual(expect.arrayContaining([expect.objectContaining({ id, targetLabel: 'Comentário de teste', moderatorName: null, authorName: 'Autor de teste', postTitle: 'Artigo de teste' })]));
+    await reportsService.assign(id, admin, admin);
+    const mine = await reportsService.list({ assignee: 'me', target: ReportTarget.COMMENT }, admin);
+    expect(mine.data).toEqual(expect.arrayContaining([expect.objectContaining({ id, moderatorName: 'Admin de teste' })]));
+    expect(await reportsService.detail(id)).toEqual(expect.objectContaining({ assignedAt: expect.any(Date), moderator: expect.objectContaining({ name: 'Admin de teste' }) }));
+    await reportsService.release(id, admin);
+    const [report] = await runner.query('SELECT status, moderator_id FROM reports WHERE id = $1', [id]);
+    expect(report).toEqual({ status: 'PENDING', moderator_id: null });
+    await runner.query('DELETE FROM reports WHERE id = $1', [id]);
+  });
+  it('não apresenta conteúdo excluído pelo autor na denúncia nem na auditoria', async () => {
+    const removedComment = randomUUID(), report = randomUUID();
+    await runner.query("INSERT INTO comments(id, post_id, author_id, content, is_active, moderation_hidden) VALUES ($1, $2, $3, 'Texto removido sintético', false, false)", [removedComment, post, author]);
+    await runner.query("INSERT INTO reports(id, reporter_id, comment_id, reason) VALUES ($1, $2, $3, 'Motivo sintético')", [report, admin, removedComment]);
+    await runner.query("INSERT INTO audit_logs(actor_id, action, target_type, target_id) VALUES ($1, 'comment.moderated', 'comment', $2)", [admin, removedComment]);
+    expect((await reportsService.detail(report)).target).toBeNull();
+    const db = { getRepository: runner.manager.getRepository.bind(runner.manager), query: runner.query.bind(runner) } as unknown as DataSource;
+    const events = await new AuditService(db).list(1, 20, { targetId: removedComment });
+    expect(events.data[0].targetLabel).toBe('Conteúdo indisponível');
   });
   it('persiste mudança de função com auditoria, revogação e notificação na mesma transação', async () => {
     await service.changeRole(admin, author, UserRole.AUTHOR, 'Autoria aprovada', 0);

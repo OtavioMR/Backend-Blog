@@ -18,7 +18,7 @@ export class ModerationService {
   constructor(private readonly dataSource: DataSource, private readonly audit: AuditService, @Optional() private readonly cache?: PublicCacheService) {}
   async listPosts(filters: { page?: number; limit?: number; authorId?: string; search?: string; status?: 'published' | 'pending' | 'rejected' | 'hidden' | 'draft' }) {
     const page = filters.page ?? 1, limit = filters.limit ?? 10;
-    const query = this.dataSource.getRepository(Post).createQueryBuilder('p');
+    const query = this.dataSource.getRepository(Post).createQueryBuilder('p').leftJoinAndSelect('p.author', 'author');
     if (filters.authorId) query.andWhere('p.authorId = :authorId', { authorId: filters.authorId });
     if (filters.search?.trim()) query.andWhere("p.title ILIKE :search ESCAPE '\\'", { search: `%${filters.search.trim().replace(/[\\%_]/g, '\\$&')}%` });
     if (filters.status === 'published') query.andWhere('p.published = true AND p.isActive = true');
@@ -27,7 +27,7 @@ export class ModerationService {
     if (filters.status === 'hidden') query.andWhere('p.moderationHidden = true');
     if (filters.status === 'draft') query.andWhere("p.published = false AND p.isActive = true AND p.reviewStatus = 'DRAFT'");
     const [posts, total] = await query.orderBy('p.createdAt', 'DESC').addOrderBy('p.id', 'DESC').skip((page - 1) * limit).take(limit).getManyAndCount();
-    return { data: posts.map(p => ({ id: p.id, title: p.title, slug: p.slug, authorId: p.authorId, published: p.published, reviewStatus: p.reviewStatus, isActive: p.isActive, moderationHidden: p.moderationHidden, createdAt: p.createdAt, updatedAt: p.updatedAt })), meta: paginationMeta(page, limit, total) };
+    return { data: posts.map(p => ({ id: p.id, title: p.title, slug: p.slug, authorId: p.authorId, author: p.author ? { id: p.author.id, name: p.author.name, profilePhoto: p.author.profilePhoto } : null, published: p.published, reviewStatus: p.reviewStatus, isActive: p.isActive, moderationHidden: p.moderationHidden, createdAt: p.createdAt, updatedAt: p.updatedAt })), meta: paginationMeta(page, limit, total) };
   }
   async postDetail(id: string) {
     const post = await this.dataSource.getRepository(Post).createQueryBuilder('p').addSelect('p.reviewNote').leftJoinAndSelect('p.author', 'author').where('p.id = :id', { id }).getOne();
@@ -40,10 +40,10 @@ export class ModerationService {
     return this.audit.list(page, limit, { targetType: type, targetId: id });
   }
   async commentDetail(id: string) {
-    const comment = await this.dataSource.getRepository(Comment).findOne({ where: { id } });
+    const comment = await this.dataSource.getRepository(Comment).findOne({ where: { id }, relations: { author: true, post: true } });
     if (!comment) throw new NotFoundException('Comentário não encontrado.');
     const reports = await this.dataSource.query(`SELECT id, status, reason, reason_category AS "reasonCategory", created_at AS "createdAt" FROM reports WHERE comment_id = $1 ORDER BY created_at DESC, id DESC LIMIT 100`, [id]);
-    return { id: comment.id, postId: comment.postId, authorId: comment.authorId, rootId: comment.rootId, replyToId: comment.replyToId, content: comment.content, isActive: comment.isActive, moderationHidden: comment.moderationHidden, createdAt: comment.createdAt, reports };
+    return { id: comment.id, postId: comment.postId, authorId: comment.authorId, author: comment.author ? { id: comment.author.id, name: comment.author.name, profilePhoto: comment.author.profilePhoto } : null, post: comment.post ? { id: comment.post.id, title: comment.post.title, slug: comment.post.slug } : null, rootId: comment.rootId, replyToId: comment.replyToId, content: comment.content, isActive: comment.isActive, moderationHidden: comment.moderationHidden, createdAt: comment.createdAt, reports };
   }
   async listCategories(page = 1, limit = 10) {
     const [data, count] = await Promise.all([
@@ -126,7 +126,7 @@ export class ModerationService {
   async listComments(filters: { page?: number; limit?: number; search?: string; authorId?: string; postId?: string; status?: 'active' | 'hidden' | 'deleted'; from?: string; to?: string }) {
     const page = filters.page ?? 1, limit = filters.limit ?? 10;
     if (filters.from && filters.to && new Date(filters.from) > new Date(filters.to)) throw new BadRequestException('Intervalo de datas inválido.');
-    const query = this.dataSource.getRepository(Comment).createQueryBuilder('c');
+    const query = this.dataSource.getRepository(Comment).createQueryBuilder('c').leftJoinAndSelect('c.author', 'author').leftJoinAndSelect('c.post', 'post');
     if (filters.search?.trim()) query.andWhere("c.content ILIKE :search ESCAPE '\\'", { search: `%${filters.search.trim().replace(/[\\%_]/g, '\\$&')}%` });
     if (filters.authorId) query.andWhere('c.authorId = :authorId', { authorId: filters.authorId });
     if (filters.postId) query.andWhere('c.postId = :postId', { postId: filters.postId });
@@ -136,7 +136,7 @@ export class ModerationService {
     if (filters.from) query.andWhere('c.createdAt >= :from', { from: filters.from });
     if (filters.to) query.andWhere('c.createdAt <= :to', { to: filters.to });
     const [data, total] = await query.orderBy('c.createdAt', 'DESC').addOrderBy('c.id', 'DESC').skip((page - 1) * limit).take(limit).getManyAndCount();
-    return { data, meta: paginationMeta(page, limit, total) };
+    return { data: data.map(c => ({ id: c.id, postId: c.postId, authorId: c.authorId, rootId: c.rootId, replyToId: c.replyToId, content: c.content, isActive: c.isActive, moderationHidden: c.moderationHidden, editedAt: c.editedAt, createdAt: c.createdAt, author: c.author ? { id: c.author.id, name: c.author.name, profilePhoto: c.author.profilePhoto } : null, post: c.post ? { id: c.post.id, title: c.post.title, slug: c.post.slug } : null })), meta: paginationMeta(page, limit, total) };
   }
   async moderateComment(id: string, actorId: string, hide: boolean, reason: string) {
     if (reason.trim().length < 5) throw new BadRequestException('Informe o motivo.');
@@ -169,7 +169,16 @@ export class ModerationService {
     if (query.createdTo) qb.andWhere('u.created_at <= :createdTo', { createdTo: query.createdTo });
     qb.orderBy(query.sort === 'name' ? 'u.name' : 'u.createdAt', query.order ?? 'DESC').addOrderBy('u.id', 'DESC').skip((page - 1) * limit).take(limit);
     const [users, total] = await qb.getManyAndCount();
-    return { data: users.map(u => ({ id: u.id, name: u.name, email: u.email, role: u.role, isActive: u.isActive, moderationSuspended: u.moderationSuspended, createdAt: u.createdAt })), meta: paginationMeta(page, limit, total) };
+    const adminIds = users.filter(user => isAdministrator(user.role)).map(user => user.id);
+    const grants: { targetId: string; role: string; grantedAt: Date; grantedBy: string | null }[] = adminIds.length ? await this.dataSource.query(`
+      SELECT DISTINCT ON (a.target_id) a.target_id AS "targetId", a.details->>'role' AS role, a.created_at AS "grantedAt",
+        CASE WHEN actor.deleted_at IS NULL THEN actor.name ELSE NULL END AS "grantedBy"
+      FROM audit_logs a LEFT JOIN users actor ON actor.id = a.actor_id
+      WHERE a.target_type = 'user' AND a.target_id = ANY($1::uuid[]) AND a.action = 'user.permissions_changed'
+      ORDER BY a.target_id, a.created_at DESC, a.id DESC
+    `, [adminIds]) : [];
+    const byUser = new Map(grants.map(grant => [grant.targetId, grant]));
+    return { data: users.map(u => { const grant = byUser.get(u.id); return { id: u.id, name: u.name, email: u.email, profilePhoto: u.profilePhoto, role: u.role, isActive: u.isActive, moderationSuspended: u.moderationSuspended, createdAt: u.createdAt, grantedAt: grant?.role === u.role ? grant.grantedAt : null, grantedBy: grant?.role === u.role ? grant.grantedBy : null }; }), meta: paginationMeta(page, limit, total) };
   }
   async userDetail(userId: string) {
     const user = await this.dataSource.getRepository(User).findOne({ where: { id: userId } });
@@ -184,7 +193,7 @@ export class ModerationService {
   async userHistory(userId: string, page = 1, limit = 10) {
     if (!(await this.dataSource.getRepository(User).exists({ where: { id: userId } }))) throw new NotFoundException('Usuário não encontrado.');
     const [data, count] = await Promise.all([
-      this.dataSource.query(`SELECT id, actor_id AS "actorId", action, target_type AS "targetType", target_id AS "targetId", details, created_at AS "createdAt" FROM audit_logs WHERE target_type = 'user' AND target_id = $1 AND action IN ('user.suspend', 'user.restore', 'user.suspension_expired', 'user.permissions_changed', 'user.sessions_revoked', 'user.author_promoted', 'user.super_admin_bootstrap') ORDER BY created_at DESC, id DESC LIMIT $2 OFFSET $3`, [userId, limit, (page - 1) * limit]),
+      this.dataSource.query(`SELECT a.id, a.actor_id AS "actorId", CASE WHEN u.deleted_at IS NULL THEN u.name ELSE NULL END AS "actorName", a.action, a.target_type AS "targetType", a.target_id AS "targetId", a.details, a.created_at AS "createdAt" FROM audit_logs a LEFT JOIN users u ON u.id = a.actor_id WHERE a.target_type = 'user' AND a.target_id = $1 AND a.action IN ('user.suspend', 'user.restore', 'user.suspension_expired', 'user.permissions_changed', 'user.sessions_revoked', 'user.author_promoted', 'user.super_admin_bootstrap') ORDER BY a.created_at DESC, a.id DESC LIMIT $2 OFFSET $3`, [userId, limit, (page - 1) * limit]),
       this.dataSource.query(`SELECT count(*)::int AS total FROM audit_logs WHERE target_type = 'user' AND target_id = $1 AND action IN ('user.suspend', 'user.restore', 'user.suspension_expired', 'user.permissions_changed', 'user.sessions_revoked', 'user.author_promoted', 'user.super_admin_bootstrap')`, [userId]),
     ]);
     return { data, meta: paginationMeta(page, limit, count[0].total) };

@@ -38,7 +38,7 @@ export class AnalyticsService {
       SELECT days.day::date AS day, coalesce(totals.users, 0) AS users, coalesce(totals.posts, 0) AS posts, coalesce(totals.reports, 0) AS reports, coalesce(totals.subscribers, 0) AS subscribers
       FROM generate_series(date_trunc('day', $1::timestamptz), date_trunc('day', $2::timestamptz), interval '1 day') AS days(day) LEFT JOIN totals ON totals.day = days.day ORDER BY days.day`, [start, end]),
       this.dataSource.query(`SELECT id, title, slug, author_id AS "authorId", published_at AS "publishedAt" FROM posts WHERE published = true AND is_active = true AND deleted_at IS NULL ORDER BY published_at DESC NULLS LAST, id DESC LIMIT 10`),
-      this.dataSource.query(`SELECT id, actor_id AS "actorId", action, target_type AS "targetType", target_id AS "targetId", created_at AS "createdAt" FROM audit_logs WHERE actor_id IS NOT NULL ORDER BY created_at DESC, id DESC LIMIT 10`),
+      this.dataSource.query(`SELECT a.id, a.actor_id AS "actorId", CASE WHEN u.deleted_at IS NULL THEN u.name ELSE NULL END AS "actorName", a.action, a.target_type AS "targetType", a.target_id AS "targetId", a.created_at AS "createdAt" FROM audit_logs a LEFT JOIN users u ON u.id = a.actor_id WHERE a.actor_id IS NOT NULL ORDER BY a.created_at DESC, a.id DESC LIMIT 10`),
     ]);
     return { from: start.toISOString(), to: end.toISOString(), series, recentPosts, recentActions };
   }

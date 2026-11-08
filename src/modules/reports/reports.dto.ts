@@ -1,6 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsDateString, IsEnum, IsIn, IsInt, IsOptional, IsString, IsUUID, Max, MaxLength, Min, MinLength } from 'class-validator';
+import { IsBoolean, IsDateString, IsEnum, IsIn, IsInt, IsOptional, IsString, IsUUID, Max, MaxLength, Min, MinLength } from 'class-validator';
 import { ReportReason, ReportStatus, ReportTarget } from './reports.entity.js';
 
 export class CreateReportDto {
@@ -18,13 +18,15 @@ export class ListReportsDto {
   @ApiPropertyOptional({ enum: ReportStatus }) @IsOptional() @IsEnum(ReportStatus) status?: ReportStatus;
   @ApiPropertyOptional({ enum: ReportTarget }) @IsOptional() @IsEnum(ReportTarget) target?: ReportTarget;
   @ApiPropertyOptional({ format: 'uuid' }) @IsOptional() @IsUUID() moderatorId?: string;
+  @ApiPropertyOptional({ enum: ['me', 'unassigned'], description: 'Casos atribuídos à sessão atual ou sem responsável.' }) @IsOptional() @IsIn(['me', 'unassigned']) assignee?: 'me' | 'unassigned';
   @ApiPropertyOptional({ format: 'date-time' }) @IsOptional() @IsDateString() from?: string;
   @ApiPropertyOptional({ format: 'date-time' }) @IsOptional() @IsDateString() to?: string;
   @ApiPropertyOptional({ default: 1, minimum: 1 }) @IsOptional() @Type(() => Number) @IsInt() @Min(1) page?: number;
   @ApiPropertyOptional({ default: 20, minimum: 1, maximum: 100 }) @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(100) limit?: number;
 }
 export class AssignReportDto {
-  @ApiProperty({ format: 'uuid', description: 'Identificador do moderador ativo.' }) @IsUUID() moderatorId: string;
+  @ApiPropertyOptional({ format: 'uuid', description: 'Moderador de destino. Omita para assumir a análise com a identidade autenticada.' }) @IsOptional() @IsUUID() moderatorId?: string;
+  @ApiPropertyOptional({ description: 'Libera a análise para a fila; permitido ao responsável ou SUPER_ADMIN.' }) @IsOptional() @IsBoolean() release?: boolean;
 }
 export class ResolveReportDto extends ReviewReportDto {
   @ApiProperty({ enum: ['NONE', 'HIDE_POST', 'HIDE_COMMENT'], example: 'NONE' }) @IsIn(['NONE', 'HIDE_POST', 'HIDE_COMMENT']) action: 'NONE' | 'HIDE_POST' | 'HIDE_COMMENT';

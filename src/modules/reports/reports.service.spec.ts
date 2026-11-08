@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { ConflictException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, NotFoundException } from '@nestjs/common';
+import { User } from '../users/entities/user.entity.js';
 import { ReportsService } from './reports.service.js';
 import { ReportStatus, ReportTarget } from './reports.entity.js';
 
@@ -25,6 +26,46 @@ describe('ReportsService', () => {
   it('rejects duplicate pending reports', async () => {
     posts.findOne.mockResolvedValue({ id: 'post' }); reports.save.mockRejectedValue({ code: '23505' });
     await expect(service.create('user', { target: ReportTarget.POST, targetId: 'post', reason: 'ofensivo' })).rejects.toThrow(ConflictException);
+  });
+  it('impede que outro administrador assuma um caso já atribuído', async () => {
+    const repository = { findOne: vi.fn().mockResolvedValue({ id: 'report', status: ReportStatus.IN_REVIEW, moderatorId: 'primeiro' }), update: vi.fn() };
+    const audit = { record: vi.fn() };
+    const manager = { getRepository: () => repository };
+    const subject = new ReportsService({ manager: { transaction: (fn: any) => fn(manager) } } as any, posts, comments, audit as any, users);
+    await expect(subject.assign('report', 'segundo', 'segundo')).rejects.toThrow(ConflictException);
+    expect(repository.findOne).toHaveBeenCalledWith(expect.objectContaining({ lock: { mode: 'pessimistic_write' } }));
+    expect(repository.update).not.toHaveBeenCalled();
+    expect(audit.record).not.toHaveBeenCalled();
+  });
+  it('não registra novamente uma análise já assumida pela mesma pessoa', async () => {
+    const repository = { findOne: vi.fn().mockResolvedValue({ status: ReportStatus.IN_REVIEW, moderatorId: 'admin' }), update: vi.fn() };
+    const audit = { record: vi.fn() };
+    const manager = { getRepository: () => repository };
+    const subject = new ReportsService({ manager: { transaction: (fn: any) => fn(manager) } } as any, posts, comments, audit as any, users);
+    await expect(subject.assign('report', 'admin', 'admin')).resolves.toMatchObject({ moderatorId: 'admin' });
+    expect(repository.update).not.toHaveBeenCalled();
+    expect(audit.record).not.toHaveBeenCalled();
+  });
+  it('só libera uma análise pelo responsável ou SUPER_ADMIN e audita a mudança', async () => {
+    const repository = { findOne: vi.fn().mockResolvedValue({ status: ReportStatus.IN_REVIEW, moderatorId: 'dono' }), update: vi.fn() };
+    const actors = { findOne: vi.fn().mockResolvedValue({ role: 'ADMIN' }) };
+    const audit = { record: vi.fn() };
+    const manager = { getRepository: (entity: unknown) => entity === User ? actors : repository };
+    const subject = new ReportsService({ manager: { transaction: (fn: any) => fn(manager) } } as any, posts, comments, audit as any, users);
+    await expect(subject.release('report', 'outro')).rejects.toThrow(ForbiddenException);
+    expect(repository.update).not.toHaveBeenCalled();
+    await expect(subject.release('report', 'dono')).resolves.toMatchObject({ status: ReportStatus.PENDING, moderatorId: null });
+    expect(audit.record).toHaveBeenCalledWith(manager, 'dono', 'report.release', 'report', 'report', { previousModeratorId: 'dono' });
+  });
+  it('rejeita encaminhamento a conta sem permissão administrativa', async () => {
+    const repository = { findOne: vi.fn().mockResolvedValue({ status: ReportStatus.IN_REVIEW, moderatorId: 'dono' }), update: vi.fn() };
+    const actors = { findOne: vi.fn().mockResolvedValue({ role: 'READER', isActive: true }) };
+    const manager = { getRepository: (entity: unknown) => entity === User ? actors : repository };
+    const audit = { record: vi.fn() };
+    const subject = new ReportsService({ manager: { transaction: (fn: any) => fn(manager) } } as any, posts, comments, audit as any, users);
+    await expect(subject.assign('report', 'dono', 'leitor')).rejects.toThrow(BadRequestException);
+    expect(repository.update).not.toHaveBeenCalled();
+    expect(audit.record).not.toHaveBeenCalled();
   });
   it('allows a pending report to be reviewed once', async () => {
     reports.update.mockResolvedValueOnce({ affected: 1 }).mockResolvedValueOnce({ affected: 0 });

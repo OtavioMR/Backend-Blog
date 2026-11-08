@@ -27,7 +27,7 @@ class ModerationReasonDto {
 export class AdminCommentsController {
   constructor(private readonly service: ModerationService) {}
   @Get()
-  @ApiOperation({ summary: 'Listar comentários para moderação', description: 'Pesquisa paginada entre artigos, incluindo comentários ocultos e desativados.' })
+  @ApiOperation({ summary: 'Listar comentários para moderação', description: 'Pesquisa paginada entre artigos, incluindo comentários ocultos e desativados, com nomes de autor e artigo quando disponíveis.' })
   @ApiResponse({ status: 200, description: 'Comentários paginados.', schema: { example: { data: [{ id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', postId: 'b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', content: 'Comentário', isActive: true, moderationHidden: false }], meta: { page: 1, limit: 10, total: 1, totalPages: 1, hasNextPage: false, hasPreviousPage: false } } } })
   @ApiResponse({ status: 400, description: 'Filtros inválidos.' }) @ApiResponse({ status: 401, description: 'Autenticação necessária.' }) @ApiResponse({ status: 403, description: 'Requer administrador.' })
   list(@Query() query: CommentQuery) { return this.service.listComments(query); }

@@ -30,7 +30,7 @@ export class ModerationController {
   constructor(private readonly service: ModerationService, private readonly totp: TotpService) {}
   @Get()
   @ApiOperation({ summary: 'Listar usuários para administração', description: 'ADMIN ou SUPER_ADMIN; permite buscar, filtrar e ordenar contas não excluídas.' })
-  @ApiResponse({ status: 200, description: 'Contas paginadas.', schema: { example: { data: [{ id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', name: 'Ana', email: 'ana@example.com', role: 'READER', isActive: true, moderationSuspended: false, createdAt: '2026-01-01T00:00:00.000Z' }], meta: { page: 1, limit: 10, total: 1, totalPages: 1, hasNextPage: false, hasPreviousPage: false } } } })
+  @ApiResponse({ status: 200, description: 'Contas paginadas; administradores incluem dados de concessão quando registrados na auditoria.', schema: { example: { data: [{ id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', name: 'Ana', email: 'ana@example.com', role: 'READER', profilePhoto: null, isActive: true, moderationSuspended: false, createdAt: '2026-01-01T00:00:00.000Z', grantedAt: null, grantedBy: null }], meta: { page: 1, limit: 10, total: 1, totalPages: 1, hasNextPage: false, hasPreviousPage: false } } } })
   @ApiResponse({ status: 400, description: 'Filtros ou paginação inválidos.' })
   @ApiResponse({ status: 401, description: 'Autenticação necessária.' })
   @ApiResponse({ status: 403, description: 'Requer administrador.' })

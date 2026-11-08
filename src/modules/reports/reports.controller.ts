@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, ParseUUIDPipe, Patch, Post, Query, Req, UseGuards } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, Param, ParseUUIDPipe, Patch, Post, Query, Req, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import { Roles } from '../../common/decorators/roles.decorator.js';
@@ -29,18 +29,18 @@ export class ReportsController {
   @Get()
   @UseGuards(RolesGuard)
   @Roles(UserRole.ADMIN)
-  @ApiOperation({ summary: 'Listar denúncias para moderação', description: 'Apenas administradores; resultados paginados, mais recentes primeiro.' })
-  @ApiResponse({ status: 200, description: 'Lista paginada.', schema: { example: { data: [], meta: { total: 0, page: 1, limit: 20, totalPages: 0, hasNextPage: false, hasPreviousPage: false } } } })
+  @ApiOperation({ summary: 'Listar denúncias para moderação', description: 'Apenas administradores; resultados paginados, mais recentes primeiro. Use assignee=me ou assignee=unassigned para filtrar a fila.' })
+  @ApiResponse({ status: 200, description: 'Lista paginada com contexto do conteúdo, autor e moderador quando disponíveis.', schema: { example: { data: [], meta: { total: 0, page: 1, limit: 20, totalPages: 0, hasNextPage: false, hasPreviousPage: false } } } })
   @ApiResponse({ status: 400, description: 'Filtros inválidos.' })
   @ApiResponse({ status: 401, description: 'Autenticação necessária.' })
   @ApiResponse({ status: 403, description: 'Apenas administradores.' })
-  list(@Query() query: ListReportsDto) { return this.service.list(query); }
+  list(@Query() query: ListReportsDto, @Req() req: RequestWithUser) { return this.service.list(query, req.user.userId); }
 
   @Get(':id')
   @UseGuards(RolesGuard) @Roles(UserRole.ADMIN)
   @ApiOperation({ summary: 'Consultar denúncia', description: 'Apenas administradores. A denúncia permanece disponível quando o conteúdo deixa de ser público.' })
   @ApiParam({ name: 'id', format: 'uuid' })
-  @ApiResponse({ status: 200, description: 'Detalhes da denúncia.' })
+  @ApiResponse({ status: 200, description: 'Detalhes da denúncia e moderador atribuído, quando disponível.' })
   @ApiResponse({ status: 401, description: 'Autenticação necessária.' })
   @ApiResponse({ status: 403, description: 'Apenas administradores.' })
   @ApiResponse({ status: 404, description: 'Denúncia não encontrada.' })
@@ -55,15 +55,18 @@ export class ReportsController {
 
   @Patch(':id/assign')
   @UseGuards(RolesGuard) @Roles(UserRole.ADMIN)
-  @ApiOperation({ summary: 'Atribuir denúncia a moderador', description: 'Marca denúncia aberta como IN_REVIEW e audita a atribuição.' })
+  @ApiOperation({ summary: 'Atribuir ou liberar denúncia', description: 'Omita moderatorId para assumir a análise com a identidade autenticada. Use release=true para devolver a análise à fila; apenas o responsável ou SUPER_ADMIN pode liberá-la. Atribuições explícitas continuam disponíveis.' })
   @ApiParam({ name: 'id', format: 'uuid' })
-  @ApiResponse({ status: 200, description: 'Denúncia atribuída.', schema: { example: { id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', status: 'IN_REVIEW', moderatorId: 'c0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11' } } })
+  @ApiResponse({ status: 200, description: 'Denúncia atribuída (IN_REVIEW) ou liberada (PENDING).', schema: { example: { id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', status: 'IN_REVIEW', moderatorId: 'c0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11' } } })
   @ApiResponse({ status: 400, description: 'Moderador inválido.' })
   @ApiResponse({ status: 401, description: 'Autenticação necessária.' })
   @ApiResponse({ status: 403, description: 'Apenas administradores.' })
   @ApiResponse({ status: 404, description: 'Denúncia não encontrada.' })
-  @ApiResponse({ status: 409, description: 'Denúncia já concluída.' })
-  assign(@Param('id', ParseUUIDPipe) id: string, @Req() req: RequestWithUser, @Body() dto: AssignReportDto) { return this.service.assign(id, req.user.userId, dto.moderatorId); }
+  @ApiResponse({ status: 409, description: 'Denúncia já concluída ou assumida por outro moderador.' })
+  assign(@Param('id', ParseUUIDPipe) id: string, @Req() req: RequestWithUser, @Body() dto: AssignReportDto) {
+    if (dto.release && dto.moderatorId) throw new BadRequestException('Escolha liberar ou atribuir a análise.');
+    return dto.release ? this.service.release(id, req.user.userId) : this.service.assign(id, req.user.userId, dto.moderatorId ?? req.user.userId);
+  }
   @Post(':id/resolve')
   @UseGuards(RolesGuard) @Roles(UserRole.ADMIN)
   @ApiOperation({ summary: 'Concluir denúncia com ação vinculada', description: 'Registra decisão e, opcionalmente, oculta o artigo ou comentário denunciado na mesma transação. DISMISSED exige ação NONE.' })
