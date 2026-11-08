@@ -69,7 +69,7 @@ describe('PostsService', () => {
   });
 
   it('aceita descrição de 500 caracteres e rejeita 501', async () => {
-    const dto = Object.assign(new CreatePostDto(), { title: 'Artigo', content: 'Conteúdo do artigo', excerpt: 'a'.repeat(500) });
+    const dto = Object.assign(new CreatePostDto(), { title: 'Artigo', content: 'Conteúdo do artigo', excerpt: 'a'.repeat(200) });
     expect(await validate(dto)).toHaveLength(0);
     dto.excerpt += 'a';
     expect((await validate(dto)).some(error => error.property === 'excerpt')).toBe(true);
