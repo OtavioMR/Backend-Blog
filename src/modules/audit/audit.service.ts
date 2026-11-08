@@ -23,7 +23,7 @@ export class AuditService {
         .leftJoin('users', 'user_search', "log.targetType = 'user' AND user_search.id = log.targetId AND user_search.deleted_at IS NULL")
         .leftJoin('posts', 'post_search', "log.targetType = 'post' AND post_search.id = log.targetId AND post_search.deleted_at IS NULL")
         .leftJoin('comments', 'comment_search', "log.targetType = 'comment' AND comment_search.id = log.targetId AND (comment_search.is_active = true OR comment_search.moderation_hidden = true)")
-        .andWhere("concat_ws(' ', log.action, actor_search.name, user_search.name, post_search.title, comment_search.content) ILIKE :search ESCAPE '\\'", { search: `%${filters.search.trim().replace(/[\\%_]/g, '\\$&')}%` });
+        .andWhere("concat_ws(' ', log.action, actor_search.name, actor_search.email, user_search.name, user_search.email, post_search.title, comment_search.content) ILIKE :search ESCAPE '\\'", { search: `%${filters.search.trim().replace(/[\\%_]/g, '\\$&')}%` });
     }
     const [items, total] = await query.orderBy('log.createdAt', 'DESC').addOrderBy('log.id', 'DESC').skip((page - 1) * limit).take(limit).getManyAndCount();
     const userIds = [...new Set(items.flatMap(item => [item.actorId, item.targetType === 'user' ? item.targetId : null]).filter((id): id is string => !!id))];
@@ -40,8 +40,11 @@ export class AuditService {
       UNION ALL SELECT 'tag', id, name FROM tags WHERE id = ANY($5::uuid[])
       UNION ALL SELECT 'report', id, left(reason, 160) FROM reports WHERE id = ANY($6::uuid[])
     `, [userIds, postIds, commentIds, categoryIds, tagIds, reportIds]) : [];
+    const users: { id: string; email: string }[] = userIds.length ? await this.dataSource.query('SELECT id, email FROM users WHERE id = ANY($1::uuid[]) AND deleted_at IS NULL', [userIds]) : [];
+    const emails = new Map(users.map(user => [user.id, user.email]));
     const labels = new Map(names.map(row => [`${row.type}:${row.id}`, row.label]));
     return { data: items.map(item => ({ id: item.id, actorId: item.actorId, action: item.action, targetType: item.targetType, targetId: item.targetId, details: item.details, createdAt: item.createdAt, actorName: item.actorId ? labels.get(`user:${item.actorId}`) ?? 'Usuário removido' : null,
+      actorEmail: item.actorId ? emails.get(item.actorId) ?? null : null, targetEmail: item.targetType === 'user' ? emails.get(item.targetId) ?? null : null,
       targetLabel: labels.get(`${item.targetType}:${item.targetId}`) ?? null })), meta: paginationMeta(page, limit, total) };
   }
 }
