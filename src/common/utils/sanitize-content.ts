@@ -10,5 +10,7 @@ export function sanitizePostContent(value: string): string {
 }
 
 export function sanitizePlainText(value: string): string {
-  return sanitizeHtml(value, { allowedTags: [], allowedAttributes: {} }).trim();
+  const escaped = sanitizeHtml(value, { allowedTags: [], allowedAttributes: {} });
+  const characters: Record<string, string> = { '&amp;': '&', '&lt;': '<', '&gt;': '>', '&quot;': '"', '&#39;': "'" };
+  return escaped.replace(/&(?:amp|lt|gt|quot|#39);/g, entity => characters[entity]).trim();
 }
