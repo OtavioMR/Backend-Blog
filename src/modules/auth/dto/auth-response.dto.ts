@@ -1,21 +1,32 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiPropertyOptional } from '@nestjs/swagger';
 
 export class AuthResponseDto {
-  @ApiProperty({
+  @ApiPropertyOptional({
     description: 'Token JWT de acesso (Bearer)',
     example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
   })
-  access_token: string;
+  access_token?: string;
 
-  @ApiProperty({
+  @ApiPropertyOptional({
     description: 'Tipo do token retornado',
     example: 'Bearer',
   })
-  token_type: string;
+  token_type?: string;
 
-  @ApiProperty({
-    description: 'Tempo de expiração do access token em segundos',
+  @ApiPropertyOptional({
+    description: 'Tempo de expiração do token em segundos',
     example: 900,
   })
-  expires_in: number;
+  expires_in?: number;
+
+  @ApiPropertyOptional({
+    description: 'Indica se a conta requer autenticação de dois fatores (2FA).',
+    example: true,
+  })
+  requires2fa?: boolean;
+
+  @ApiPropertyOptional({
+    description: 'Token temporário de desafio para validação da segunda etapa.',
+  })
+  preAuthToken?: string;
 }

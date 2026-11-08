@@ -20,9 +20,15 @@ describe('AuthService', () => {
   let mockConfigService: any;
   let mockMailService: any;
   let mockSessions: any;
+  let mockTotpService: any;
 
   beforeEach(async () => {
     vi.restoreAllMocks();
+
+    mockTotpService = {
+      verifyLogin: vi.fn().mockResolvedValue(true),
+      verify2faOrRecovery: vi.fn().mockResolvedValue(true),
+    };
 
     mockUsersService = {
       findByEmailForAuth: vi.fn(),
@@ -66,7 +72,7 @@ describe('AuthService', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AuthService,
-        { provide: TotpService, useValue: { verifyLogin: vi.fn().mockResolvedValue(true) } },
+        { provide: TotpService, useValue: mockTotpService },
         { provide: getRepositoryToken(AuthSession), useValue: mockSessions },
         {
           provide: UsersService,
@@ -134,6 +140,53 @@ describe('AuthService', () => {
         'user@example.com',
       );
       expect(mockSessions.save).toHaveBeenCalledWith(expect.objectContaining({ userId: 'uuid-123' }));
+      expect(result).toEqual({
+        accessToken: 'access-token-123',
+        refreshToken: 'refresh-token-456',
+        tokenType: 'Bearer',
+        expiresIn: 900,
+        refreshExpiresIn: 604800,
+      });
+    });
+
+    it('retorna desafio 2FA quando o usuario possui totpEnabled e nao informou codigo', async () => {
+      mockUsersService.findByEmailForAuth.mockResolvedValue({
+        ...mockUser,
+        totpEnabled: true,
+      });
+      vi.spyOn(bcrypt, 'compare').mockImplementation(async () => true);
+      mockJwtService.signAsync.mockResolvedValueOnce('pre-auth-token-xyz');
+
+      const result = await service.login(validLoginDto);
+
+      expect(result).toEqual({
+        requires2fa: true,
+        preAuthToken: 'pre-auth-token-xyz',
+        expiresIn: 300,
+      });
+    });
+
+    it('conclui login com verify2faLogin apos desafio de pre-autenticacao', async () => {
+      mockJwtService.verifyAsync.mockResolvedValueOnce({
+        sub: 'uuid-123',
+        scope: '2fa_preauth',
+        authVersion: 0,
+      });
+      mockUsersService.findByIdForAuth.mockResolvedValue({
+        ...mockUser,
+        authVersion: 0,
+        totpEnabled: true,
+      });
+      mockTotpService.verify2faOrRecovery = vi.fn().mockResolvedValue(true);
+      mockJwtService.signAsync
+        .mockResolvedValueOnce('access-token-123')
+        .mockResolvedValueOnce('refresh-token-456');
+
+      const result = await service.verify2faLogin({
+        preAuthToken: 'pre-auth-token-xyz',
+        code: '123456',
+      });
+
       expect(result).toEqual({
         accessToken: 'access-token-123',
         refreshToken: 'refresh-token-456',

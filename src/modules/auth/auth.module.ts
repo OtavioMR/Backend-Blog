@@ -4,6 +4,7 @@ import { SocialAuthService } from './social-auth.service.js';
 import { TotpController } from './totp.controller.js';
 import { TotpService } from './totp.service.js';
 import { AuthSession } from './entities/session.entity.js';
+import { UserRecoveryCode } from './entities/recovery-code.entity.js';
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
@@ -17,7 +18,7 @@ import { JwtStrategy } from './strategies/jwt.strategy.js';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([AuthSession]),
+    TypeOrmModule.forFeature([AuthSession, UserRecoveryCode]),
     UsersModule,
     MailModule,
     PassportModule.register({

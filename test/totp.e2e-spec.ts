@@ -44,7 +44,9 @@ describe('TOTP authentication', () => {
     const now = Math.floor(Date.now() / 30000);
     await request(app.getHttpServer()).post('/api/v1/auth/totp/enable').set('Authorization', `Bearer ${token}`).send({ code: code(setup.body.secret, now) }).expect(200);
     await request(app.getHttpServer()).get('/api/v1/auth/sessions').set('Authorization', `Bearer ${token}`).expect(401);
-    await request(app.getHttpServer()).post('/api/v1/auth/login').send({ email: account.email, password: account.password }).expect(401);
+    const pre = await request(app.getHttpServer()).post('/api/v1/auth/login').send({ email: account.email, password: account.password }).expect(200);
+    expect(pre.body.requires2fa).toBe(true);
+    expect(pre.body.access_token).toBeUndefined();
     const nextCode = code(setup.body.secret, now + 1);
     await request(app.getHttpServer()).post('/api/v1/auth/login').send({ email: account.email, password: account.password, totpCode: nextCode }).expect(200);
     await request(app.getHttpServer()).post('/api/v1/auth/login').send({ email: account.email, password: account.password, totpCode: nextCode }).expect(401);

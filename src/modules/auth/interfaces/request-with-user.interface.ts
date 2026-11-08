@@ -6,6 +6,7 @@ export interface AuthenticatedUser {
   userId: string;
   email: string;
   role: UserRole;
+  totpEnabled?: boolean;
 }
 
 export interface RequestWithUser extends Request {

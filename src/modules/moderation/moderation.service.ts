@@ -178,7 +178,7 @@ export class ModerationService {
       ORDER BY a.target_id, a.created_at DESC, a.id DESC
     `, [adminIds]) : [];
     const byUser = new Map(grants.map(grant => [grant.targetId, grant]));
-    return { data: users.map(u => { const grant = byUser.get(u.id); return { id: u.id, name: u.name, email: u.email, profilePhoto: u.profilePhoto, role: u.role, isActive: u.isActive, moderationSuspended: u.moderationSuspended, createdAt: u.createdAt, grantedAt: grant?.role === u.role ? grant.grantedAt : null, grantedBy: grant?.role === u.role ? grant.grantedBy : null }; }), meta: paginationMeta(page, limit, total) };
+    return { data: users.map(u => { const grant = byUser.get(u.id); return { id: u.id, name: u.name, email: u.email, emailVerified: u.emailVerified, profilePhoto: u.profilePhoto, role: u.role, isActive: u.isActive, moderationSuspended: u.moderationSuspended, createdAt: u.createdAt, grantedAt: grant?.role === u.role ? grant.grantedAt : null, grantedBy: grant?.role === u.role ? grant.grantedBy : null }; }), meta: paginationMeta(page, limit, total) };
   }
   async userDetail(userId: string) {
     const user = await this.dataSource.getRepository(User).findOne({ where: { id: userId } });
@@ -208,6 +208,7 @@ export class ModerationService {
     return { data, meta: paginationMeta(page, limit, count[0].total) };
   }
   async changeRole(actorId: string, userId: string, role: UserRole, reason: string, actorVersion: number) {
+    if (role === UserRole.SUPER_ADMIN) throw new BadRequestException('Não é permitido atribuir a função SUPER_ADMIN por esta rota.');
     if (actorId === userId) throw new ForbiddenException('Não é permitido alterar a própria função.');
     if (reason.trim().length < 5) throw new BadRequestException('Informe o motivo.');
     return this.dataSource.transaction(async manager => {
@@ -220,18 +221,25 @@ export class ModerationService {
       if (!user || !user.isActive) throw new NotFoundException('Usuário ativo não encontrado.');
       if (user.role === role) throw new ConflictException('Usuário já possui esta função.');
       if (isAdministrator(role) && !user.emailVerified) throw new ConflictException('A conta precisa ter e-mail verificado para receber privilégios administrativos.');
+      if (isAdministrator(role) && user.moderationSuspended) throw new ConflictException('Contas suspensas não podem receber privilégios administrativos.');
       if (role === UserRole.AUTHOR && (!user.emailVerified || !user.authorRulesAcceptedAt || user.authorRulesVersion !== '1')) throw new ConflictException('A autoria exige e-mail verificado e aceite da versão atual das regras.');
       if (user.role === UserRole.SUPER_ADMIN) {
         const remaining = await users.count({ where: { role: UserRole.SUPER_ADMIN, isActive: true } });
         if (remaining <= 1) throw new ConflictException('O último SUPER_ADMIN não pode ser rebaixado.');
       }
       const previousRole = user.role;
-      await users.update(userId, { role, authVersion: () => 'auth_version + 1', refreshTokenHash: null,
+      const isDemotedToReader = role === UserRole.READER && (previousRole === UserRole.AUTHOR || isAdministrator(previousRole));
+      await users.update(userId, {
+        role,
+        authVersion: () => 'auth_version + 1',
+        refreshTokenHash: null,
         ...(isAdministrator(role) ? { firstPostApproved: true } : {}),
-        ...(previousRole === UserRole.AUTHOR && role !== UserRole.AUTHOR ? { authorPromotionBlocked: true } : {}),
-        ...(role === UserRole.AUTHOR ? { authorPromotionBlocked: false } : {}) });
-      if (previousRole === UserRole.AUTHOR && role !== UserRole.AUTHOR) {
-        const rejected: { id: string }[] = await manager.query("UPDATE posts SET review_status = 'REJECTED', review_note = 'A função de autoria foi alterada; a revisão foi encerrada.' WHERE author_id = $1 AND review_status = 'PENDING' RETURNING id", [userId]);
+        ...(isDemotedToReader ? { authorPromotionBlocked: true } : {}),
+        ...(role === UserRole.AUTHOR ? { authorPromotionBlocked: false } : {}),
+      });
+      await manager.query("DELETE FROM auth_sessions WHERE user_id = $1", [userId]);
+      if (isDemotedToReader) {
+        const rejected: { id: string }[] = await manager.query("WITH cancelled AS (UPDATE posts SET review_status = 'REJECTED', review_note = 'A função de autoria foi alterada; a revisão foi encerrada.' WHERE author_id = $1 AND review_status = 'PENDING' RETURNING id) SELECT id FROM cancelled", [userId]);
         for (const post of rejected) await this.audit.record(manager, actorId, 'post.review_cancelled', 'post', post.id, { reason: 'Função de autoria alterada', userId });
       }
       await this.audit.record(manager, actorId, 'user.permissions_changed', 'user', userId, { previousRole, role, reason: reason.trim() });

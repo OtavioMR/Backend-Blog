@@ -25,9 +25,34 @@ describe('ModerationService', () => {
     const service = new ModerationService({ transaction: (fn: any) => fn(manager) } as any, audit as any);
     await expect(service.changeRole('actor', 'target', UserRole.ADMIN, 'Promoção aprovada', 1)).resolves.toEqual({ id: 'target', role: UserRole.ADMIN });
     expect(repository.update).toHaveBeenCalledWith('target', expect.objectContaining({ role: UserRole.ADMIN, authVersion: expect.any(Function), refreshTokenHash: null }));
+    expect(manager.query).toHaveBeenCalledWith('DELETE FROM auth_sessions WHERE user_id = $1', ['target']);
     expect(audit.record).toHaveBeenCalledWith(manager, 'actor', 'user.permissions_changed', 'user', 'target', expect.objectContaining({ previousRole: UserRole.READER, role: UserRole.ADMIN }));
     repository.findOne.mockResolvedValueOnce({ ...actor, role: UserRole.ADMIN });
     await expect(service.changeRole('actor', 'target', UserRole.ADMIN, 'Promoção aprovada', 1)).rejects.toThrow('Sessão administrativa');
+  });
+  it('impede atribuir a função SUPER_ADMIN pela rota administrativa', async () => {
+    const service = new ModerationService({} as any, {} as any);
+    await expect(service.changeRole('actor', 'target', UserRole.SUPER_ADMIN, 'Justificativa válida', 1)).rejects.toThrow('Não é permitido atribuir a função SUPER_ADMIN');
+  });
+  it('impede que o superadmin altere a própria função', async () => {
+    const service = new ModerationService({} as any, {} as any);
+    await expect(service.changeRole('actor', 'actor', UserRole.ADMIN, 'Justificativa válida', 1)).rejects.toThrow('Não é permitido alterar a própria função');
+  });
+  it('impede promover a ADMIN usuário com e-mail não verificado', async () => {
+    const actor = { id: 'actor', role: UserRole.SUPER_ADMIN, isActive: true, authVersion: 1, totpEnabled: true };
+    const target = { id: 'target', role: UserRole.READER, isActive: true, emailVerified: false };
+    const repository = { findOne: vi.fn().mockResolvedValueOnce(actor).mockResolvedValueOnce(target) };
+    const manager = { getRepository: vi.fn().mockReturnValue(repository), query: vi.fn() };
+    const service = new ModerationService({ transaction: (fn: any) => fn(manager) } as any, {} as any);
+    await expect(service.changeRole('actor', 'target', UserRole.ADMIN, 'Promoção aprovada', 1)).rejects.toThrow('A conta precisa ter e-mail verificado');
+  });
+  it('impede remover o último superadministrador', async () => {
+    const actor = { id: 'actor', role: UserRole.SUPER_ADMIN, isActive: true, authVersion: 1, totpEnabled: true };
+    const target = { id: 'target', role: UserRole.SUPER_ADMIN, isActive: true, emailVerified: true };
+    const repository = { findOne: vi.fn().mockResolvedValueOnce(actor).mockResolvedValueOnce(target), count: vi.fn().mockResolvedValueOnce(1) };
+    const manager = { getRepository: vi.fn().mockReturnValue(repository), query: vi.fn() };
+    const service = new ModerationService({ transaction: (fn: any) => fn(manager) } as any, {} as any);
+    await expect(service.changeRole('actor', 'target', UserRole.ADMIN, 'Rebaixamento', 1)).rejects.toThrow('último SUPER_ADMIN');
   });
   it('impede suspender ou restaurar outra conta administrativa', async () => {
     const repository = { findOne: vi.fn().mockImplementation(({ where }: any) => Promise.resolve(where.id === 'actor' ? { id: 'actor', role: UserRole.ADMIN, isActive: true, authVersion: 1 } : { id: 'target', role: UserRole.ADMIN })), update: vi.fn() };

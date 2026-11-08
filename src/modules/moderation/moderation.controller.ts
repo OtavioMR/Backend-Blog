@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Headers, Param, ParseUUIDPipe, Patch, Post, Query, Req, UnauthorizedException, UseGuards } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, Headers, Param, ParseUUIDPipe, Patch, Post, Query, Req, UnauthorizedException, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiHeader, ApiOperation, ApiParam, ApiProperty, ApiPropertyOptional, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import { ArrayMaxSize, IsArray, IsEnum, IsISO8601, IsOptional, IsString, IsUUID, MaxLength, MinLength } from 'class-validator';
@@ -70,6 +70,9 @@ export class ModerationController {
   @ApiResponse({ status: 404, description: 'Usuário ativo não encontrado.' })
   @ApiResponse({ status: 409, description: 'Função inalterada ou último SUPER_ADMIN.' })
   async changeRole(@Param('id', ParseUUIDPipe) id: string, @Req() req: RequestWithUser, @Body() dto: ChangeRoleDto, @Headers('x-totp-code') code?: string) {
+    if (dto.role === UserRole.SUPER_ADMIN) {
+      throw new BadRequestException('Não é permitido atribuir a função SUPER_ADMIN por esta rota. Superadministradores só podem ser configurados via procedimento de bootstrap seguro.');
+    }
     if (!(await this.totp.verifyLogin(req.user.userId, code))) throw new UnauthorizedException('Código TOTP inválido ou não configurado.');
     return this.service.changeRole(req.user.userId, id, dto.role, dto.reason, req.user.authVersion);
   }

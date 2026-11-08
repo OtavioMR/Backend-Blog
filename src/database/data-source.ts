@@ -9,6 +9,8 @@ import { Category } from '../modules/categories/entities/category.entity.js';
 import { Tag } from '../modules/tags/entities/tag.entity.js';
 import { Comment } from '../modules/comments/entities/comment.entity.js';
 import { PostInteraction } from '../modules/posts/entities/post-interaction.entity.js';
+import { AuthSession } from '../modules/auth/entities/session.entity.js';
+import { UserRecoveryCode } from '../modules/auth/entities/recovery-code.entity.js';
 
 export default new DataSource({
   type: 'postgres',
@@ -17,7 +19,7 @@ export default new DataSource({
   username: process.env.DB_USER ?? 'postgres',
   password: process.env.DB_PASSWORD ?? 'postgres',
   database: process.env.DB_NAME ?? 'blog_db',
-  entities: [User, Post, Category, Tag, Comment, PostInteraction],
+  entities: [User, Post, Category, Tag, Comment, PostInteraction, AuthSession, UserRecoveryCode],
   migrations: [join(dirname(fileURLToPath(import.meta.url)), 'migrations', '*.{js,ts}')],
   synchronize: false,
 });

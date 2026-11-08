@@ -18,8 +18,9 @@ import type { Request, Response } from 'express';
 import { ApiBearerAuth, ApiOperation, ApiParam, ApiResponse } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 
-import { AuthService } from './auth.service.js';
+import { AuthService, type TokenPairResult } from './auth.service.js';
 import { LoginDto } from './dto/login.dto.js';
+import { Verify2faDto } from './dto/verify-2fa.dto.js';
 import { ForgotPasswordDto } from './dto/forgot-password.dto.js';
 import { ResetPasswordDto } from './dto/reset-password.dto.js';
 import { AuthResponseDto } from './dto/auth-response.dto.js';
@@ -51,7 +52,47 @@ export class AuthController {
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ): Promise<AuthResponseDto> {
-    const tokens = await this.authService.login(loginDto, req.get('user-agent'));
+    const result = await this.authService.login(loginDto, req.get('user-agent'));
+
+    if ('requires2fa' in result && result.requires2fa) {
+      return {
+        requires2fa: true,
+        preAuthToken: result.preAuthToken,
+        expires_in: result.expiresIn,
+      };
+    }
+
+    const tokens = result as TokenPairResult;
+
+    res.cookie(
+      REFRESH_COOKIE_NAME,
+      tokens.refreshToken,
+      this.authService.getRefreshTokenCookieOptions(),
+    );
+
+    return {
+      access_token: tokens.accessToken,
+      token_type: tokens.tokenType,
+      expires_in: tokens.expiresIn,
+    };
+  }
+
+  @Header('Cache-Control', 'no-store')
+  @Post('2fa/verify')
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Concluir login com segundo fator (2FA)',
+    description: 'Valida o código TOTP ou código de recuperação com o desafio de pré-autenticação e emite a sessão definitiva.',
+  })
+  @ApiResponse({ status: 200, description: 'Sessão liberada.', type: AuthResponseDto })
+  @ApiResponse({ status: 401, description: 'Código de autenticação inválido ou desafio expirado.' })
+  async verify2fa(
+    @Body() verifyDto: Verify2faDto,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<AuthResponseDto> {
+    const tokens = await this.authService.verify2faLogin(verifyDto, req.get('user-agent'));
 
     res.cookie(
       REFRESH_COOKIE_NAME,

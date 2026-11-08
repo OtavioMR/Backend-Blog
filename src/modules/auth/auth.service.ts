@@ -21,6 +21,7 @@ import { MailService } from '../mail/mail.service.js';
 import { User } from '../users/entities/user.entity.js';
 import { UserRole } from '../users/enums/user.enum.js';
 import { LoginDto } from './dto/login.dto.js';
+import { Verify2faDto } from './dto/verify-2fa.dto.js';
 import { ForgotPasswordDto } from './dto/forgot-password.dto.js';
 import { ResetPasswordDto } from './dto/reset-password.dto.js';
 
@@ -31,6 +32,10 @@ export interface TokenPairResult {
   expiresIn: number;
   refreshExpiresIn: number;
 }
+
+export type LoginResult =
+  | TokenPairResult
+  | { requires2fa: true; preAuthToken: string; expiresIn: number };
 
 @Injectable()
 export class AuthService {
@@ -116,7 +121,38 @@ export class AuthService {
     };
   }
 
-  async login(loginDto: LoginDto, userAgent?: string): Promise<TokenPairResult> {
+  private getPreAuthSecret(): string {
+    return (this.configService.get<string>('JWT_REFRESH_SECRET') || 'preauth-secret') + '_2fa_preauth';
+  }
+
+  async generatePreAuthToken(user: User): Promise<string> {
+    const payload = {
+      sub: user.id,
+      scope: '2fa_preauth',
+      authVersion: user.authVersion,
+      email: user.email,
+    };
+    return this.jwtService.signAsync(payload, {
+      secret: this.getPreAuthSecret(),
+      expiresIn: 300,
+    });
+  }
+
+  async verifyPreAuthToken(token: string): Promise<{ sub: string; authVersion: number; email: string }> {
+    try {
+      const payload = await this.jwtService.verifyAsync(token, {
+        secret: this.getPreAuthSecret(),
+      });
+      if (!payload || payload.scope !== '2fa_preauth' || !payload.sub) {
+        throw new UnauthorizedException('Desafio de autenticação inválido.');
+      }
+      return payload;
+    } catch {
+      throw new UnauthorizedException('Desafio de autenticação expirado ou inválido. Faça login novamente.');
+    }
+  }
+
+  async login(loginDto: LoginDto, userAgent?: string): Promise<LoginResult> {
     const email = loginDto.email.trim().toLowerCase();
 
     const user = await this.usersService.findByEmailForAuth(email);
@@ -139,15 +175,48 @@ export class AuthService {
       if (user && !passwordIsValid && !locked) await this.usersService.recordFailedLogin(user.id);
       throw new UnauthorizedException('E-mail ou senha inv\u00e1lidos.');
     }
-    if (user.totpEnabled && !(await this.totp.verifyLogin(user.id, loginDto.totpCode))) {
-      await this.usersService.recordFailedLogin(user.id);
-      throw new UnauthorizedException('Credenciais inválidas.');
+
+    if (user.totpEnabled) {
+      if (loginDto.totpCode) {
+        const valid = await this.totp.verify2faOrRecovery(user.id, loginDto.totpCode);
+        if (!valid) {
+          await this.usersService.recordFailedLogin(user.id);
+          throw new UnauthorizedException('Credenciais inválidas.');
+        }
+      } else {
+        const preAuthToken = await this.generatePreAuthToken(user);
+        return {
+          requires2fa: true,
+          preAuthToken,
+          expiresIn: 300,
+        };
+      }
     }
+
     if (!(await this.usersService.clearFailedLogins(user.id))) {
       throw new UnauthorizedException('E-mail ou senha inv\u00e1lidos.');
     }
     if (rounds < 12) await this.usersService.upgradePasswordHash(user.id, hash, await bcrypt.hash(loginDto.password, 12));
 
+    return this.createSession(user, userAgent);
+  }
+
+  async verify2faLogin(verifyDto: Verify2faDto, userAgent?: string): Promise<TokenPairResult> {
+    const payload = await this.verifyPreAuthToken(verifyDto.preAuthToken);
+    const user = await this.usersService.findByIdForAuth(payload.sub);
+    if (!user || !user.isActive || user.authVersion !== payload.authVersion) {
+      throw new UnauthorizedException('Sessão expirada ou usuário desativado. Entre novamente.');
+    }
+    const locked = !!user.loginLockedUntil && new Date(user.loginLockedUntil).getTime() > Date.now();
+    if (locked) {
+      throw new UnauthorizedException('Conta temporariamente bloqueada por excesso de tentativas. Tente novamente mais tarde.');
+    }
+    const valid = await this.totp.verify2faOrRecovery(user.id, verifyDto.code);
+    if (!valid) {
+      await this.usersService.recordFailedLogin(user.id);
+      throw new UnauthorizedException('Código de autenticação ou de recuperação inválido.');
+    }
+    await this.usersService.clearFailedLogins(user.id);
     return this.createSession(user, userAgent);
   }
 

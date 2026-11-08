@@ -42,6 +42,9 @@ export class UserResponseDto {
   @ApiProperty({ description: 'E-mail confirmado', example: true })
   emailVerified: boolean;
 
+  @ApiPropertyOptional({ description: 'Indica se a autenticação de dois fatores está ativada', example: false })
+  totpEnabled?: boolean;
+
   @ApiProperty({
     description: 'Indica se o usuário está ativo no sistema',
     example: true,

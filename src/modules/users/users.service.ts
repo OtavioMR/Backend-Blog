@@ -62,6 +62,7 @@ export class UsersService {
       email: user.email,
       role: user.role,
       emailVerified: user.emailVerified,
+      totpEnabled: user.totpEnabled,
       isActive: user.isActive,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,

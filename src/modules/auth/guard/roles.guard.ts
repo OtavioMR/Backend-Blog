@@ -6,8 +6,9 @@ import {
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { ROLES_KEY } from '../../../common/decorators/roles.decorator.js';
-import { UserRole } from '../../users/enums/user.enum.js';
+import { isAdministrator, UserRole } from '../../users/enums/user.enum.js';
 import type { RequestWithUser } from '../interfaces/request-with-user.interface.js';
+import { roleSatisfies } from '../../../common/permissions/capabilities.js';
 
 @Injectable()
 export class RolesGuard implements CanActivate {
@@ -31,8 +32,7 @@ export class RolesGuard implements CanActivate {
       );
     }
 
-    const hasRole = requiredRoles.includes(user.role) ||
-      (user.role === UserRole.SUPER_ADMIN && requiredRoles.includes(UserRole.ADMIN));
+    const hasRole = requiredRoles.some((requiredRole) => roleSatisfies(user.role, requiredRole));
 
     if (!hasRole) {
       throw new ForbiddenException(
