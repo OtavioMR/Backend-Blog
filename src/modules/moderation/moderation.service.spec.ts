@@ -18,7 +18,7 @@ describe('ModerationService', () => {
   });
   it('exige SUPER_ADMIN e registra a mudança de função com invalidação de sessões', async () => {
     const actor = { id: 'actor', role: UserRole.SUPER_ADMIN, isActive: true, authVersion: 1, totpEnabled: true };
-    const target = { id: 'target', role: UserRole.READER, isActive: true, emailVerified: true };
+    const target = { id: 'target', role: UserRole.READER, isActive: true, emailVerified: true, totpEnabled: true };
     const repository = { findOne: vi.fn().mockResolvedValueOnce(actor).mockResolvedValueOnce(target), update: vi.fn() };
     const manager = { getRepository: vi.fn().mockReturnValue(repository), query: vi.fn() };
     const audit = { record: vi.fn() };
@@ -48,7 +48,7 @@ describe('ModerationService', () => {
   });
   it('impede remover o último superadministrador', async () => {
     const actor = { id: 'actor', role: UserRole.SUPER_ADMIN, isActive: true, authVersion: 1, totpEnabled: true };
-    const target = { id: 'target', role: UserRole.SUPER_ADMIN, isActive: true, emailVerified: true };
+    const target = { id: 'target', role: UserRole.SUPER_ADMIN, isActive: true, emailVerified: true, totpEnabled: true };
     const repository = { findOne: vi.fn().mockResolvedValueOnce(actor).mockResolvedValueOnce(target), count: vi.fn().mockResolvedValueOnce(1) };
     const manager = { getRepository: vi.fn().mockReturnValue(repository), query: vi.fn() };
     const service = new ModerationService({ transaction: (fn: any) => fn(manager) } as any, {} as any);

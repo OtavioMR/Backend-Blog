@@ -71,7 +71,7 @@ describe('Comentários e foto: fluxo completo', () => {
       const password = 'Password123!';
       const created = await request(app.getHttpServer())
         .post('/api/v1/users')
-        .send({ name, email, password })
+        .send({ name, email, password, birthDate: '1990-01-01', acceptedTerms: true, termsVersion: '1.0.0' })
         .expect(201);
       userIds.push(created.body.id);
       await db.query('UPDATE users SET email_verified = true WHERE id = $1', [created.body.id]);
@@ -96,7 +96,7 @@ describe('Comentários e foto: fluxo completo', () => {
       'AUTHOR',
       other.id,
     ]);
-    await db.query('UPDATE users SET role = $1, first_post_approved = true WHERE id = $2', [
+    await db.query('UPDATE users SET role = $1, first_post_approved = true, totp_enabled = true WHERE id = $2', [
       'ADMIN',
       admin.id,
     ]);
@@ -212,7 +212,7 @@ describe('Comentários e foto: fluxo completo', () => {
       {
         id: reply.body.id,
         content: 'Comentário excluído',
-        author: { id: reader.id },
+        author: { id: null },
       },
       { id: nested.body.id, replyToAuthor: { id: reader.id } },
     ]);
@@ -262,7 +262,7 @@ describe('Comentários e foto: fluxo completo', () => {
       .expect(200);
     expect(finalList.body.data[0]).toMatchObject({
       content: 'Comentário excluído',
-      author: { id: owner.id },
+      author: { id: null },
       replies: { data: [{ id: reply.body.id }, { id: nested.body.id }] },
     });
 

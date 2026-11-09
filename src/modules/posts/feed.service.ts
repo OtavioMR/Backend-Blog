@@ -1,9 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Not, Repository } from 'typeorm';
 import { escapeHtml } from '../../common/utils/escape-html.js';
 import { Post } from './entities/post.entity.js';
+import { ContentRating } from './enums/post-governance.enum.js';
 
 @Injectable()
 export class FeedService {
@@ -12,7 +13,16 @@ export class FeedService {
   private get base() { return this.config.getOrThrow<string>('FRONTEND_URL').replace(/\/+$/, ''); }
   private url(post: Post) { return `${this.base}/posts/${encodeURIComponent(post.slug)}`; }
   private async list(limit?: number) {
-    return this.posts.find({ where: { published: true, isActive: true }, order: { publishedAt: 'DESC', id: 'DESC' }, ...(limit ? { take: limit } : {}), select: { slug: true, title: true, excerpt: true, publishedAt: true, updatedAt: true } });
+    const posts = await this.posts.find({
+      where: {
+        published: true,
+        isActive: true,
+      },
+      order: { publishedAt: 'DESC', id: 'DESC' },
+      ...(limit ? { take: limit } : {}),
+      select: { slug: true, title: true, excerpt: true, contentRating: true, publishedAt: true, updatedAt: true },
+    });
+    return posts.filter(p => p.contentRating !== ContentRating.EIGHTEEN_PLUS);
   }
   async rss() {
     const posts = await this.list(50);

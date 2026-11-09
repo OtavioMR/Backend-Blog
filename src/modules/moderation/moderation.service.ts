@@ -9,8 +9,10 @@ import { isAdministrator, UserRole } from '../users/enums/user.enum.js';
 import { paginationMeta } from '../../common/utils/pagination.js';
 import { AdminUsersQuery } from './admin-users.dto.js';
 import { Comment } from '../comments/entities/comment.entity.js';
+import { randomBytes } from 'node:crypto';
 import { slugify } from '../../common/utils/slugify.util.js';
 import { Tag } from '../tags/entities/tag.entity.js';
+import { ModerationAppeal, AppealStatus, AppealTargetType } from './entities/moderation-appeal.entity.js';
 
 @Injectable()
 export class ModerationService {
@@ -65,8 +67,34 @@ export class ModerationService {
       }
       await posts.update(id, { isActive: !hide, moderationHidden: hide });
       await this.audit.record(manager, actorId, hide ? 'post.hide' : 'post.restore', 'post', id, { reason: reason.trim(), authorId: post.authorId });
-      if (post.authorId !== actorId) await manager.query('INSERT INTO notifications(recipient_id, actor_id, type, post_id) VALUES ($1, $2, $3, $4)', [post.authorId, actorId, hide ? 'post_hidden' : 'post_restored', id]);
+      if (post.authorId !== actorId) await manager.query('INSERT INTO notifications(recipient_id, actor_id, type, post_id, details) VALUES ($1, $2, $3, $4, $5)', [post.authorId, actorId, hide ? 'post_hidden' : 'post_restored', id, JSON.stringify({ reason: reason.trim() })]);
       return { id, isActive: !hide, moderationHidden: hide };
+    });
+    await this.cache?.invalidate();
+    return result;
+  }
+  async changePostRating(id: string, actorId: string, rating: string, reason: string) {
+    if (reason.trim().length < 5) throw new BadRequestException('Informe o motivo.');
+    const result = await this.dataSource.transaction(async manager => {
+      const posts = manager.getRepository(Post);
+      const post = await posts.findOne({ where: { id }, lock: { mode: 'pessimistic_write' } });
+      if (!post) throw new NotFoundException('Artigo não encontrado.');
+      const oldRating = post.contentRating;
+      if (oldRating === rating) throw new ConflictException('O artigo já possui esta classificação etária.');
+      await posts.update(id, { contentRating: rating });
+      await this.audit.record(manager, actorId, 'post.rating_changed', 'post', id, {
+        oldRating,
+        newRating: rating,
+        reason: reason.trim(),
+        authorId: post.authorId,
+      });
+      if (post.authorId !== actorId) {
+        await manager.query(
+          'INSERT INTO notifications(recipient_id, actor_id, type, post_id, details) VALUES ($1, $2, $3, $4, $5)',
+          [post.authorId, actorId, 'content_rating_changed', id, JSON.stringify({ reason: reason.trim(), oldRating, newRating: rating })],
+        );
+      }
+      return { id, contentRating: rating, previousRating: oldRating };
     });
     await this.cache?.invalidate();
     return result;
@@ -147,7 +175,7 @@ export class ModerationService {
       if (hide ? !comment.isActive : comment.isActive || !comment.moderationHidden) throw new ConflictException('Transição de comentário inválida.');
       await repository.update(id, { isActive: !hide, moderationHidden: hide });
       await this.audit.record(manager, actorId, hide ? 'comment.hide' : 'comment.restore', 'comment', id, { reason: reason.trim(), postId: comment.postId });
-      if (comment.authorId !== actorId) await manager.query('INSERT INTO notifications(recipient_id, actor_id, type, post_id, comment_id) VALUES ($1, $2, $3, $4, $5)', [comment.authorId, actorId, hide ? 'comment_hidden' : 'comment_restored', comment.postId, id]);
+      if (comment.authorId !== actorId) await manager.query('INSERT INTO notifications(recipient_id, actor_id, type, post_id, comment_id, details) VALUES ($1, $2, $3, $4, $5, $6)', [comment.authorId, actorId, hide ? 'comment_hidden' : 'comment_restored', comment.postId, id, JSON.stringify({ reason: reason.trim() })]);
       return { id, isActive: !hide, moderationHidden: hide };
     });
     await this.cache?.invalidate();
@@ -347,4 +375,202 @@ export class ModerationService {
     } catch (error) { this.logger.error('Failed to restore expired suspensions', error instanceof Error ? error.stack : String(error)); }
     await this.cache?.invalidate();
   }
+
+  async createAppeal(userId: string, dto: { targetType: AppealTargetType; targetId: string; reason: string }) {
+    const reason = dto.reason.trim();
+    if (reason.length < 10) throw new BadRequestException('Descreva o motivo do recurso com mais detalhes (mínimo 10 caracteres).');
+
+    if (dto.targetType === AppealTargetType.POST) {
+      const post = await this.dataSource.getRepository(Post).findOne({ where: { id: dto.targetId } });
+      if (!post) throw new NotFoundException('Artigo não encontrado.');
+      if (post.authorId !== userId) throw new ForbiddenException('Apenas o autor pode recorrer de ações contra sua publicação.');
+      if (!post.moderationHidden && post.isActive) {
+        const ratingLog: unknown[] = await this.dataSource.query(
+          `SELECT 1 FROM audit_logs WHERE target_id = $1 AND action = 'post.rating_changed' LIMIT 1`,
+          [dto.targetId],
+        );
+        if (!ratingLog.length) {
+          throw new ConflictException('O artigo não possui ação de moderação passível de recurso.');
+        }
+      }
+    } else if (dto.targetType === AppealTargetType.COMMENT) {
+      const comment = await this.dataSource.getRepository(Comment).findOne({ where: { id: dto.targetId } });
+      if (!comment) throw new NotFoundException('Comentário não encontrado.');
+      if (comment.authorId !== userId) throw new ForbiddenException('Apenas o autor pode recorrer de ações contra seu comentário.');
+      if (!comment.moderationHidden && comment.isActive) throw new ConflictException('O comentário não está oculto pela moderação.');
+    } else if (dto.targetType === AppealTargetType.ACCOUNT) {
+      if (dto.targetId !== userId) throw new ForbiddenException('Apenas o titular pode recorrer de suspensão da própria conta.');
+    }
+
+    const existing = await this.dataSource.getRepository(ModerationAppeal).findOne({
+      where: { targetId: dto.targetId, status: In([AppealStatus.PENDING, AppealStatus.UNDER_REVIEW]) },
+    });
+    if (existing) throw new ConflictException('Já existe um recurso em análise para este conteúdo.');
+
+    const todayStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+    const protocol = `GRIF-REC-${todayStr}-${randomBytes(3).toString('hex').toUpperCase()}`;
+    const deadlineAt = new Date(Date.now() + 15 * 24 * 60 * 60 * 1000);
+
+    const appeal = await this.dataSource.transaction(async manager => {
+      const repo = manager.getRepository(ModerationAppeal);
+      const created = repo.create({
+        protocol,
+        userId,
+        targetType: dto.targetType,
+        targetId: dto.targetId,
+        reason,
+        status: AppealStatus.PENDING,
+        deadlineAt,
+      });
+      const saved = await repo.save(created);
+      await this.audit.record(manager, userId, 'appeal.created', 'appeal', saved.id, {
+        protocol,
+        targetType: dto.targetType,
+        targetId: dto.targetId,
+      });
+      return saved;
+    });
+
+    return {
+      id: appeal.id,
+      protocol: appeal.protocol,
+      status: appeal.status,
+      deadlineAt: appeal.deadlineAt,
+      createdAt: appeal.createdAt,
+      message: 'Seu recurso foi registrado com sucesso. Nossa equipe tem até 15 dias para concluir a análise.',
+    };
+  }
+
+  async listMyAppeals(userId: string, query: { page?: number; limit?: number }) {
+    const page = query.page ?? 1, limit = query.limit ?? 10;
+    const [data, total] = await this.dataSource.getRepository(ModerationAppeal).findAndCount({
+      where: { userId },
+      order: { createdAt: 'DESC' },
+      skip: (page - 1) * limit,
+      take: limit,
+    });
+    return { data, meta: paginationMeta(page, limit, total) };
+  }
+
+  async listAppeals(query: { page?: number; limit?: number; status?: AppealStatus }) {
+    const page = query.page ?? 1, limit = query.limit ?? 10;
+    const qb = this.dataSource.getRepository(ModerationAppeal).createQueryBuilder('a');
+    if (query.status) qb.andWhere('a.status = :status', { status: query.status });
+    const [data, total] = await qb
+      .orderBy('a.deadline_at', 'ASC')
+      .addOrderBy('a.created_at', 'DESC')
+      .skip((page - 1) * limit)
+      .take(limit)
+      .getManyAndCount();
+    return { data, meta: paginationMeta(page, limit, total) };
+  }
+
+  async assignAppeal(id: string, actorId: string, moderatorId: string) {
+    return this.dataSource.transaction(async manager => {
+      const repo = manager.getRepository(ModerationAppeal);
+      const appeal = await repo.findOne({ where: { id }, lock: { mode: 'pessimistic_write' } });
+      if (!appeal) throw new NotFoundException('Recurso não encontrado.');
+      if (appeal.status !== AppealStatus.PENDING && appeal.status !== AppealStatus.UNDER_REVIEW) {
+        throw new ConflictException('Este recurso já foi finalizado.');
+      }
+      if (appeal.userId === moderatorId) {
+        throw new BadRequestException('Conflito de interesse: o requerente não pode avaliar o próprio recurso.');
+      }
+      const conflicting = await manager.query(
+        `SELECT 1 FROM audit_logs WHERE target_id = $1 AND actor_id = $2 AND action IN ('post.hide', 'comment.hide', 'user.suspend', 'post.rating_changed') LIMIT 1`,
+        [appeal.targetId, moderatorId],
+      );
+      if (conflicting.length) {
+        throw new BadRequestException('Conflito de interesse: o moderador que realizou a ação original não pode avaliar este recurso.');
+      }
+
+      await repo.update(id, { moderatorId, status: AppealStatus.UNDER_REVIEW });
+      await this.audit.record(manager, actorId, 'appeal.assigned', 'appeal', id, { moderatorId });
+      return { id, moderatorId, status: AppealStatus.UNDER_REVIEW };
+    });
+  }
+
+  async decideAppeal(id: string, actorId: string, decision: AppealStatus.ACCEPTED | AppealStatus.REJECTED, decisionNotes: string) {
+    if (decisionNotes.trim().length < 5) throw new BadRequestException('Informe a fundamentação da decisão.');
+    const result = await this.dataSource.transaction(async manager => {
+      const repo = manager.getRepository(ModerationAppeal);
+      const appeal = await repo.findOne({ where: { id }, lock: { mode: 'pessimistic_write' } });
+      if (!appeal) throw new NotFoundException('Recurso não encontrado.');
+      if (appeal.status !== AppealStatus.PENDING && appeal.status !== AppealStatus.UNDER_REVIEW) {
+        throw new ConflictException('Este recurso já foi finalizado.');
+      }
+      if (appeal.userId === actorId) {
+        throw new BadRequestException('Conflito de interesse: o requerente não pode julgar o próprio recurso.');
+      }
+      const conflicting = await manager.query(
+        `SELECT 1 FROM audit_logs WHERE target_id = $1 AND actor_id = $2 AND action IN ('post.hide', 'comment.hide', 'user.suspend', 'post.rating_changed') LIMIT 1`,
+        [appeal.targetId, actorId],
+      );
+      if (conflicting.length) {
+        throw new BadRequestException('Conflito de interesse: o moderador responsável pela decisão original não pode julgar o recurso.');
+      }
+
+      await repo.update(id, {
+        status: decision,
+        moderatorId: actorId,
+        moderatorNote: decisionNotes.trim(),
+        reviewedAt: new Date(),
+      });
+
+      if (decision === AppealStatus.ACCEPTED) {
+        if (appeal.targetType === AppealTargetType.POST) {
+          const post = await manager.getRepository(Post).findOne({ where: { id: appeal.targetId } });
+          if (post && !post.moderationHidden) {
+            const lastRatingLog = await manager.query(
+              `SELECT details->>'oldRating' AS "oldRating" FROM audit_logs WHERE target_id = $1 AND action = 'post.rating_changed' ORDER BY created_at DESC LIMIT 1`,
+              [appeal.targetId],
+            );
+            const restoredRating = lastRatingLog[0]?.oldRating;
+            if (restoredRating) {
+              await manager.getRepository(Post).update(appeal.targetId, { contentRating: restoredRating });
+              await this.audit.record(manager, actorId, 'post.rating_restored', 'post', appeal.targetId, {
+                restoredRating,
+                reason: `Recurso ${appeal.protocol} aceito: ${decisionNotes.trim()}`,
+              });
+            }
+          } else {
+            await manager.getRepository(Post).update(appeal.targetId, { isActive: true, moderationHidden: false });
+            await this.audit.record(manager, actorId, 'post.restore', 'post', appeal.targetId, { reason: `Recurso ${appeal.protocol} aceito: ${decisionNotes.trim()}` });
+          }
+        } else if (appeal.targetType === AppealTargetType.COMMENT) {
+          await manager.getRepository(Comment).update(appeal.targetId, { isActive: true, moderationHidden: false });
+          await this.audit.record(manager, actorId, 'comment.restore', 'comment', appeal.targetId, { reason: `Recurso ${appeal.protocol} aceito: ${decisionNotes.trim()}` });
+        } else if (appeal.targetType === AppealTargetType.ACCOUNT) {
+          await manager.getRepository(User).update(appeal.targetId, { isActive: true, moderationSuspended: false, suspensionEndsAt: null });
+          await this.audit.record(manager, actorId, 'user.restore', 'user', appeal.targetId, { reason: `Recurso ${appeal.protocol} aceito: ${decisionNotes.trim()}` });
+        }
+      }
+
+      await this.audit.record(manager, actorId, 'appeal.decided', 'appeal', id, {
+        decision,
+        protocol: appeal.protocol,
+        notes: decisionNotes.trim(),
+      });
+
+      await manager.query(
+        `INSERT INTO notifications(recipient_id, actor_id, type, details) VALUES ($1, $2, 'appeal_decision', $3)`,
+        [
+          appeal.userId,
+          actorId,
+          JSON.stringify({
+            protocol: appeal.protocol,
+            targetType: appeal.targetType,
+            decision,
+            notes: decisionNotes.trim(),
+          }),
+        ],
+      );
+
+      return { id, protocol: appeal.protocol, status: decision, reviewedAt: new Date() };
+    });
+
+    await this.cache?.invalidate();
+    return result;
+  }
 }
+

@@ -22,7 +22,7 @@ function totp(secret: string, counter: number) {
 describe('Administração e privilégios', () => {
   let app: any, users: any, audits: any;
   const ids: string[] = [], suffix = randomUUID(), password = 'Password123!';
-  const accounts = ['owner', 'admin', 'reader'].map(name => ({ name: `Test ${name}`, email: `${name}-${suffix}@example.invalid`, password }));
+  const accounts = ['owner', 'admin', 'reader'].map(name => ({ name: `Test ${name}`, email: `${name}-${suffix}@example.invalid`, password, birthDate: '1990-01-01', acceptedTerms: true, termsVersion: '1.0.0' }));
   const oldKey = process.env.TOTP_ENCRYPTION_KEY;
   beforeAll(async () => {
     process.env.TOTP_ENCRYPTION_KEY = 'b'.repeat(64);

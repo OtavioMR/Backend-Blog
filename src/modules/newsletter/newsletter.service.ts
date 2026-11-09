@@ -45,7 +45,7 @@ export class NewsletterService {
     });
     return { message: 'Inscrição cancelada.' };
   }
-  @Cron(CronExpression.EVERY_MINUTE)
+  // @Cron(CronExpression.EVERY_MINUTE) - Desabilitado para V1
   async deliverPending(): Promise<void> {
     try {
       const rows: { postId: string; subscriberId: string }[] = await this.users.query(`SELECT d.post_id AS "postId", d.subscriber_id AS "subscriberId"

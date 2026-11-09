@@ -17,7 +17,8 @@ import {
   UploadedFile,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { ApiBearerAuth, ApiBody, ApiConsumes, ApiParam } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiBody, ApiConsumes, ApiParam, ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { IsOptional, IsString, MaxLength } from 'class-validator';
 
 import { AcceptAuthorRulesDto } from './dto/accept-author-rules.dto.js';
 import { UsersService } from './users.service.js';
@@ -43,6 +44,18 @@ import {
   ApiPublicRoute,
   UserResponseDto,
 } from '../../docs/index.js';
+
+class CloseAccountDto {
+  @ApiProperty({ description: 'Confirmação de senha' })
+  @IsString()
+  password: string;
+
+  @ApiPropertyOptional({ description: 'Motivo opcional do encerramento' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  reason?: string;
+}
 
 @ApiUsersTag()
 @Controller('users')
@@ -167,6 +180,30 @@ export class UsersController {
     return this.usersService.update(id, updateUserDto, request.user);
   }
 
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Remover foto de perfil' })
+  @HttpCode(HttpStatus.OK)
+  @Delete(':id/profile-photo')
+  removePhoto(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Req() request: RequestWithUser,
+  ) {
+    return this.usersService.removeProfilePhoto(id, request.user);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Encerrar conta definitivamente', description: 'Anonimiza dados pessoais, despublica artigos e gera protocolo GRIF-DEL.' })
+  @HttpCode(HttpStatus.OK)
+  @Post('me/close-account')
+  closeAccount(
+    @Req() request: RequestWithUser,
+    @Body() dto: CloseAccountDto,
+  ) {
+    return this.usersService.closeAccount(request.user.userId, request.user, dto.password, dto.reason);
+  }
+
   @ApiRemoveUserDoc()
   @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.NO_CONTENT)
@@ -178,3 +215,4 @@ export class UsersController {
     return this.usersService.remove(id, request.user);
   }
 }
+

@@ -2,7 +2,17 @@ import { Column, CreateDateColumn, Entity, PrimaryGeneratedColumn } from 'typeor
 
 export enum ReportStatus { PENDING = 'PENDING', IN_REVIEW = 'IN_REVIEW', DISMISSED = 'DISMISSED', RESOLVED = 'RESOLVED' }
 export enum ReportTarget { POST = 'POST', COMMENT = 'COMMENT', USER = 'USER' }
-export enum ReportReason { SPAM = 'SPAM', HARASSMENT = 'HARASSMENT', HATE_SPEECH = 'HATE_SPEECH', INAPPROPRIATE = 'INAPPROPRIATE', COPYRIGHT = 'COPYRIGHT', MISINFORMATION = 'MISINFORMATION', OTHER = 'OTHER' }
+export enum ReportReason {
+  SPAM = 'SPAM',
+  HARASSMENT = 'HARASSMENT',
+  HATE_SPEECH = 'HATE_SPEECH',
+  INAPPROPRIATE = 'INAPPROPRIATE',
+  COPYRIGHT = 'COPYRIGHT',
+  INCORRECT_RATING = 'INCORRECT_RATING',
+  AI_OMISSION = 'AI_OMISSION',
+  MISINFORMATION = 'MISINFORMATION',
+  OTHER = 'OTHER',
+}
 
 @Entity('reports')
 export class Report {

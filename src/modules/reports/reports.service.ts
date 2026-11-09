@@ -22,10 +22,10 @@ export class ReportsService {
     const reason = dto.reason.trim();
     if (reason.length < 5) throw new BadRequestException('Informe o motivo da denúncia.');
     const post = dto.target === ReportTarget.POST
-      ? await this.posts.findOne({ where: { id: dto.targetId, published: true, isActive: true, author: { isActive: true } } })
+      ? await this.posts.findOne({ where: { id: dto.targetId, published: true, isActive: true } })
       : null;
     const comment = dto.target === ReportTarget.COMMENT
-      ? await this.comments.findOne({ where: { id: dto.targetId, isActive: true, post: { published: true, isActive: true, author: { isActive: true } } } })
+      ? await this.comments.findOne({ where: { id: dto.targetId, isActive: true, post: { published: true, isActive: true } } })
       : null;
     const user = dto.target === ReportTarget.USER ? await this.users.findOne({ where: { id: dto.targetId, isActive: true } }) : null;
     if (user?.id === reporterId) throw new BadRequestException('Não é permitido denunciar o próprio perfil.');

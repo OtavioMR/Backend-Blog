@@ -26,6 +26,9 @@ describe('Auth E2E Test Suite (Secure Cookies, Refresh Token Rotation, Logout)',
     name: 'E2E Test User',
     email: `e2e_auth_${Date.now()}_${Math.random().toString(36).substring(2, 8)}@example.com`,
     password: 'Password123!',
+    birthDate: '1990-01-01',
+    acceptedTerms: true,
+    termsVersion: '1.0.0',
   };
 
   let initialAccessToken: string;

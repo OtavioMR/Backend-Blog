@@ -31,7 +31,7 @@ describe('Sprint 1 com PostgreSQL', () => {
     posts = module.get(getRepositoryToken(Post));
     users = module.get(getRepositoryToken(User));
     const created = await supertest(app.getHttpServer()).post('/api/v1/users')
-      .send({ name: 'Maria Sprint', email, password: 'Password123!' }).expect(201);
+      .send({ name: 'Maria Sprint', email, password: 'Password123!', birthDate: '1990-01-01', acceptedTerms: true, termsVersion: '1.0.0' }).expect(201);
     userId = created.body.id;
     await users.update(userId, { role: UserRole.AUTHOR, emailVerified: true, firstPostApproved: true });
     const login = await supertest(app.getHttpServer()).post('/api/v1/auth/login')

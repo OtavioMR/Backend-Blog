@@ -112,6 +112,26 @@ export class EnvironmentVariables {
   @IsUrl({ require_protocol: true, require_tld: false, protocols: ['redis', 'rediss'] })
   @Matches(/^rediss?:\/\/[^/?#]+(?:\/\d+)?$/)
   REDIS_URL = 'redis://127.0.0.1:6379';
+
+  @IsOptional()
+  @IsString()
+  CONTACT_SUPPORT_EMAIL = 'suporte@griforio.com.br';
+
+  @IsOptional()
+  @IsString()
+  CONTACT_PRIVACY_EMAIL = 'privacidade@griforio.com.br';
+
+  @IsOptional()
+  @IsString()
+  CONTACT_REPORTS_EMAIL = 'denuncias@griforio.com.br';
+
+  @IsOptional()
+  @IsIn(['local', 'vercel-blob'])
+  STORAGE_DRIVER = 'local';
+
+  @IsOptional()
+  @IsString()
+  BLOB_READ_WRITE_TOKEN?: string;
 }
 
 export function validate(

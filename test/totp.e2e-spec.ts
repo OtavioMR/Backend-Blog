@@ -21,7 +21,7 @@ function code(secret: string, counter: number) {
 describe('TOTP authentication', () => {
   let app: any, users: any, audits: any, id: string, token: string;
   const originalKey = process.env.TOTP_ENCRYPTION_KEY;
-  const account = { name: 'TOTP test', email: `totp-${Date.now()}-${Math.random().toString(36).slice(2)}@example.com`, password: 'Password123!' };
+  const account = { name: 'TOTP test', email: `totp-${Date.now()}-${Math.random().toString(36).slice(2)}@example.com`, password: 'Password123!', birthDate: '1990-01-01', acceptedTerms: true, termsVersion: '1.0.0' };
   beforeAll(async () => {
     process.env.TOTP_ENCRYPTION_KEY = 'a'.repeat(64);
     const module = await Test.createTestingModule({ imports: [AppModule] }).overrideProvider(MailService).useValue({ sendEmailVerification: vi.fn(), sendPasswordResetEmail: vi.fn(), sendEmailChangeConfirmation: vi.fn() }).compile();

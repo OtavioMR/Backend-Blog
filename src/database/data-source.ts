@@ -12,6 +12,10 @@ import { PostInteraction } from '../modules/posts/entities/post-interaction.enti
 import { AuthSession } from '../modules/auth/entities/session.entity.js';
 import { UserRecoveryCode } from '../modules/auth/entities/recovery-code.entity.js';
 
+import { AccountDeletionRequest } from '../modules/users/entities/account-deletion-request.entity.js';
+import { ModerationAppeal } from '../modules/moderation/entities/moderation-appeal.entity.js';
+import { LegalDocument, UserLegalAcceptance } from '../modules/users/entities/legal-acceptance.entity.js';
+
 export default new DataSource({
   type: 'postgres',
   host: process.env.DB_HOST ?? 'localhost',
@@ -19,7 +23,20 @@ export default new DataSource({
   username: process.env.DB_USER ?? 'postgres',
   password: process.env.DB_PASSWORD ?? 'postgres',
   database: process.env.DB_NAME ?? 'blog_db',
-  entities: [User, Post, Category, Tag, Comment, PostInteraction, AuthSession, UserRecoveryCode],
+  entities: [
+    User,
+    Post,
+    Category,
+    Tag,
+    Comment,
+    PostInteraction,
+    AuthSession,
+    UserRecoveryCode,
+    AccountDeletionRequest,
+    ModerationAppeal,
+    LegalDocument,
+    UserLegalAcceptance,
+  ],
   migrations: [join(dirname(fileURLToPath(import.meta.url)), 'migrations', '*.{js,ts}')],
   synchronize: false,
 });

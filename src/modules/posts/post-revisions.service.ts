@@ -47,6 +47,9 @@ export class PostRevisionsService {
 
   async restore(postId: string, revisionId: string, user: AuthenticatedUser) {
     const post = await this.authorize(postId, user);
+    if (post.authorId !== user.userId) {
+      throw new ForbiddenException('Apenas o autor pode restaurar versões anteriores deste artigo.');
+    }
     if (post.reviewStatus === 'PENDING') throw new ConflictException('Artigo aguarda revisao e nao pode ser editado.');
     const revision = await this.revision(postId, revisionId);
     return this.postService.update(postId, { title: revision.title, content: revision.content }, user);

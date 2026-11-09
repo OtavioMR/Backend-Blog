@@ -22,6 +22,7 @@ describe('UsersService', () => {
       save: vi.fn((data) => Promise.resolve(data)),
       update: vi.fn().mockResolvedValue({ affected: 1 }),
       softRemove: vi.fn((data) => Promise.resolve(data)),
+      query: vi.fn().mockResolvedValue([]),
     };
     mockMailService = { sendEmailChangeConfirmation: vi.fn().mockResolvedValue(undefined) };
 
@@ -206,4 +207,115 @@ describe('UsersService', () => {
       });
     });
   });
+
+  describe('Governança e Elegibilidade Etária (18+)', () => {
+    it('rejeita cadastro de usuário menor de 18 anos', async () => {
+      const today = new Date();
+      const minorBirthDate = new Date(today.getFullYear() - 17, today.getMonth(), today.getDate()).toISOString().slice(0, 10);
+
+      await expect(
+        service.create({
+          name: 'Menor de Idade',
+          email: 'menor@example.com',
+          password: 'Password123!',
+          birthDate: minorBirthDate,
+          acceptedTerms: true,
+        }),
+      ).rejects.toThrow('restrito a maiores de 18 anos');
+    });
+
+    it('aceita cadastro de usuário com 18 anos completos', async () => {
+      const user = await service.create({
+        name: 'Maior de Idade',
+        email: 'adulto@example.com',
+        password: 'Password123!',
+        birthDate: '2000-01-01',
+        acceptedTerms: true,
+      });
+
+      expect(user).toHaveProperty('email', 'adulto@example.com');
+      expect(mockUsersRepository.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          birthDate: '2000-01-01',
+          acceptedTermsVersion: '1.0.0',
+        }),
+      );
+    });
+
+    it('permite que conta legada sem data de nascimento registre sua idade', async () => {
+      mockUsersRepository.findOne.mockResolvedValue({
+        id: 'legacy-user',
+        email: 'legado@example.com',
+        name: 'Usuário Antigo',
+        role: UserRole.READER,
+        birthDate: null,
+        isActive: true,
+        authVersion: 1,
+      });
+
+      await service.update(
+        'legacy-user',
+        { birthDate: '1995-05-20' },
+        { userId: 'legacy-user', role: UserRole.READER },
+      );
+
+      expect(mockUsersRepository.update).toHaveBeenCalledWith(
+        expect.objectContaining({ id: 'legacy-user' }),
+        expect.objectContaining({ birthDate: '1995-05-20' }),
+      );
+    });
+
+    it('impede que conta legada registre data de nascimento menor de 18 anos', async () => {
+      mockUsersRepository.findOne.mockResolvedValue({
+        id: 'legacy-user',
+        email: 'legado@example.com',
+        name: 'Usuário Antigo',
+        role: UserRole.READER,
+        birthDate: null,
+        isActive: true,
+        authVersion: 1,
+      });
+
+      await expect(
+        service.update(
+          'legacy-user',
+          { birthDate: '2015-05-20' },
+          { userId: 'legacy-user', role: UserRole.READER },
+        ),
+      ).rejects.toThrow('restritos a maiores de 18 anos');
+    });
+
+    it('impede que usuário com data já registrada tente alterá-la', async () => {
+      mockUsersRepository.findOne.mockResolvedValue({
+        id: 'user-with-dob',
+        email: 'usuario@example.com',
+        name: 'Usuário Com Idade',
+        role: UserRole.READER,
+        birthDate: '2000-01-01',
+        isActive: true,
+        authVersion: 1,
+      });
+
+      await expect(
+        service.update(
+          'user-with-dob',
+          { birthDate: '1999-01-01' },
+          { userId: 'user-with-dob', role: UserRole.READER },
+        ),
+      ).rejects.toThrow('não pode ser alterada diretamente');
+    });
+
+    it('rejeita cadastro sem aceite dos termos de uso', async () => {
+      await expect(
+        service.create({
+          name: 'Maior de Idade',
+          email: 'maior@example.com',
+          password: 'Password123!',
+          birthDate: '2000-01-01',
+          acceptedTerms: false as any,
+        }),
+      ).rejects.toThrow('Termos de Uso');
+    });
+  });
 });
+
