@@ -16,8 +16,8 @@ const request = typeof supertest === 'function' ? supertest : (supertest as any)
 describe('First post review', () => {
   let app: any, users: any, posts: any, reports: any, audits: any, authorId: string, authorToken: string, adminToken: string, postId: string;
   const suffix = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-  const author = { name: 'Review Author', email: `review-a-${suffix}@example.com`, password: 'Password123!' };
-  const admin = { name: 'Review Admin', email: `review-b-${suffix}@example.com`, password: 'Password123!' };
+  const author = { name: 'Review Author', email: `review-a-${suffix}@example.com`, password: 'Password123!', birthDate: '1990-01-01', acceptedTerms: true, termsVersion: '1.0.0' };
+  const admin = { name: 'Review Admin', email: `review-b-${suffix}@example.com`, password: 'Password123!', birthDate: '1990-01-01', acceptedTerms: true, termsVersion: '1.0.0' };
   const mail = { sendEmailVerification: vi.fn(), sendPasswordResetEmail: vi.fn(), sendEmailChangeConfirmation: vi.fn() };
   beforeAll(async () => {
     const module = await Test.createTestingModule({ imports: [AppModule] }).overrideProvider(MailService).useValue(mail).compile();
@@ -28,9 +28,10 @@ describe('First post review', () => {
       await users.update({ email: user.email }, { emailVerified: true });
     }
     authorId = (await users.findOneBy({ email: author.email })).id;
-    await users.update({ email: admin.email }, { role: UserRole.ADMIN, firstPostApproved: true });
+    const adminUser = await users.findOneBy({ email: admin.email });
     authorToken = (await request(app.getHttpServer()).post('/api/v1/auth/login').send({ email: author.email, password: author.password }).expect(200)).body.access_token;
     adminToken = (await request(app.getHttpServer()).post('/api/v1/auth/login').send({ email: admin.email, password: admin.password }).expect(200)).body.access_token;
+    await users.update(adminUser.id, { role: UserRole.ADMIN, firstPostApproved: true, totpEnabled: true });
   });
   afterAll(async () => {
     if (reports && postId) await reports.delete({ postId });

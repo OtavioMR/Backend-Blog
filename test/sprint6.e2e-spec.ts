@@ -14,7 +14,7 @@ import { AuthService } from '../src/modules/auth/auth.service.js';
 import { AnalyticsService } from '../src/modules/analytics/analytics.service.js';
 
 describe('Release acceptance: public content, cache, series and engagement', () => {
-  let app: INestApplication, db: DataSource, cache: PublicCacheService, newsletter: NewsletterService;
+  let app: INestApplication, db: DataSource, cache: PublicCacheService, newsletter: NewsletterService | undefined;
   let authorId: string, readerId: string, authorToken: string, readerToken: string;
   let authService: AuthService, analytics: AnalyticsService;
   let cacheHitAverage: number;
@@ -33,10 +33,11 @@ describe('Release acceptance: public content, cache, series and engagement', () 
     app.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }));
     await app.init();
     for (const job of module.get(SchedulerRegistry).getCronJobs().values()) await job.stop();
-    db = module.get(DataSource); cache = module.get(PublicCacheService); newsletter = module.get(NewsletterService);
+    db = module.get(DataSource); cache = module.get(PublicCacheService);
+    try { newsletter = module.get(NewsletterService); } catch { /* disabled in V1 */ }
     authService = module.get(AuthService); analytics = module.get(AnalyticsService);
     for (const [name, address, author] of [['Release Author', `author-${email}`, true], ['Release Reader', `reader-${email}`, false]] as const) {
-      const result = await request(app.getHttpServer()).post('/api/v1/users').send({ name, email: address, password }).expect(201);
+      const result = await request(app.getHttpServer()).post('/api/v1/users').send({ name, email: address, password, birthDate: '1990-01-01', acceptedTerms: true, termsVersion: '1.0.0' }).expect(201);
       await db.query("UPDATE users SET email_verified = true, role = $2, first_post_approved = true WHERE id = $1", [result.body.id, author ? 'AUTHOR' : 'READER']);
       const login = await request(app.getHttpServer()).post('/api/v1/auth/login').send({ email: address, password }).expect(200);
       if (author) { authorId = result.body.id; authorToken = login.body.access_token; }
@@ -118,7 +119,7 @@ describe('Release acceptance: public content, cache, series and engagement', () 
     await request(server).patch('/api/v1/notifications/read-all').set('Authorization', `Bearer ${authorToken}`).expect(204);
   });
 
-  it('confirms and cancels newsletter subscriptions using browser links', async () => {
+  it.skip('confirms and cancels newsletter subscriptions using browser links (disabled in V1)', async () => {
     const server = app.getHttpServer();
     await request(server).post('/api/v1/newsletter/subscribe').send({ email }).expect(200);
     const [subscriber] = await db.query('SELECT id, confirmed FROM newsletter_subscribers WHERE email = $1', [email]);

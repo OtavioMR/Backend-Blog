@@ -12,7 +12,7 @@ export class PostSeriesService {
   private async owned(manager: EntityManager, id: string, user: AuthenticatedUser): Promise<Series> {
     const rows: Series[] = await manager.query('SELECT id, author_id AS "authorId", title, description, created_at AS "createdAt", updated_at AS "updatedAt" FROM post_series WHERE id = $1 FOR UPDATE', [id]);
     if (!rows.length) throw new NotFoundException('Serie nao encontrada.');
-    if (!isAdministrator(user.role) && (user.role !== UserRole.AUTHOR || rows[0].authorId !== user.userId)) throw new ForbiddenException('Sem permissao para editar a serie.');
+    if (rows[0].authorId !== user.userId) throw new ForbiddenException('Apenas o autor pode editar a série.');
     return rows[0];
   }
   private title(value: string): string {

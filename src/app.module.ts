@@ -16,7 +16,8 @@ import { TagsModule } from './modules/tags/tags.module.js';
 import { CommentsModule } from './modules/comments/comments.module.js';
 import { MailModule } from './modules/mail/mail.module.js';
 import { NotificationsModule } from './modules/notifications/notifications.module.js';
-import { NewsletterModule } from './modules/newsletter/newsletter.module.js';
+// Newsletter desabilitada para V1 (planejada para V2)
+// import { NewsletterModule } from "./modules/newsletter/newsletter.module.js";
 import { ModerationModule } from './modules/moderation/moderation.module.js';
 import { AuditModule } from './modules/audit/audit.module.js';
 import { AnalyticsModule } from './modules/analytics/analytics.module.js';
@@ -24,6 +25,7 @@ import { ReportsModule } from './modules/reports/reports.module.js';
 import { validate } from './config/env.validation.js';
 import { PublicCacheModule } from './common/public-cache.module.js';
 import { PublicCacheInterceptor } from './common/public-cache.interceptor.js';
+import { StorageModule } from './common/storage/storage.module.js';
 
 @Module({
   imports: [
@@ -58,11 +60,12 @@ import { PublicCacheInterceptor } from './common/public-cache.interceptor.js';
     CommentsModule,
     MailModule,
     NotificationsModule,
-    NewsletterModule,
+    // NewsletterModule, // Desabilitada para V1
     ReportsModule,
     AnalyticsModule,
     AuditModule,
     ModerationModule,
+    StorageModule,
   ],
   controllers: [HealthController],
   providers: [

@@ -26,10 +26,13 @@ import { AuthorFollowsService } from './author-follows.service.js';
 import { SavedCollectionsController } from './saved-collections.controller.js';
 import { SavedCollectionsService } from './saved-collections.service.js';
 
+import { StorageModule } from '../../common/storage/storage.module.js';
+
 @Module({
   imports: [
     TypeOrmModule.forFeature([Post, Category, PostInteraction]),
     TagsModule,
+    StorageModule,
   ],
   controllers: [PostSeriesController, PostSeriesNavigationController, PostRevisionsController, PostReviewController, AuthorsController, FeedController, AuthorFollowsController, PostInteractionsController, PostViewsController, SavedCollectionsController, PostsController],
   providers: [PostSeriesService, PostRevisionsService, PostReviewService, PostsService, PostInteractionsService, FeedService, PostSchedulerService, PostViewsService, AuthorFollowsService, SavedCollectionsService],

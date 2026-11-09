@@ -34,19 +34,22 @@ export class CommentsService {
   }
 
   private present(comment: Comment) {
+    const isAnonymized = !comment.isActive || Boolean(comment.author?.deletedAt);
     return {
       id: comment.id,
       postId: comment.postId,
       rootId: comment.rootId,
       replyToId: comment.replyToId,
-      replyToAuthor: comment.replyTo?.author
+      replyToAuthor: comment.replyTo?.author && !comment.replyTo.author.deletedAt
         ? { id: comment.replyTo.author.id, name: comment.replyTo.author.name }
         : null,
-      author: {
-        id: comment.author.id,
-        name: comment.author.name,
-        profilePhoto: comment.author.profilePhoto,
-      },
+      author: isAnonymized
+        ? { id: null, name: 'Conta encerrada', profilePhoto: null }
+        : {
+            id: comment.author.id,
+            name: comment.author.name,
+            profilePhoto: comment.author.profilePhoto,
+          },
       content: comment.isActive ? sanitizePlainText(comment.content) : 'Comentário excluído',
       isActive: comment.isActive,
       editedAt: comment.editedAt,
@@ -145,19 +148,12 @@ export class CommentsService {
     if (!comment.isActive)
       throw new BadRequestException('Comentário desativado.');
     if (comment.authorId !== user.userId && !isAdministrator(user.role))
-      throw new ForbiddenException('Sem permissão para editar.');
+      throw new ForbiddenException('Apenas o autor ou um administrador pode editar este comentário.');
     const safeContent = sanitizePlainText(content);
     if (!safeContent) throw new BadRequestException('Conte\u00fado inv\u00e1lido.');
     comment.content = safeContent;
     comment.editedAt = new Date();
-    if (comment.authorId !== user.userId) {
-      await this.comments.manager.transaction(async manager => {
-        await manager.getRepository(Comment).save(comment);
-        await manager.query(`INSERT INTO audit_logs (actor_id, action, target_type, target_id) VALUES ($1, 'comment.admin_updated', 'comment', $2)`, [user.userId, id]);
-      });
-    } else {
-      await this.comments.save(comment);
-    }
+    await this.comments.save(comment);
     return this.present(comment);
   }
 

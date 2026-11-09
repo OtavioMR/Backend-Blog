@@ -343,4 +343,95 @@ describe('PostsService', () => {
     expect(post.tags).toEqual(tags);
     expect(mockPostsRepository.save).toHaveBeenCalledWith(post);
   });
+
+  describe('Proteção de conteúdo 18+ e Classificação Indicativa', () => {
+    it('redige corpo, capa e prévia de artigo 18+ para visitante não autenticado', async () => {
+      mockPostsRepository.findOne.mockResolvedValue({
+        id: 'post-18',
+        title: 'Conto Maduro',
+        content: '<p>Cenas explícitas ou de terror psicológico.</p>',
+        excerpt: 'Prévia detalhada de cenas fortes.',
+        coverImage: '/uploads/covers/maduro.webp',
+        contentRating: '18+',
+        published: true,
+        isActive: true,
+        categories: [],
+        tags: [],
+      });
+
+      const result = await service.findById('post-18', null);
+      expect((result as any).isRestricted).toBe(true);
+      expect(result.content).toBeNull();
+      expect(result.coverImage).toBeNull();
+      expect(result.excerpt).toContain('classificação indicativa 18+');
+    });
+
+    it('entrega conteúdo integral de artigo 18+ para autor ou adulto verificado', async () => {
+      const fullPost = {
+        id: 'post-18',
+        authorId: 'adult-author',
+        title: 'Conto Maduro',
+        content: '<p>Cenas explícitas ou de terror psicológico.</p>',
+        excerpt: 'Prévia detalhada.',
+        coverImage: '/uploads/covers/maduro.webp',
+        contentRating: '18+',
+        published: true,
+        isActive: true,
+        categories: [],
+        tags: [],
+      };
+      mockPostsRepository.findOne.mockResolvedValue(fullPost);
+
+      const result = await service.findById('post-18', { userId: 'adult-author', role: UserRole.AUTHOR } as any);
+      expect((result as any).isRestricted).toBe(false);
+      expect(result.content).toContain('Cenas explícitas');
+      expect(result.coverImage).toBe('/uploads/covers/maduro.webp');
+    });
+
+    it('redige capa e prévia de artigos 18+ na listagem pública (findAll)', async () => {
+      mockPostsRepository.findAndCount.mockResolvedValue([
+        [
+          {
+            id: 'post-regular',
+            title: 'Artigo Livre',
+            content: 'Texto comum',
+            excerpt: 'Prévia normal',
+            coverImage: '/uploads/covers/livre.webp',
+            contentRating: 'LIVRE',
+            published: true,
+            isActive: true,
+            categories: [],
+            tags: [],
+          },
+          {
+            id: 'post-adult',
+            title: 'Conto Maduro',
+            content: 'Texto adulto',
+            excerpt: 'Prévia com conteúdo potencialmente sensível',
+            coverImage: '/uploads/covers/adulto.webp',
+            contentRating: '18+',
+            published: true,
+            isActive: true,
+            categories: [],
+            tags: [],
+          },
+        ],
+        2,
+      ]);
+
+      const result = (await service.findAll({ page: 1, limit: 10 })) as any;
+      expect(result.data).toHaveLength(2);
+
+      const regular = result.data[0];
+      expect(regular.isRestricted).toBe(false);
+      expect(regular.coverImage).toBe('/uploads/covers/livre.webp');
+      expect(regular.excerpt).toBe('Prévia normal');
+
+      const adult = result.data[1];
+      expect(adult.isRestricted).toBe(true);
+      expect(adult.coverImage).toBeNull();
+      expect(adult.excerpt).toContain('classificação indicativa 18+');
+    });
+  });
 });
+

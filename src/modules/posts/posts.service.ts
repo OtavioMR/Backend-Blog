@@ -14,6 +14,7 @@ import {
   Injectable,
   Logger,
   NotFoundException,
+  Optional,
   ForbiddenException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -29,6 +30,9 @@ import type { PaginatedResult } from '../../common/interfaces/paginated-result.i
 import { PaginationQueryDto } from '../../common/dto/pagination-query.dto.js';
 import { isAdministrator, UserRole } from '../users/enums/user.enum.js';
 import type { AuthenticatedUser } from '../auth/interfaces/request-with-user.interface.js';
+import { ContentRating, AiTextDeclaration, AiCoverDeclaration } from './enums/post-governance.enum.js';
+import { StorageService } from '../../common/storage/storage.service.js';
+import { isUserAdult } from '../../common/utils/age.util.js';
 
 function readingTimeMinutes(content: string): number {
   const text = sanitizePlainText(content.replace(/<[^>]*>/g, ' '));
@@ -45,6 +49,7 @@ export class PostsService {
     @InjectRepository(Category)
     private readonly categoriesRepository: Repository<Category>,
     private readonly tagsService: TagsService,
+    @Optional() private readonly storage?: StorageService,
   ) {}
 
   private validateSchedule(value: string | null | undefined, published?: boolean): Date | null {
@@ -67,6 +72,8 @@ export class PostsService {
     const tagSlug = query?.tagSlug?.trim();
 
     const base: FindOptionsWhere<Post> = { published: true, isActive: true };
+    if (query?.rating) base.contentRating = query.rating;
+    if (query?.aiText) base.aiTextDeclaration = query.aiText;
 
     const search = query?.search?.trim();
     const author = query?.author?.trim();
@@ -113,6 +120,9 @@ export class PostsService {
         content: true,
         excerpt: true,
         coverImage: true,
+        contentRating: true,
+        aiTextDeclaration: true,
+        aiCoverDeclaration: true,
         publishedAt: true,
         published: true,
         reviewStatus: true,
@@ -149,12 +159,20 @@ export class PostsService {
 
     // Garante que posts sem categoria retornem array vazio e remove categorias desativadas
     const formattedData = data.map((post) => {
-      Object.assign(post, { readingTimeMinutes: readingTimeMinutes(post.content ?? '') });
+      const isRestricted = post.contentRating === '18+';
+      Object.assign(post, {
+        readingTimeMinutes: readingTimeMinutes(post.content ?? ''),
+        isRestricted,
+      });
       delete (post as Partial<Post>).content;
       post.title = sanitizePlainText(post.title);
       post.excerpt = sanitizePlainText(post.excerpt ?? '');
       post.categories = (post.categories || []).filter((cat) => cat.isActive);
       post.tags = post.tags || [];
+      if (isRestricted) {
+        post.coverImage = null;
+        post.excerpt = 'Este conteúdo possui classificação indicativa 18+ e seu acesso integral é restrito a maiores de 18 anos cadastrados e autenticados.';
+      }
       return post;
     });
 
@@ -184,7 +202,7 @@ export class PostsService {
     return { id: user.id, name: user.name, profilePhoto: user.profilePhoto, bio: user.bio, websiteUrl: user.websiteUrl, socialUrl: user.socialUrl, publicationCount };
   }
 
-  async findRelated(id: string): Promise<Post[]> {
+  async findRelated(id: string, user?: AuthenticatedUser | null): Promise<Post[]> {
     const target = await this.postsRepository.findOne({
       where: isUUID(id) ? { id, published: true, isActive: true } : [{ slug: id, published: true, isActive: true }, { legacySlug: id, published: true, isActive: true }],
       relations: { tags: true, categories: true },
@@ -199,7 +217,7 @@ export class PostsService {
     const candidates = await this.postsRepository.find({ where, relations: { tags: true, categories: true } });
     const ranked = candidates.filter(post => post.id !== target.id).map(post => ({ post, score: (post.tags ?? []).filter(tag => tagIds.includes(tag.id)).length + (post.categories ?? []).filter(category => category.isActive && categoryIds.includes(category.id)).length }));
     ranked.sort((a, b) => b.score - a.score || (b.post.publishedAt?.getTime() ?? 0) - (a.post.publishedAt?.getTime() ?? 0) || a.post.id.localeCompare(b.post.id));
-    return Promise.all(ranked.slice(0, 4).map(({ post }) => this.findById(post.id)));
+    return Promise.all(ranked.slice(0, 4).map(({ post }) => this.findById(post.id, user)));
   }
 
   async findMine(authorId: string, query: PaginationQueryDto): Promise<PaginatedResult<Post>> {
@@ -210,6 +228,7 @@ export class PostsService {
       relations: { author: true, categories: true, tags: true },
       select: {
         id: true, slug: true, title: true, content: true, excerpt: true, coverImage: true, publishedAt: true, scheduledAt: true, published: true, reviewStatus: true, commentsEnabled: true,
+        contentRating: true, aiTextDeclaration: true, aiCoverDeclaration: true, moderationHidden: true,
         isActive: true, createdAt: true, updatedAt: true,
         author: { id: true, name: true },
         categories: { id: true, name: true, slug: true, isActive: true },
@@ -250,10 +269,14 @@ export class PostsService {
         authorId: true,
         title: true,
         content: true,
+        contentRating: true,
+        aiTextDeclaration: true,
+        aiCoverDeclaration: true,
         published: true,
         reviewStatus: true,
         commentsEnabled: true,
         isActive: true,
+        moderationHidden: true,
         createdAt: true,
         updatedAt: true,
         author: {
@@ -270,16 +293,45 @@ export class PostsService {
       },
     });
 
-    if (!post || (!post.published && (!user || (!isAdministrator(user.role) && post.authorId !== user.userId)))) {
+    const isAuthor = user ? post?.authorId === user.userId : false;
+    const isAdmin = user ? isAdministrator(user.role) : false;
+
+    if (!post || (!post.published && !isAuthor && !isAdmin) || (post.moderationHidden && !isAuthor && !isAdmin)) {
       throw new NotFoundException('Artigo não encontrado.');
     }
 
     post.categories = (post.categories || []).filter((cat) => cat.isActive);
     post.tags = post.tags || [];
     post.title = sanitizePlainText(post.title);
-    post.content = sanitizePostContent(post.content);
-    post.excerpt = sanitizePlainText(post.excerpt ?? '');
-    Object.assign(post, { readingTimeMinutes: readingTimeMinutes(post.content ?? '') });
+
+    let isAdult = false;
+    if (user) {
+      if (isAdmin || isAuthor) {
+        isAdult = true;
+      } else {
+        const rows: { birth_date: string | null }[] = await this.postsRepository.manager.query(
+          `SELECT birth_date FROM users WHERE id = $1 AND is_active = true AND deleted_at IS NULL`,
+          [user.userId],
+        );
+        const birthDate = rows[0]?.birth_date;
+        isAdult = isUserAdult(birthDate);
+      }
+    }
+
+    const isRestricted = post.contentRating === '18+' && !isAdult;
+    Object.assign(post, {
+      readingTimeMinutes: readingTimeMinutes(post.content ?? ''),
+      isRestricted,
+    });
+
+    if (isRestricted) {
+      post.content = null as any;
+      post.coverImage = null;
+      post.excerpt = 'Este conteúdo possui classificação indicativa 18+ e seu acesso integral é restrito a maiores de 18 anos cadastrados e autenticados.';
+    } else {
+      post.content = sanitizePostContent(post.content);
+      post.excerpt = sanitizePlainText(post.excerpt ?? '');
+    }
 
     if (post.published) {
       const rows: { id: string; title: string; postId: string; slug: string }[] = await this.postsRepository.query(`
@@ -330,6 +382,9 @@ export class PostsService {
     const post = this.postsRepository.create({
       ...postData,
       id,
+      contentRating: postData.contentRating ?? ContentRating.LIVRE,
+      aiTextDeclaration: postData.aiTextDeclaration ?? null,
+      aiCoverDeclaration: postData.aiCoverDeclaration ?? null,
       scheduledAt: schedule,
       coverImage: null,
       slug: shortPostSlug(postData.title),
@@ -372,9 +427,9 @@ export class PostsService {
       throw new NotFoundException('Artigo não encontrado.');
     }
 
-    if (!isAdministrator(user.role) && (post.authorId !== user.userId || user.role !== UserRole.AUTHOR)) {
+    if (post.authorId !== user.userId && !isAdministrator(user.role)) {
       throw new ForbiddenException(
-        'Você não tem permissão para editar este artigo.',
+        'Apenas o autor pode editar o conteúdo da sua obra.',
       );
     }
 
@@ -433,27 +488,31 @@ export class PostsService {
   private async changeCover(id: string, user: AuthenticatedUser, buffer?: Buffer): Promise<{ coverImage: string | null }> {
     const post = await this.postsRepository.findOne({ where: { id, isActive: true } });
     if (!post) throw new NotFoundException('Artigo não encontrado.');
-    if (!isAdministrator(user.role) && (post.authorId !== user.userId || user.role !== UserRole.AUTHOR)) throw new ForbiddenException('Sem permissão para editar este artigo.');
+    if (post.authorId !== user.userId) throw new ForbiddenException('Apenas o autor pode alterar a capa da sua obra.');
     if (post.reviewStatus === 'PENDING') throw new ConflictException('Artigo aguarda revisão e não pode ser editado.');
 
     const directory = join(process.cwd(), 'uploads', 'post-covers');
     let path: string | undefined;
     let coverImage: string | null = null;
     if (buffer) {
-      let image: Buffer;
-      try {
-        const input = sharp(buffer, { limitInputPixels: 40_000_000, failOn: 'error' });
-        const metadata = await input.metadata();
-        if (!['jpeg', 'png', 'webp'].includes(metadata.format ?? '') || (metadata.pages ?? 1) > 1) throw new Error('Invalid image');
-        image = await input.rotate().resize(1920, 1080, { fit: 'inside', withoutEnlargement: true }).webp({ quality: 80 }).toBuffer();
-      } catch {
-        throw new BadRequestException('A imagem deve ser JPEG, PNG ou WebP válida.');
+      if (this.storage) {
+        coverImage = await this.storage.processAndStorePostCover(buffer);
+      } else {
+        let image: Buffer;
+        try {
+          const input = sharp(buffer, { limitInputPixels: 40_000_000, failOn: 'error' });
+          const metadata = await input.metadata();
+          if (!['jpeg', 'png', 'webp'].includes(metadata.format ?? '') || (metadata.pages ?? 1) > 1) throw new Error('Invalid image');
+          image = await input.rotate().resize(1920, 1080, { fit: 'inside', withoutEnlargement: true }).webp({ quality: 80 }).toBuffer();
+        } catch {
+          throw new BadRequestException('A imagem deve ser JPEG, PNG ou WebP válida.');
+        }
+        await mkdir(directory, { recursive: true });
+        const filename = `${randomUUID()}.webp`;
+        path = join(directory, filename);
+        await writeFile(path, image, { flag: 'wx' });
+        coverImage = `/uploads/post-covers/${filename}`;
       }
-      await mkdir(directory, { recursive: true });
-      const filename = `${randomUUID()}.webp`;
-      path = join(directory, filename);
-      await writeFile(path, image, { flag: 'wx' });
-      coverImage = `/uploads/post-covers/${filename}`;
     }
     try {
       const updateCover = (repository: Repository<Post>) => repository.createQueryBuilder().update(Post)
@@ -470,11 +529,16 @@ export class PostsService {
         : await updateCover(this.postsRepository);
       if (!result.affected) throw new ConflictException('A capa foi alterada simultaneamente. Tente novamente.');
     } catch (error) {
+      if (this.storage && coverImage) await this.storage.delete(coverImage);
       if (path) await unlink(path).catch(() => undefined);
       throw error;
     }
-    const oldName = post.coverImage?.match(/^\/uploads\/post-covers\/([0-9a-f-]+\.webp)$/i)?.[1];
-    if (oldName) await unlink(join(directory, oldName)).catch(() => undefined);
+    if (this.storage && post.coverImage) {
+      await this.storage.delete(post.coverImage);
+    } else {
+      const oldName = post.coverImage?.match(/^\/uploads\/post-covers\/([0-9a-f-]+\.webp)$/i)?.[1];
+      if (oldName) await unlink(join(directory, oldName)).catch(() => undefined);
+    }
     return { coverImage };
   }
 

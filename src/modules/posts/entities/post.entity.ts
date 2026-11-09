@@ -46,6 +46,30 @@ export class Post {
   @Column({ default: false })
   published: boolean;
 
+  @Column({
+    name: 'content_rating',
+    type: 'varchar',
+    length: 10,
+    nullable: true,
+  })
+  contentRating: string | null;
+
+  @Column({
+    name: 'ai_text_declaration',
+    type: 'varchar',
+    length: 30,
+    nullable: true,
+  })
+  aiTextDeclaration: string | null;
+
+  @Column({
+    name: 'ai_cover_declaration',
+    type: 'varchar',
+    length: 30,
+    nullable: true,
+  })
+  aiCoverDeclaration: string | null;
+
   @Column({ name: 'review_status', type: 'varchar', length: 20, default: 'DRAFT' })
   reviewStatus: string;
 

@@ -3,6 +3,7 @@ import {
   ArrayMaxSize,
   IsArray,
   IsBoolean,
+  IsIn,
   IsNotEmpty,
   IsISO8601,
   IsOptional,
@@ -82,4 +83,40 @@ export class CreatePostDto {
   @MinLength(1, { each: true })
   @MaxLength(50, { each: true })
   tagNames?: string[];
+
+  @ApiPropertyOptional({
+    description: 'Classificação indicativa do artigo (LIVRE, 10+, 12+, 14+, 16+, 18+)',
+    example: 'LIVRE',
+    enum: ['LIVRE', '10+', '12+', '14+', '16+', '18+'],
+    default: 'LIVRE',
+  })
+  @IsOptional()
+  @IsIn(['LIVRE', '10+', '12+', '14+', '16+', '18+'])
+  contentRating?: string;
+
+  @ApiPropertyOptional({
+    description: 'Declaração de uso de IA no texto (HUMAN_ONLY, HUMAN_WITH_AI, PARTIAL_AI, FULL_AI)',
+    example: 'HUMAN_ONLY',
+    enum: ['HUMAN_ONLY', 'HUMAN_WITH_AI', 'PARTIAL_AI', 'FULL_AI'],
+  })
+  @IsOptional()
+  @IsIn(['HUMAN_ONLY', 'HUMAN_WITH_AI', 'PARTIAL_AI', 'FULL_AI'])
+  aiTextDeclaration?: string;
+
+  @ApiPropertyOptional({
+    description: 'Declaração de uso de IA na imagem de capa (HUMAN_OR_PHOTO, AI_GENERATED, HYBRID, NONE)',
+    example: 'NONE',
+    enum: ['HUMAN_OR_PHOTO', 'AI_GENERATED', 'HYBRID', 'NONE'],
+  })
+  @IsOptional()
+  @IsIn(['HUMAN_OR_PHOTO', 'AI_GENERATED', 'HYBRID', 'NONE'])
+  aiCoverDeclaration?: string;
+
+  @ApiPropertyOptional({
+    description: 'Declaração de titularidade ou autorização de direitos autorais para texto e capa',
+    example: true,
+  })
+  @IsOptional()
+  @IsBoolean()
+  authorCopyrightConfirmed?: boolean;
 }

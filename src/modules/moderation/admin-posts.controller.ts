@@ -1,6 +1,6 @@
-import { Body, Controller, Get, Param, ParseUUIDPipe, Post, Query, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, ParseUUIDPipe, Patch, Post, Query, Req, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiParam, ApiProperty, ApiPropertyOptional, ApiResponse, ApiTags } from '@nestjs/swagger';
-import { IsIn, IsOptional, IsString, IsUUID, MaxLength, MinLength } from 'class-validator';
+import { IsEnum, IsIn, IsOptional, IsString, IsUUID, MaxLength, MinLength } from 'class-validator';
 import { Roles } from '../../common/decorators/roles.decorator.js';
 import { JwtAuthGuard } from '../auth/guard/jwt-auth.guard.js';
 import { RolesGuard } from '../auth/guard/roles.guard.js';
@@ -8,6 +8,19 @@ import type { RequestWithUser } from '../auth/interfaces/request-with-user.inter
 import { UserRole } from '../users/enums/user.enum.js';
 import { ModerationService } from './moderation.service.js';
 import { PaginationQueryDto } from '../../common/dto/pagination-query.dto.js';
+import { ContentRating } from '../posts/enums/post-governance.enum.js';
+
+class ChangeRatingDto {
+  @ApiProperty({ enum: ContentRating, example: ContentRating.EIGHTEEN_PLUS })
+  @IsEnum(ContentRating)
+  contentRating: ContentRating;
+
+  @ApiProperty({ minLength: 5, maxLength: 1000, example: 'Contém conteúdo inadequado para menores' })
+  @IsString()
+  @MinLength(5)
+  @MaxLength(1000)
+  reason: string;
+}
 
 class ReasonDto { @ApiProperty({ minLength: 5, maxLength: 1000, example: 'Violação das regras editoriais' }) @IsString() @MinLength(5) @MaxLength(1000) reason: string; }
 class PostQuery extends PaginationQueryDto {
@@ -40,4 +53,17 @@ export class AdminPostsController {
   @ApiOperation({ summary: 'Restaurar artigo ocultado pela administração', description: 'Requer autor ativo e preserva o estado de publicação anterior.' })
   @ApiParam({ name: 'id', format: 'uuid' }) @ApiResponse({ status: 201, description: 'Artigo restaurado.' }) @ApiResponse({ status: 400, description: 'Dados inválidos.' }) @ApiResponse({ status: 401, description: 'Autenticação necessária.' }) @ApiResponse({ status: 403, description: 'Requer administrador.' }) @ApiResponse({ status: 404, description: 'Artigo não encontrado.' }) @ApiResponse({ status: 409, description: 'Transição inválida ou autor indisponível.' })
   restore(@Param('id', ParseUUIDPipe) id: string, @Req() req: RequestWithUser, @Body() dto: ReasonDto) { return this.service.moderatePost(id, req.user.userId, false, dto.reason); }
+
+  @Patch(':id/rating')
+  @ApiOperation({ summary: 'Corrigir classificação etária de um artigo', description: 'Permite que a moderação altere a classificação etária do artigo com justificativa e notificação ao autor.' })
+  @ApiParam({ name: 'id', format: 'uuid' })
+  @ApiResponse({ status: 200, description: 'Classificação etária alterada.' })
+  @ApiResponse({ status: 400, description: 'Dados inválidos.' })
+  @ApiResponse({ status: 401, description: 'Autenticação necessária.' })
+  @ApiResponse({ status: 403, description: 'Requer administrador.' })
+  @ApiResponse({ status: 404, description: 'Artigo não encontrado.' })
+  @ApiResponse({ status: 409, description: 'Classificação idêntica à atual.' })
+  changeRating(@Param('id', ParseUUIDPipe) id: string, @Req() req: RequestWithUser, @Body() dto: ChangeRatingDto) {
+    return this.service.changePostRating(id, req.user.userId, dto.contentRating, dto.reason);
+  }
 }

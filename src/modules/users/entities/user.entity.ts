@@ -128,6 +128,15 @@ export class User {
   @Column({ name: 'suspension_ends_at', type: 'timestamptz', nullable: true })
   suspensionEndsAt: Date | null;
 
+  @Column({ name: 'birth_date', type: 'date', nullable: true })
+  birthDate: string | null;
+
+  @Column({ name: 'accepted_terms_at', type: 'timestamptz', nullable: true })
+  acceptedTermsAt: Date | null;
+
+  @Column({ name: 'accepted_terms_version', type: 'varchar', length: 20, nullable: true })
+  acceptedTermsVersion: string | null;
+
   @Column({ name: 'first_post_approved', default: false })
   firstPostApproved: boolean;
 

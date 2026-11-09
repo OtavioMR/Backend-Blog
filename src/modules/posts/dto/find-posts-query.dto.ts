@@ -71,4 +71,24 @@ export class FindPostsQueryDto extends PaginationQueryDto {
   @IsString()
   @MaxLength(100)
   tagSlug?: string;
+
+  @ApiPropertyOptional({
+    description: 'Filtrar artigos pela classificação etária (LIVRE, 10+, 12+, 14+, 16+, 18+)',
+    example: 'LIVRE',
+  })
+  @IsOptional()
+  @Transform(({ value }) => (value === '' ? undefined : value))
+  @IsString()
+  @MaxLength(10)
+  rating?: string;
+
+  @ApiPropertyOptional({
+    description: 'Filtrar artigos pela declaração de uso de IA no texto',
+    example: 'HUMAN_ONLY',
+  })
+  @IsOptional()
+  @Transform(({ value }) => (value === '' ? undefined : value))
+  @IsString()
+  @MaxLength(30)
+  aiText?: string;
 }

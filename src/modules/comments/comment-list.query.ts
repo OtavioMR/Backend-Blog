@@ -2,9 +2,9 @@
 const projection = (comment: string, author: string, replyAuthor?: string) => `jsonb_build_object(
   'id', ${comment}.id, 'postId', ${comment}.post_id, 'rootId', ${comment}.root_id,
   'replyToId', ${comment}.reply_to_id,
-  'replyToAuthor', ${replyAuthor ? `CASE WHEN ${replyAuthor}.id IS NULL THEN NULL ELSE jsonb_build_object('id', ${replyAuthor}.id, 'name', ${replyAuthor}.name) END` : 'NULL'},
-  'author', jsonb_build_object('id', ${author}.id, 'name', ${author}.name, 'profilePhoto', ${author}.profile_photo),
-  'content', ${comment}.content, 'isActive', ${comment}.is_active,
+  'replyToAuthor', ${replyAuthor ? `CASE WHEN ${replyAuthor}.id IS NULL OR ${replyAuthor}.deleted_at IS NOT NULL THEN NULL ELSE jsonb_build_object('id', ${replyAuthor}.id, 'name', ${replyAuthor}.name) END` : 'NULL'},
+  'author', CASE WHEN ${comment}.is_active = false OR ${author}.deleted_at IS NOT NULL THEN jsonb_build_object('id', NULL, 'name', 'Conta encerrada', 'profilePhoto', NULL) ELSE jsonb_build_object('id', ${author}.id, 'name', ${author}.name, 'profilePhoto', ${author}.profile_photo) END,
+  'content', CASE WHEN ${comment}.is_active = false THEN 'Comentário excluído' ELSE ${comment}.content END, 'isActive', ${comment}.is_active,
   'editedAt', ${comment}.edited_at, 'createdAt', ${comment}.created_at)`;
 
 export function commentListQuery(cursorMode: boolean, hasCursor: boolean): string {

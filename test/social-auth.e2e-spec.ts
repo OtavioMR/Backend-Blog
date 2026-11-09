@@ -20,7 +20,7 @@ function code(secret: string, counter: number) {
 describe('Social authentication', () => {
   let app: any, users: any, audits: any, id: string, newUserId: string, token: string;
   const previous = { id: process.env.GOOGLE_CLIENT_ID, secret: process.env.GOOGLE_CLIENT_SECRET, callback: process.env.GOOGLE_CALLBACK_URL, totp: process.env.TOTP_ENCRYPTION_KEY, githubId: process.env.GITHUB_CLIENT_ID, githubSecret: process.env.GITHUB_CLIENT_SECRET, githubCallback: process.env.GITHUB_CALLBACK_URL };
-  const account = { name: 'Social test', email: `social-${Date.now()}-${Math.random().toString(36).slice(2)}@example.com`, password: 'Password123!' };
+  const account = { name: 'Social test', email: `social-${Date.now()}-${Math.random().toString(36).slice(2)}@example.com`, password: 'Password123!', birthDate: '1990-01-01', acceptedTerms: true, termsVersion: '1.0.0' };
   beforeAll(async () => {
     process.env.TOTP_ENCRYPTION_KEY = 'b'.repeat(64);
     process.env.GITHUB_CLIENT_ID = 'client'; process.env.GITHUB_CLIENT_SECRET = 'secret'; process.env.GITHUB_CALLBACK_URL = 'http://localhost:3000/api/v1/auth/social/github/callback';

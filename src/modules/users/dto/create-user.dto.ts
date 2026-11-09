@@ -1,8 +1,12 @@
 import { ApiProperty } from '@nestjs/swagger';
 import {
+  Equals,
+  IsBoolean,
   IsEmail,
   IsNotEmpty,
+  IsOptional,
   IsString,
+  Matches,
   MaxLength,
   MinLength,
 } from 'class-validator';
@@ -39,4 +43,30 @@ export class CreateUserDto {
   @MinLength(8)
   @MaxLength(72)
   password: string;
+
+  @ApiProperty({
+    description: 'Data de nascimento no formato AAAA-MM-DD',
+    example: '1995-05-20',
+  })
+  @IsString()
+  @IsNotEmpty()
+  @Matches(/^\d{4}-\d{2}-\d{2}$/, { message: 'Data de nascimento deve estar no formato AAAA-MM-DD.' })
+  birthDate: string;
+
+  @ApiProperty({
+    description: 'Declaração de maioridade e aceite dos Termos de Uso e Política de Privacidade',
+    example: true,
+  })
+  @IsBoolean()
+  @Equals(true, { message: 'É obrigatório aceitar os Termos de Uso e a Política de Privacidade.' })
+  acceptedTerms: boolean;
+
+  @ApiProperty({
+    description: 'Versão dos Termos de Uso aceita',
+    example: '1.0.0',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  termsVersion?: string;
 }

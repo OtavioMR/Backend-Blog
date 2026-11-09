@@ -6,6 +6,7 @@ import {
   Injectable,
   Logger,
   NotFoundException,
+  Optional,
   UnauthorizedException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -23,6 +24,8 @@ import { isAdministrator, UserRole } from './enums/user.enum.js';
 import { PaginationQueryDto } from '../../common/dto/pagination-query.dto.js';
 import type { PaginatedResult } from '../../common/interfaces/paginated-result.interface.js';
 import { MailService } from '../mail/mail.service.js';
+import { StorageService } from '../../common/storage/storage.service.js';
+import { calculateAge, isUserAdult as isAgeAdult, parseBirthDateParts } from '../../common/utils/age.util.js';
 
 export interface UserRequester {
   userId: string;
@@ -36,6 +39,7 @@ export class UsersService {
   constructor(
     @InjectRepository(User) private readonly usersRepository: Repository<User>,
     private readonly mailService: MailService,
+    @Optional() private readonly storage?: StorageService,
   ) {}
 
   async becomeAuthor(userId: string) {
@@ -56,6 +60,10 @@ export class UsersService {
     return { role: UserRole.AUTHOR, rulesVersion: '1' };
   }
 
+  isUserAdult(birthDate?: string | Date | null): boolean {
+    return isAgeAdult(birthDate);
+  }
+
   private toPublic(user: User) {
     return {
       id: user.id,
@@ -66,6 +74,10 @@ export class UsersService {
       socialUrl: user.socialUrl,
       email: user.email,
       role: user.role,
+      birthDate: user.birthDate,
+      isAdult: this.isUserAdult(user.birthDate),
+      acceptedTermsAt: user.acceptedTermsAt,
+      acceptedTermsVersion: user.acceptedTermsVersion,
       emailVerified: user.emailVerified,
       totpEnabled: user.totpEnabled,
       isActive: user.isActive,
@@ -105,6 +117,25 @@ export class UsersService {
     if (requester.userId !== id && isAdministrator(user.role)) {
       throw new ForbiddenException('Não é permitido alterar outro administrador.');
     }
+    const oldPhoto = user.profilePhoto;
+    if (this.storage) {
+      const newPhotoUrl = await this.storage.processAndStoreProfilePhoto(buffer);
+      user.profilePhoto = newPhotoUrl;
+      try {
+        const result = await this.usersRepository.createQueryBuilder().update(User)
+          .set({ profilePhoto: user.profilePhoto })
+          .where('id = :id AND is_active = true AND deleted_at IS NULL', { id })
+          .andWhere(oldPhoto === null ? 'profile_photo IS NULL' : 'profile_photo = :oldPhoto', { oldPhoto })
+          .execute();
+        if (!result.affected) throw new ConflictException('A foto foi alterada simultaneamente. Tente novamente.');
+      } catch (error) {
+        await this.storage.delete(newPhotoUrl);
+        throw error;
+      }
+      if (oldPhoto) await this.storage.delete(oldPhoto);
+      return this.toPublic(user);
+    }
+
     let image: Buffer;
     try {
       const input = sharp(buffer, { limitInputPixels: 40_000_000, failOn: 'error' });
@@ -112,14 +143,13 @@ export class UsersService {
       if (!['jpeg', 'png', 'webp'].includes(metadata.format ?? '') || (metadata.pages ?? 1) > 1) throw new Error('Invalid image');
       image = await input.rotate().resize(512, 512, { fit: 'inside', withoutEnlargement: true }).webp({ quality: 80 }).toBuffer();
     } catch {
-      throw new BadRequestException('A imagem deve ser JPEG, PNG ou WebP v\u00e1lida.');
+      throw new BadRequestException('A imagem deve ser JPEG, PNG ou WebP válida.');
     }
     const directory = join(process.cwd(), 'uploads', 'profile-photos');
     await mkdir(directory, { recursive: true });
     const filename = `${randomUUID()}.webp`;
     const path = join(directory, filename);
     await writeFile(path, image, { flag: 'wx' });
-    const oldPhoto = user.profilePhoto;
     user.profilePhoto = `/uploads/profile-photos/${filename}`;
     try {
       const result = await this.usersRepository.createQueryBuilder().update(User)
@@ -134,6 +164,23 @@ export class UsersService {
     }
     const oldName = oldPhoto?.match(/^\/uploads\/profile-photos\/([0-9a-f-]+\.(?:jpg|png|webp))$/i)?.[1];
     if (oldName) await unlink(join(directory, oldName)).catch(() => undefined);
+    return this.toPublic(user);
+  }
+
+  async removeProfilePhoto(id: string, requester: UserRequester) {
+    this.assertCanManage(id, requester);
+    if (requester.userId !== id) throw new ForbiddenException('Apenas o titular pode remover sua foto de perfil.');
+    const user = await this.usersRepository.findOne({ where: { id, isActive: true } });
+    if (!user) throw new NotFoundException('Usuário não encontrado.');
+    const oldPhoto = user.profilePhoto;
+    user.profilePhoto = null;
+    await this.usersRepository.update(id, { profilePhoto: null });
+    if (this.storage) {
+      await this.storage.delete(oldPhoto);
+    } else if (oldPhoto) {
+      const match = oldPhoto.match(/^\/uploads\/profile-photos\/([0-9a-f-]+\.(?:jpg|png|webp))$/i);
+      if (match) await unlink(join(process.cwd(), 'uploads', 'profile-photos', match[1])).catch(() => undefined);
+    }
     return this.toPublic(user);
   }
 
@@ -152,6 +199,23 @@ export class UsersService {
       throw new BadRequestException('A senha é muito longa.');
     }
 
+    if (createUserDto.acceptedTerms !== true) {
+      throw new BadRequestException('É necessário aceitar os Termos de Uso e a Política de Privacidade para criar uma conta.');
+    }
+
+    if (!createUserDto.birthDate || !parseBirthDateParts(createUserDto.birthDate)) {
+      throw new BadRequestException('Data de nascimento deve estar no formato AAAA-MM-DD.');
+    }
+
+    const age = calculateAge(createUserDto.birthDate);
+    if (age === null || age < 0 || age > 120) {
+      throw new BadRequestException('Data de nascimento inválida.');
+    }
+
+    if (age < 18) {
+      throw new BadRequestException('O cadastro no Grifório é atualmente restrito a maiores de 18 anos.');
+    }
+
     const existingUser = await this.usersRepository.findOne({
       where: { email },
       withDeleted: true,
@@ -164,8 +228,8 @@ export class UsersService {
     }
 
     const passwordHash = await bcrypt.hash(password, 12);
-
     const verificationToken = randomBytes(32).toString('hex');
+    const termsVersion = createUserDto.termsVersion ?? '1.0.0';
     const user = this.usersRepository.create({
       emailVerified: false,
       emailVerificationTokenHash: createHash('sha256').update(verificationToken).digest('hex'),
@@ -173,10 +237,19 @@ export class UsersService {
       name,
       email,
       passwordHash,
+      birthDate: createUserDto.birthDate,
+      acceptedTermsAt: new Date(),
+      acceptedTermsVersion: termsVersion,
       role: UserRole.READER,
       isActive: true,
     });
     const savedUser = await this.usersRepository.save(user);
+
+    await this.usersRepository.query(
+      `INSERT INTO user_legal_acceptances (user_id, document_type, document_version, content_sha256, accepted_at, acceptance_context)
+       VALUES ($1, 'TERMS_AND_PRIVACY', $2, $3, now(), 'SIGNUP')`,
+      [savedUser.id, termsVersion, createHash('sha256').update(termsVersion).digest('hex')],
+    ).catch(() => undefined);
 
     try {
       await this.mailService.sendEmailVerification(savedUser.email, verificationToken);
@@ -382,6 +455,32 @@ export class UsersService {
       changes.resetPasswordTokenHash = null;
       changes.resetPasswordExpiresAt = null;
     }
+    if (updateUserDto.birthDate !== undefined) {
+      if (user.birthDate) {
+        const existingParts = parseBirthDateParts(user.birthDate);
+        const newParts = parseBirthDateParts(updateUserDto.birthDate);
+        if (
+          !existingParts ||
+          !newParts ||
+          existingParts.year !== newParts.year ||
+          existingParts.month !== newParts.month ||
+          existingParts.day !== newParts.day
+        ) {
+          throw new BadRequestException('A data de nascimento já foi informada e não pode ser alterada diretamente.');
+        }
+      } else {
+        if (!parseBirthDateParts(updateUserDto.birthDate)) {
+          throw new BadRequestException('Data de nascimento inválida.');
+        }
+        const age = calculateAge(updateUserDto.birthDate);
+        if (age === null || age < 18 || age > 120) {
+          throw new BadRequestException('O acesso e validação são restritos a maiores de 18 anos.');
+        }
+        user.birthDate = updateUserDto.birthDate;
+        changes.birthDate = updateUserDto.birthDate;
+      }
+    }
+
     if (Object.keys(changes).length) {
       const result = await this.usersRepository.update({ id, isActive: true, authVersion: previousAuthVersion }, changes);
       if (!result.affected) throw new ConflictException('Conta alterada simultaneamente; autentique-se novamente e tente outra vez.');
@@ -394,7 +493,13 @@ export class UsersService {
     return this.toPublic(user);
   }
 
-  async remove(id: string, requester: UserRequester): Promise<void> {
+  async closeAccount(
+    id: string,
+    requester: UserRequester,
+    passwordConfirm?: string,
+    totpCode?: string,
+    reason?: string,
+  ): Promise<{ protocol: string; message: string }> {
     this.assertCanManage(id, requester);
 
     const user = await this.usersRepository.findOne({
@@ -409,19 +514,87 @@ export class UsersService {
       throw new ForbiddenException('Não é permitido excluir uma conta administrativa por esta rota.');
     }
 
+    if (passwordConfirm) {
+      const authUser = await this.findByEmailForAuth(user.email);
+      const match = authUser?.passwordHash ? await bcrypt.compare(passwordConfirm, authUser.passwordHash) : false;
+      if (!match) {
+        throw new UnauthorizedException('Senha incorreta.');
+      }
+    }
+
+    const todayStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+    const protocol = `GRIF-DEL-${todayStr}-${randomBytes(3).toString('hex').toUpperCase()}`;
+    const emailHash = createHash('sha256').update(user.email.toLowerCase()).digest('hex');
+
     await this.usersRepository.manager.transaction(async manager => {
-      const repository = manager.getRepository(User);
-      const locked = await repository.findOne({ where: { id, isActive: true }, lock: { mode: 'pessimistic_write' } });
-      if (!locked) throw new ConflictException('Conta alterada simultaneamente.');
-      if (isAdministrator(locked.role)) throw new ForbiddenException('Não é permitido excluir uma conta administrativa por esta rota.');
-      locked.isActive = false;
-      locked.authVersion += 1;
-      locked.refreshTokenHash = null;
-      await repository.save(locked);
-      await repository.softRemove(locked);
-      await manager.query(`INSERT INTO audit_logs (actor_id, action, target_type, target_id) VALUES ($1, 'user.deleted', 'user', $2)`, [requester.userId, id]);
+      // 1. Unpublish posts to avoid orphaned posts with null author
+      await manager.query(
+        `UPDATE posts SET published = false, is_active = false, updated_at = now() WHERE author_id = $1`,
+        [id],
+      );
+
+      // 2. Remove profile photo file
+      if (user.profilePhoto) {
+        if (this.storage) {
+          await this.storage.delete(user.profilePhoto);
+        } else {
+          const photoName = user.profilePhoto.match(/^\/uploads\/profile-photos\/([0-9a-f-]+\.(?:jpg|png|webp))$/i)?.[1];
+          if (photoName) {
+            const photoPath = join(process.cwd(), 'uploads', 'profile-photos', photoName);
+            await unlink(photoPath).catch(() => undefined);
+          }
+        }
+      }
+
+      // 3. Anonymize user record
+      const anonymizedEmail = `deleted-${id}@anon.griforio.invalid`;
+      await manager.getRepository(User).update(id, {
+        name: 'Conta encerrada',
+        email: anonymizedEmail,
+        bio: null,
+        websiteUrl: null,
+        socialUrl: null,
+        profilePhoto: null,
+        recoveryEmail: null,
+        pendingEmail: null,
+        totpSecret: null,
+        totpPendingSecret: null,
+        totpEnabled: false,
+        refreshTokenHash: null,
+        authVersion: () => 'auth_version + 1',
+        isActive: false,
+      });
+
+      // 4. Soft remove user
+      await manager.getRepository(User).softDelete(id);
+
+      // 5. Invalidate active sessions
+      await manager.query(`DELETE FROM auth_sessions WHERE user_id = $1`, [id]);
+
+      // 6. Record deletion request
+      await manager.query(
+        `INSERT INTO account_deletion_requests (protocol, user_id, user_email_hash, status, reason, requested_at, scheduled_for, completed_at)
+         VALUES ($1, $2, $3, 'COMPLETED', $4, now(), now() + interval '30 days', now())`,
+        [protocol, id, emailHash, reason ?? null],
+      );
+
+      // 7. Audit log
+      await manager.query(
+        `INSERT INTO audit_logs (actor_id, action, target_type, target_id, details)
+         VALUES ($1, 'user.deleted', 'user', $1, $2::jsonb)`,
+        [id, JSON.stringify({ protocol, reason: reason ?? null })],
+      );
     });
-    this.logger.log(`Usuário ${id} desativado por ${requester.userId}`);
+
+    this.logger.log(`Usuário ${id} desativado com protocolo ${protocol} por ${requester.userId}`);
+    return {
+      protocol,
+      message: 'Sua conta foi encerrada com sucesso e seus dados foram anonimizados. Suas sessões foram revogadas.',
+    };
+  }
+
+  async remove(id: string, requester: UserRequester): Promise<{ protocol: string; message: string }> {
+    return this.closeAccount(id, requester);
   }
 
   async confirmEmailChange(token: string): Promise<{ message: string }> {

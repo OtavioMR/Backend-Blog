@@ -37,7 +37,7 @@ describe('Sprint 2 with PostgreSQL', () => {
   it('verifies registration, locks failed logins, and publishes sanitized summaries', async () => {
     const server = app.getHttpServer();
     await request(server).get('/api/v1/health').expect(200);
-    const signup = await request(server).post('/api/v1/users').send({ name: 'Sprint Two', email, password }).expect(201);
+    const signup = await request(server).post('/api/v1/users').send({ name: 'Sprint Two', email, password, birthDate: '1990-01-01', acceptedTerms: true, termsVersion: '1.0.0' }).expect(201);
     userId = signup.body.id;
     await request(server).post('/api/v1/auth/login').send({ email, password }).expect(401);
     const firstToken = mail.sendEmailVerification.mock.calls[0][1] as string;
