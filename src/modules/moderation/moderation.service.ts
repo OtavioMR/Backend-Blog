@@ -227,7 +227,7 @@ export class ModerationService {
     const [counts] = await this.dataSource.query(`SELECT
       (SELECT count(*)::int FROM posts WHERE author_id = $1 AND deleted_at IS NULL) AS posts,
       (SELECT count(*)::int FROM comments WHERE author_id = $1) AS comments`, [userId]);
-    return { id: user.id, name: user.name, email: user.email, role: user.role, isActive: user.isActive,
+    return { id: user.id, name: user.name, email: user.email, profilePhoto: user.profilePhoto, role: user.role, isActive: user.isActive,
       moderationSuspended: user.moderationSuspended, suspensionEndsAt: user.suspensionEndsAt,
       emailVerified: user.emailVerified, totpEnabled: user.totpEnabled, authorPromotionBlocked: user.authorPromotionBlocked, createdAt: user.createdAt, counts };
   }
@@ -255,7 +255,7 @@ export class ModerationService {
       await manager.query("SELECT pg_advisory_xact_lock(hashtext('griforio.admin.roles'))");
       const users = manager.getRepository(User);
       const actor = await users.findOne({ where: { id: actorId }, lock: { mode: 'pessimistic_write' } });
-      if (!actor?.isActive || actor.role !== UserRole.SUPER_ADMIN || actor.authVersion !== actorVersion || !actor.totpEnabled) throw new ForbiddenException('Sessão administrativa inválida ou sem TOTP ativo.');
+      if (!actor?.isActive || !isAdministrator(actor.role) || actor.authVersion !== actorVersion || !actor.totpEnabled) throw new ForbiddenException('Sessão administrativa inválida ou sem TOTP ativo.');
       const user = await users.findOne({ where: { id: userId }, lock: { mode: 'pessimistic_write' } });
       if (!user || !user.isActive) throw new NotFoundException('Usuário ativo não encontrado.');
       if (user.role !== UserRole.READER || !user.authorPromotionBlocked) throw new ConflictException('A conta não possui solicitação de autoria bloqueada.');
@@ -273,9 +273,13 @@ export class ModerationService {
       await manager.query("SELECT pg_advisory_xact_lock(hashtext('griforio.admin.roles'))");
       const users = manager.getRepository(User);
       const actor = await users.findOne({ where: { id: actorId }, lock: { mode: 'pessimistic_write' } });
-      if (!actor?.isActive || actor.role !== UserRole.SUPER_ADMIN || actor.authVersion !== actorVersion || !actor.totpEnabled) throw new ForbiddenException('Sessão administrativa inválida ou sem TOTP ativo.');
+      if (!actor?.isActive || !isAdministrator(actor.role) || actor.authVersion !== actorVersion || !actor.totpEnabled) throw new ForbiddenException('Sessão administrativa inválida ou sem TOTP ativo.');
       const user = await users.findOne({ where: { id: userId }, lock: { mode: 'pessimistic_write' } });
       if (!user || !user.isActive) throw new NotFoundException('Usuário ativo não encontrado.');
+      if (actor.role === UserRole.ADMIN) {
+        if (isAdministrator(user.role)) throw new ForbiddenException('Administradores não podem alterar o cargo de outros administradores.');
+        if (role !== UserRole.READER) throw new ForbiddenException('Administradores só podem rebaixar contas para leitor.');
+      }
       if (user.role === role) throw new ConflictException('Usuário já possui esta função.');
       if (isAdministrator(role) && !user.emailVerified) throw new ConflictException('A conta precisa ter e-mail verificado para receber privilégios administrativos.');
       if (isAdministrator(role) && !user.totpEnabled) throw new ConflictException('A conta precisa ativar a autenticação em dois fatores antes de receber privilégios administrativos.');

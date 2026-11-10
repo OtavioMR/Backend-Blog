@@ -38,4 +38,9 @@ describe('permissões administrativas HTTP', () => {
     await supertest(app.getHttpServer()).patch(`/admin/users/${target}/role`).set('x-test-role', UserRole.SUPER_ADMIN).set('X-TOTP-Code', '123456').send(body).expect(200);
     expect(moderation.changeRole).toHaveBeenCalledOnce();
   });
+  it('permite que ADMIN rebaixe para READER com TOTP válido', async () => {
+    const demoteBody = { role: UserRole.READER, reason: 'Rebaixamento aplicado' };
+    await supertest(app.getHttpServer()).patch(`/admin/users/${target}/role`).set('x-test-role', UserRole.ADMIN).set('X-TOTP-Code', '123456').send(demoteBody).expect(200);
+    expect(moderation.changeRole).toHaveBeenCalledWith('actor', target, UserRole.READER, 'Rebaixamento aplicado', 1);
+  });
 });
