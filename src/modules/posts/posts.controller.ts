@@ -20,7 +20,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 
-import { PaginationQueryDto } from '../../common/dto/pagination-query.dto.js';
+import { OwnPostsQueryDto } from './dto/series.dto.js';
 import { PostsService } from './posts.service.js';
 import { CreatePostDto } from './dto/create-post.dto.js';
 import { UpdatePostDto } from './dto/update-post.dto.js';
@@ -58,7 +58,7 @@ export class PostsController {
   @ApiFindMinePostsDoc()
   @UseGuards(JwtAuthGuard)
   @Get('me')
-  findMine(@Query() query: PaginationQueryDto, @Req() request: RequestWithUser) {
+  findMine(@Query() query: OwnPostsQueryDto, @Req() request: RequestWithUser) {
     return this.postsService.findMine(request.user.userId, query);
   }
 

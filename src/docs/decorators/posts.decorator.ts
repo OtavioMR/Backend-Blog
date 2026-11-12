@@ -102,7 +102,7 @@ export function ApiFindAllPostsDoc() {
 export function ApiFindMinePostsDoc() {
   return applyDecorators(
     ApiBearerAuth('JWT-auth'),
-    ApiOperation({ summary: 'Listar meus artigos', description: 'Lista artigos ativos do usuário autenticado, incluindo rascunhos.' }),
+    ApiOperation({ summary: 'Listar meus artigos', description: 'Lista artigos ativos do usuário autenticado, incluindo rascunhos. Paginação page/limit e filtros search (título), status (all/published/draft/pending) e kind (all/standalone/chapter). seriesContext identifica a série do artigo com id e título.' }),
     ApiResponse({ status: 200, description: 'Artigos do usuário.', type: PaginatedPostResponseDto }),
     ApiResponse({ status: 401, description: 'Acesso não autorizado.', type: UnauthorizedResponseDto }),
   );
@@ -146,7 +146,7 @@ export function ApiCreatePostDoc() {
     ApiOperation({
       summary: 'Criar novo artigo',
       description:
-        'Cria um artigo associado ao usuário autenticado (AUTHOR, ADMIN ou SUPER_ADMIN). O slug é gerado a partir do título e recebe sufixo em caso de duplicidade. Para agendar, envie published: false (ou omita) e scheduledAt com data futura e fuso. O artigo fica como rascunho até a execução do agendador, que verifica publicações pendentes a cada minuto enquanto a aplicação está em execução; então published passa a true, publishedAt é preenchido e scheduledAt é limpo.',
+        'Cria um artigo associado ao usuário autenticado (AUTHOR, ADMIN ou SUPER_ADMIN). seriesId opcional vincula à série do próprio autor na mesma transação, na última posição; limite de 100 capítulos, sem alterar as regras de revisão. O slug é gerado a partir do título e recebe sufixo em caso de duplicidade. Para agendar, envie published: false (ou omita) e scheduledAt com data futura e fuso. O artigo fica como rascunho até a execução do agendador, que verifica publicações pendentes a cada minuto enquanto a aplicação está em execução; então published passa a true, publishedAt é preenchido e scheduledAt é limpo.',
     }),
     ApiBody({ type: CreatePostDto, examples: { imediato: { summary: 'Publicar imediatamente', value: { title: 'Introdução ao NestJS', content: 'Conteúdo completo do artigo sobre NestJS.', published: true, categoryIds: ['b1a7d654-2a6c-4876-b9b6-79cf021516e8'], tagNames: ['NestJS', 'TypeScript'] } }, agendado: { summary: 'Criar rascunho agendado', value: { title: 'Introdução ao NestJS', content: 'Conteúdo completo do artigo sobre NestJS.', published: false, scheduledAt: '2099-01-01T12:00:00Z', categoryIds: ['b1a7d654-2a6c-4876-b9b6-79cf021516e8'], tagNames: ['NestJS', 'TypeScript'] } } } }),
     ApiResponse({

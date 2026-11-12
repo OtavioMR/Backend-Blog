@@ -14,6 +14,11 @@ import {
 } from 'class-validator';
 
 export class CreatePostDto {
+  @ApiPropertyOptional({ description: 'Série do próprio autor: cria artigo e vínculo na mesma transação, na última posição (até 100 capítulos). Omitir para texto independente.', format: 'uuid' })
+  @IsOptional()
+  @IsUUID('4')
+  seriesId?: string;
+
   @ApiProperty({
     description: 'Título do artigo',
     example: 'Como estruturar projetos no NestJS',

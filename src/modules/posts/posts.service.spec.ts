@@ -112,7 +112,7 @@ describe('PostsService', () => {
 
       expect(mockPostsRepository.findAndCount).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: { published: true, isActive: true },
+          where: { published: true, isActive: true, moderationHidden: false },
         }),
       );
       expect(result.data).toHaveLength(2);
@@ -135,6 +135,7 @@ describe('PostsService', () => {
           where: {
             published: true,
             isActive: true,
+            moderationHidden: false,
             categories: { id: 'cat-uuid-1', isActive: true },
           },
         }),
@@ -151,6 +152,7 @@ describe('PostsService', () => {
           where: {
             published: true,
             isActive: true,
+            moderationHidden: false,
             categories: { slug: 'tecnologia', isActive: true },
           },
         }),
@@ -161,7 +163,7 @@ describe('PostsService', () => {
       mockPostsRepository.findAndCount.mockResolvedValue([[], 0]);
       await service.findAll({ search: ' Nest%_ ', author: ' José ', categoryId: 'id', categorySlug: 'ignorado', tagSlug: 'tag', page: 2, limit: 5 });
       const options = mockPostsRepository.findAndCount.mock.calls[0][0];
-      expect(options.where).toMatchObject({ published: true, isActive: true, categories: { id: 'id', isActive: true }, tags: { slug: 'tag' } });
+      expect(options.where).toMatchObject({ published: true, isActive: true, moderationHidden: false, categories: { id: 'id', isActive: true }, tags: { slug: 'tag' } });
       expect(options.where.author.name.objectLiteralParameters).toEqual({ authorTerm: '%José%' });
       expect(options.where.id.objectLiteralParameters).toEqual({ searchTerm: 'Nest%_', partialTerm: '%Nest\\%\\_%' });
       expect(options.skip).toBe(5);
@@ -181,7 +183,7 @@ describe('PostsService', () => {
     it('ignora texto e autor vazios e retorna paginação vazia', async () => {
       mockPostsRepository.findAndCount.mockResolvedValue([[], 0]);
       const result = await service.findAll({ search: '  ', author: ' ' });
-      expect(mockPostsRepository.findAndCount.mock.calls[0][0].where).toEqual({ published: true, isActive: true });
+      expect(mockPostsRepository.findAndCount.mock.calls[0][0].where).toEqual({ published: true, isActive: true, moderationHidden: false });
       expect(result.data).toEqual([]);
       expect(result.meta.total).toBe(0);
     });
@@ -197,7 +199,7 @@ describe('PostsService', () => {
     it('ignora nome de categoria vazio', async () => {
       mockPostsRepository.findAndCount.mockResolvedValue([[], 0]);
       await service.findAll({ categoryName: '  ' });
-      expect(mockPostsRepository.findAndCount.mock.calls[0][0].where).toEqual({ published: true, isActive: true });
+      expect(mockPostsRepository.findAndCount.mock.calls[0][0].where).toEqual({ published: true, isActive: true, moderationHidden: false });
     });
   });
 

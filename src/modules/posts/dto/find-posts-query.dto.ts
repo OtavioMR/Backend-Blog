@@ -1,9 +1,12 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsOptional, IsString, IsUUID, ValidateIf, MaxLength } from 'class-validator';
+import { IsIn, IsOptional, IsString, IsUUID, ValidateIf, MaxLength } from 'class-validator';
 import { Transform } from 'class-transformer';
 import { PaginationQueryDto } from '../../../common/dto/pagination-query.dto.js';
 
 export class FindPostsQueryDto extends PaginationQueryDto {
+  @ApiPropertyOptional({ enum: ['true', 'false'], description: 'Sem busca/cursor, representa cada s?rie por seu cap?tulo p?blico mais recente antes da pagina??o e inclui discoverySeries. Consumidores antigos mant?m a listagem de artigos.' })
+  @IsOptional() @IsIn(['true', 'false']) discovery?: string;
+
   @ApiPropertyOptional({ description: 'Use start para iniciar a paginação por cursor; depois envie nextCursor da resposta.', example: 'start' })
   @IsOptional()
   @IsString()
