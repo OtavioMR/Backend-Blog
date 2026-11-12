@@ -96,10 +96,12 @@ export class PostsService {
     if (tagSlug) base.tags = { slug: tagSlug };
     const cursorMode = query?.cursor !== undefined;
     const cursor = cursorMode && query.cursor !== 'start' ? decodeCursor(query.cursor!) : null;
-    if (search || cursor) base.id = Raw(
+    const standalone = query?.standalone === 'true';
+    if (search || cursor || standalone) base.id = Raw(
       (column) => [
         search ? `${column} IN (SELECT id FROM posts WHERE search_vector @@ websearch_to_tsquery('blog_portuguese'::regconfig, :searchTerm) OR search_text LIKE blog_search_text(:partialTerm) ESCAPE '\\')` : '',
         cursor ? `(${column.replace(/\.id$/, '.publishedAt')}, ${column}) < (CAST(:cursorTime AS timestamptz), CAST(:cursorId AS uuid))` : '',
+        standalone ? `${column} NOT IN (SELECT si.post_id FROM post_series_items si)` : '',
       ].filter(Boolean).join(' AND '),
       { ...(search ? { searchTerm: search, partialTerm: likePattern(search) } : {}), ...(cursor ? { cursorTime: cursor.timestamp, cursorId: cursor.id } : {}) },
     );

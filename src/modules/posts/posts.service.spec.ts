@@ -434,6 +434,22 @@ describe('PostsService', () => {
       expect(adult.coverImage).toBeNull();
       expect(adult.excerpt).toContain('classificação indicativa 18+');
     });
+
+    it('filtra apenas artigos avulsos quando standalone=true', async () => {
+      mockPostsRepository.findAndCount.mockResolvedValue([[], 0]);
+
+      await service.findAll({
+        page: 1,
+        limit: 6,
+        authorId: '036c1058-4c77-4e95-9d0a-91c370dc3054',
+        standalone: 'true',
+      });
+
+      const call = mockPostsRepository.findAndCount.mock.calls.at(-1)?.[0];
+      expect(call.where.authorId).toBe('036c1058-4c77-4e95-9d0a-91c370dc3054');
+      expect(call.where.id).toBeDefined();
+      expect(call.where.id.getSql('post.id')).toContain('NOT IN (SELECT si.post_id FROM post_series_items si)');
+    });
   });
 });
 
