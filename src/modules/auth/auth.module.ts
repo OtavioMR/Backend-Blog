@@ -8,6 +8,7 @@ import { TotpRecoveryController } from './totp-recovery.controller.js';
 import { RecoveryEmailController } from './recovery-email.controller.js';
 import { RecoveryEmailService } from './recovery-email.service.js';
 import { AuthSession } from './entities/session.entity.js';
+import { AuthRefreshOperation } from './entities/refresh-operation.entity.js';
 import { UserRecoveryCode } from './entities/recovery-code.entity.js';
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
@@ -22,7 +23,7 @@ import { JwtStrategy } from './strategies/jwt.strategy.js';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([AuthSession, UserRecoveryCode]),
+    TypeOrmModule.forFeature([AuthSession, AuthRefreshOperation, UserRecoveryCode]),
     UsersModule,
     MailModule,
     PassportModule.register({

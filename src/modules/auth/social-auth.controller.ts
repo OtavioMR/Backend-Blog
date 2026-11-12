@@ -21,8 +21,19 @@ export class SocialAuthController {
   constructor(private readonly social: SocialAuthService, private readonly auth: AuthService) {}
   private stateCookie() { const opts = this.auth.getRefreshTokenCookieOptions(); return { httpOnly: true, secure: opts.secure, sameSite: 'lax' as const, path: '/api/v1/auth/social', maxAge: 600000 }; }
   private sendTokens(res: Response, tokens: TokenPairResult) {
-    res.cookie('refreshToken', tokens.refreshToken, this.auth.getRefreshTokenCookieOptions());
-    return { access_token: tokens.accessToken, token_type: tokens.tokenType, expires_in: tokens.expiresIn };
+    if (typeof this.auth.applySessionCookies === 'function') {
+      this.auth.applySessionCookies(res, tokens);
+    } else {
+      res.cookie('refreshToken', tokens.refreshToken, this.auth.getRefreshTokenCookieOptions());
+    }
+    return {
+      access_token: tokens.accessToken,
+      token_type: tokens.tokenType,
+      expires_in: tokens.expiresIn,
+      ...(tokens.sessionId !== undefined && { session_id: tokens.sessionId }),
+      ...(tokens.refreshGeneration !== undefined && { refresh_generation: tokens.refreshGeneration }),
+      ...(tokens.refreshProtocol !== undefined && { refresh_protocol: tokens.refreshProtocol }),
+    };
   }
   @Get(':provider/start') @Header('Cache-Control', 'no-store') @ApiPublicRoute() @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @ApiOperation({ summary: 'Iniciar login social', description: 'Acesse a URL de autorização retornada. Um cookie HTTP-only temporário vincula o retorno a este navegador.' })

@@ -73,7 +73,7 @@ export function ApiRefreshDoc() {
     ApiOperation({
       summary: 'Renovar par de tokens via cookie HTTP-Only',
       description:
-        'Lê o refresh token do cookie HTTP-Only, valida a assinatura e compara o hash com o banco de dados. Realiza rotação automática. A reutilização de um token antigo revoga a sessão afetada, preservando os outros dispositivos. O cliente deve serializar as renovações para não reutilizar tokens em chamadas concorrentes.',
+        'Lê o refresh token do cookie HTTP-Only, valida a assinatura e compara o hash com o banco de dados. Realiza rotação automática. Token já obsoleto na leitura inicial revoga condicionalmente o snapshot da sessão afetada, preservando os outros dispositivos. Sessão ausente, expirada ou com versão inválida é rejeitada sem exclusão adicional. Uma atualização concorrente após a leitura retorna 409, sem novos tokens nem revogação do vencedor. O cliente deve serializar as renovações; a V1 não recupera resultados de rotação perdidos.',
     }),
     ApiResponse({
       status: 200,
@@ -102,6 +102,10 @@ export function ApiRefreshDoc() {
       description:
         'Refresh token não fornecido no cookie, expirado, inválido ou reutilizado/revogado.',
       type: UnauthorizedResponseDto,
+    }),
+    ApiResponse({
+      status: 409,
+      description: 'A sessão mudou durante a renovação. Nenhum token é devolvido e a sessão vencedora não é revogada. O cliente deve manter verificação incerta, sem repetir automaticamente o refresh token antigo.',
     }),
     ApiResponse({
       status: 500,
