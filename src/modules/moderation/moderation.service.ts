@@ -221,15 +221,19 @@ export class ModerationService {
     const [users, total] = await query.getManyAndCount();
     return { data: users.map(user => ({ id: user.id, name: user.name, email: user.email, requestedAt: user.authorAccessRequestedAt })), pendingTotal, meta: paginationMeta(page, limit, total) };
   }
-  async userDetail(userId: string) {
-    const user = await this.dataSource.getRepository(User).findOne({ where: { id: userId } });
+  async userDetail(userId: string, requesterRole?: UserRole) {
+    const user = await this.dataSource.getRepository(User).findOne({ where: { id: userId }, select: { id: true, name: true, email: true, profilePhoto: true, role: true, isActive: true, moderationSuspended: true, suspensionEndsAt: true, emailVerified: true, totpEnabled: true, authorPromotionBlocked: true, createdAt: true, recoveryEmail: true, recoveryEmailVerifiedAt: true } });
     if (!user) throw new NotFoundException('Usuário não encontrado.');
     const [counts] = await this.dataSource.query(`SELECT
       (SELECT count(*)::int FROM posts WHERE author_id = $1 AND deleted_at IS NULL) AS posts,
       (SELECT count(*)::int FROM comments WHERE author_id = $1) AS comments`, [userId]);
     return { id: user.id, name: user.name, email: user.email, profilePhoto: user.profilePhoto, role: user.role, isActive: user.isActive,
       moderationSuspended: user.moderationSuspended, suspensionEndsAt: user.suspensionEndsAt,
-      emailVerified: user.emailVerified, totpEnabled: user.totpEnabled, authorPromotionBlocked: user.authorPromotionBlocked, createdAt: user.createdAt, counts };
+      emailVerified: user.emailVerified, totpEnabled: user.totpEnabled, recoveryEmailVerified: !!user.recoveryEmail && !!user.recoveryEmailVerifiedAt,
+      ...(requesterRole === UserRole.SUPER_ADMIN ? { recoveryDestinations: [
+        ...(user.emailVerified ? [{ destination: 'primary', email: user.email }] : []),
+        ...(user.recoveryEmail && user.recoveryEmailVerifiedAt ? [{ destination: 'secondary', email: user.recoveryEmail }] : []),
+      ] } : {}), authorPromotionBlocked: user.authorPromotionBlocked, createdAt: user.createdAt, counts };
   }
   async userHistory(userId: string, page = 1, limit = 10) {
     if (!(await this.dataSource.getRepository(User).exists({ where: { id: userId } }))) throw new NotFoundException('Usuário não encontrado.');
@@ -274,7 +278,7 @@ export class ModerationService {
       const users = manager.getRepository(User);
       const actor = await users.findOne({ where: { id: actorId }, lock: { mode: 'pessimistic_write' } });
       if (!actor?.isActive || !isAdministrator(actor.role) || actor.authVersion !== actorVersion || !actor.totpEnabled) throw new ForbiddenException('Sessão administrativa inválida ou sem TOTP ativo.');
-      const user = await users.findOne({ where: { id: userId }, lock: { mode: 'pessimistic_write' } });
+      const user = await users.findOne({ where: { id: userId }, lock: { mode: 'pessimistic_write' }, select: { id: true, role: true, isActive: true, emailVerified: true, totpEnabled: true, moderationSuspended: true, authorRulesAcceptedAt: true, authorRulesVersion: true, recoveryEmail: true, recoveryEmailVerifiedAt: true } });
       if (!user || !user.isActive) throw new NotFoundException('Usuário ativo não encontrado.');
       if (actor.role === UserRole.ADMIN) {
         if (isAdministrator(user.role)) throw new ForbiddenException('Administradores não podem alterar o cargo de outros administradores.');
@@ -283,6 +287,7 @@ export class ModerationService {
       if (user.role === role) throw new ConflictException('Usuário já possui esta função.');
       if (isAdministrator(role) && !user.emailVerified) throw new ConflictException('A conta precisa ter e-mail verificado para receber privilégios administrativos.');
       if (isAdministrator(role) && !user.totpEnabled) throw new ConflictException('A conta precisa ativar a autenticação em dois fatores antes de receber privilégios administrativos.');
+      if (isAdministrator(role) && (!user.recoveryEmail || !user.recoveryEmailVerifiedAt)) throw new ConflictException('A conta precisa confirmar um e-mail secundário de recuperação antes de receber privilégios administrativos.');
       if (isAdministrator(role) && user.moderationSuspended) throw new ConflictException('Contas suspensas não podem receber privilégios administrativos.');
       if (role === UserRole.AUTHOR && (!user.emailVerified || !user.authorRulesAcceptedAt || user.authorRulesVersion !== '1')) throw new ConflictException('A autoria exige e-mail verificado e aceite da versão atual das regras.');
       if (user.role === UserRole.SUPER_ADMIN) {

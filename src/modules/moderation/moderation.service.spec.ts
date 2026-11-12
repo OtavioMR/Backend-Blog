@@ -18,7 +18,7 @@ describe('ModerationService', () => {
   });
   it('exige SUPER_ADMIN e registra a mudança de função com invalidação de sessões', async () => {
     const actor = { id: 'actor', role: UserRole.SUPER_ADMIN, isActive: true, authVersion: 1, totpEnabled: true };
-    const target = { id: 'target', role: UserRole.READER, isActive: true, emailVerified: true, totpEnabled: true };
+    const target = { id: 'target', role: UserRole.READER, isActive: true, emailVerified: true, totpEnabled: true, recoveryEmail: 'synthetic@example.invalid', recoveryEmailVerifiedAt: new Date() };
     const repository = { findOne: vi.fn().mockResolvedValueOnce(actor).mockResolvedValueOnce(target), update: vi.fn() };
     const manager = { getRepository: vi.fn().mockReturnValue(repository), query: vi.fn() };
     const audit = { record: vi.fn() };
@@ -76,9 +76,18 @@ describe('ModerationService', () => {
     const service = new ModerationService({ transaction: (fn: any) => fn(manager) } as any, {} as any);
     await expect(service.changeRole('actor', 'target', UserRole.ADMIN, 'Promoção aprovada', 1)).rejects.toThrow('A conta precisa ter e-mail verificado');
   });
+  it.each([null, new Date()])('requires an address and its verification before administrative promotion (%s)', async verifiedAt => {
+    const actor = { id: 'actor', role: UserRole.SUPER_ADMIN, isActive: true, authVersion: 1, totpEnabled: true };
+    const target = { id: 'target', role: UserRole.READER, isActive: true, emailVerified: true, totpEnabled: true, recoveryEmail: verifiedAt ? null : 'synthetic@example.invalid', recoveryEmailVerifiedAt: verifiedAt };
+    const repository = { findOne: vi.fn().mockResolvedValueOnce(actor).mockResolvedValueOnce(target), update: vi.fn() };
+    const manager = { getRepository: vi.fn().mockReturnValue(repository), query: vi.fn() };
+    const service = new ModerationService({ transaction: (fn: any) => fn(manager) } as any, {} as any);
+    await expect(service.changeRole('actor', 'target', UserRole.ADMIN, 'Synthetic verified promotion', 1)).rejects.toThrow('secundário');
+    expect(repository.update).not.toHaveBeenCalled();
+  });
   it('impede remover o último superadministrador', async () => {
     const actor = { id: 'actor', role: UserRole.SUPER_ADMIN, isActive: true, authVersion: 1, totpEnabled: true };
-    const target = { id: 'target', role: UserRole.SUPER_ADMIN, isActive: true, emailVerified: true, totpEnabled: true };
+    const target = { id: 'target', role: UserRole.SUPER_ADMIN, isActive: true, emailVerified: true, totpEnabled: true, recoveryEmail: 'synthetic@example.invalid', recoveryEmailVerifiedAt: new Date() };
     const repository = { findOne: vi.fn().mockResolvedValueOnce(actor).mockResolvedValueOnce(target), count: vi.fn().mockResolvedValueOnce(1) };
     const manager = { getRepository: vi.fn().mockReturnValue(repository), query: vi.fn() };
     const service = new ModerationService({ transaction: (fn: any) => fn(manager) } as any, {} as any);
@@ -120,5 +129,16 @@ describe('ModerationService', () => {
       profilePhoto: '/uploads/profile-photos/admin.webp',
       counts: { posts: 3, comments: 5 },
     });
+  });
+  it('returns only verified destinations and reveals the secondary address only to SUPER_ADMIN', async () => {
+    const user = { id: 'target', email: 'primary@example.invalid', emailVerified: true, recoveryEmail: 'secondary@example.invalid', recoveryEmailVerifiedAt: new Date() };
+    const repository = { findOne: vi.fn().mockResolvedValue(user) };
+    const service = new ModerationService({ getRepository: () => repository, query: async () => [{}] } as any, {} as any);
+    const detail = await service.userDetail('target', UserRole.SUPER_ADMIN);
+    expect(detail.recoveryDestinations).toEqual([{ destination: 'primary', email: user.email }, { destination: 'secondary', email: user.recoveryEmail }]);
+    expect(detail).not.toHaveProperty('recoveryEmail');
+    expect(await service.userDetail('target', UserRole.ADMIN)).not.toHaveProperty('recoveryDestinations');
+    Object.assign(user, { emailVerified: false, recoveryEmailVerifiedAt: null });
+    expect((await service.userDetail('target', UserRole.SUPER_ADMIN)).recoveryDestinations).toEqual([]);
   });
 });

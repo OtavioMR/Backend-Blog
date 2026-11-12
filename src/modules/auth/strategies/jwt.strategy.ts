@@ -6,7 +6,7 @@ import { ExtractJwt, Strategy } from 'passport-jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import { MoreThan, Repository } from 'typeorm';
 import { AuthSession } from '../entities/session.entity.js';
-import { UserRole } from '../../users/enums/user.enum.js';
+import { isAdministrator, UserRole } from '../../users/enums/user.enum.js';
 import { UsersService } from '../../users/users.service.js';
 
 interface JwtPayload {
@@ -42,13 +42,20 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       throw new UnauthorizedException('Sessão revogada ou expirada.');
     }
 
+    const recoveryEmailVerified = !!user.recoveryEmail && !!user.recoveryEmailVerifiedAt;
+    const administrativeSecurityReady = user.totpEnabled && user.emailVerified && recoveryEmailVerified;
     return {
       sessionId: payload.sid,
       authVersion: user.authVersion,
       userId: user.id,
       email: user.email,
-      role: user.role,
+      // Legacy incomplete accounts can repair their own security, but cannot exercise
+      // admin capabilities even on routes using optional JWT or ownership checks.
+      // The stored role and its special protections are preserved by account services.
+      role: isAdministrator(user.role) && !administrativeSecurityReady ? UserRole.READER : user.role,
       totpEnabled: user.totpEnabled,
+      emailVerified: user.emailVerified,
+      recoveryEmailVerified,
     };
   }
 }

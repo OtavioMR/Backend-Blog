@@ -43,6 +43,9 @@ export class RolesGuard implements CanActivate {
     if (requiredRoles.some(role => isAdministrator(role)) && isAdministrator(user.role) && user.totpEnabled !== true) {
       throw new ForbiddenException('Ative a autenticação de dois fatores antes de acessar a administração.');
     }
+    if (requiredRoles.some(role => isAdministrator(role)) && isAdministrator(user.role) && (user.emailVerified !== true || user.recoveryEmailVerified !== true)) {
+      throw new ForbiddenException('Confirme o e-mail principal e o e-mail secundário de recuperação na segurança da conta antes de acessar a administração.');
+    }
 
     return true;
   }

@@ -1,7 +1,8 @@
 import { Body, Controller, Header, Headers, HttpCode, Param, ParseUUIDPipe, Post, Req, UseGuards } from '@nestjs/common';
-import { ApiBearerAuth, ApiHeader, ApiOperation, ApiParam, ApiProperty, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiHeader, ApiOperation, ApiParam, ApiProperty, ApiPropertyOptional, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
-import { IsEmail, IsString, Matches, MaxLength, MinLength } from 'class-validator';
+import { IsEmail, IsIn, IsString, Matches, MaxLength, MinLength, ValidateIf } from 'class-validator';
+import type { RecoveryDestination } from './totp-recovery-operations.js';
 import { Roles } from '../../common/decorators/roles.decorator.js';
 import { UserRole } from '../users/enums/user.enum.js';
 import { JwtAuthGuard } from './guard/jwt-auth.guard.js';
@@ -13,6 +14,8 @@ import { ApiPublicRoute } from '../../docs/decorators/public.decorator.js';
 class AuthorizeRecoveryDto {
   @ApiProperty({ minLength: 10, maxLength: 1000, example: 'Identidade confirmada por canal independente; chamado REC-123.' })
   @IsString() @MinLength(10) @MaxLength(1000) reason: string;
+  @ApiPropertyOptional({ enum: ['primary', 'secondary'], default: 'primary', description: 'Somente endereço já cadastrado e verificado. Principal é preferencial; não aceita um endereço livre.' })
+  @ValidateIf((_object, value: unknown) => value !== undefined) @IsIn(['primary', 'secondary']) destination?: RecoveryDestination;
 }
 class RecoveryTokenDto {
   @ApiProperty({ description: 'Token de 256 bits recebido pelo e-mail cadastrado. Nunca enviar na URL da API.', minLength: 43, maxLength: 43 })
@@ -40,8 +43,9 @@ export class TotpRecoveryController {
 
   @Post('auth/totp-recovery/request') @HttpCode(200) @Header('Cache-Control', 'no-store')
   @ApiPublicRoute() @Throttle({ default: { limit: 3, ttl: 60_000 } })
-  @ApiOperation({ summary: 'Solicitar recuperação pelo endereço de recuperação', description: 'Senha e e-mail principal identificam a conta. Resposta genérica para conta inexistente, inelegível ou credenciais inválidas. Link de acesso somente no e-mail de recuperação previamente confirmado; principal recebe aviso e cancelamento. Não emite autorização para SUPER_ADMIN. O link pode ser usado imediatamente; há intervalo de 30 minutos entre solicitações.' })
-  @ApiResponse({ status: 200, description: 'Resposta genérica; com senha válida e conta elegível, uma solicitação recente retorna retryAt em UTC.', schema: { example: { message: 'Uma solicitação recente impede um novo envio por 30 minutos. Tente novamente após o horário informado.', retryAt: '2026-11-08T21:19:21.000Z' } } })
+  @ApiOperation({ summary: 'Solicitar recuperação pelo endereço de recuperação', description: 'Exige senha válida antes de informar elegibilidade. Link somente ao secundário confirmado; principal recebe aviso e cancelamento. Sem secundário, retorna assisted_required sem enviar e-mail nem permitir contornar o 2FA pelo principal. SUPER_ADMIN exige procedimento no servidor. O link pode ser usado imediatamente; intervalo de 30 minutos entre solicitações. Tentativas inválidas persistem e bloqueiam após cinco erros.' })
+  @ApiResponse({ status: 200, description: 'status: sent (enfileirado), cooldown (sem novo envio, retryAt UTC), assisted_required (sem método automático) ou not_enabled (sem 2FA). Nunca expõe endereço secundário.', schema: { example: { status: 'sent', message: 'Instruções enviadas ao e-mail de recuperação confirmado. O e-mail principal recebeu um aviso de segurança.' } } })
+  @ApiResponse({ status: 401, description: 'Credenciais inválidas, conta inexistente, não verificada ou temporariamente bloqueada; mesma resposta para todos esses casos.' })
   @ApiResponse({ status: 400, description: 'Formato inválido.' })
   @ApiResponse({ status: 429, description: 'Muitas solicitações.' })
   @ApiResponse({ status: 503, description: 'Configuração indisponível.' })
@@ -55,7 +59,7 @@ export class TotpRecoveryController {
   @ApiBearerAuth('JWT-auth')
   @ApiHeader({ name: 'X-TOTP-Code', required: true, description: 'Código TOTP atual do autorizador, de uso único.' })
   @ApiParam({ name: 'id', format: 'uuid' })
-  @ApiOperation({ summary: 'Autorizar recuperação assistida de 2FA', description: 'Somente SUPER_ADMIN com TOTP atual. Exige verificar a identidade por outro canal e registrar o atendimento. Proíbe a própria conta e alvos SUPER_ADMIN. Envia autorização ao e-mail já verificado; não remove o fator atual. Autorização disponível imediatamente e válida por 24 horas.' })
+  @ApiOperation({ summary: 'Autorizar recuperação assistida de 2FA', description: 'Somente SUPER_ADMIN com TOTP atual e e-mail secundário verificado. Exige evidências confiáveis de titularidade por canal independente e registro do atendimento; dados públicos ou simples declarações não bastam. Proíbe a própria conta e alvos SUPER_ADMIN. Seleciona principal (preferencial) ou secundário previamente verificado; nunca aceita e-mail arbitrário. O principal exige esta aprovação, mesmo sem secundário. Não remove o fator atual nem abre sessão. Autorização disponível imediatamente e válida por 24 horas.' })
   @ApiResponse({ status: 200, description: 'Autorização enviada.', schema: { example: { authorized: true, availableAt: '2026-11-10T12:00:00.000Z', expiresAt: '2026-11-11T12:00:00.000Z' } } })
   @ApiResponse({ status: 400, description: 'Motivo ou UUID inválido.' })
   @ApiResponse({ status: 401, description: 'Sessão ou TOTP inválido.' })
@@ -63,7 +67,7 @@ export class TotpRecoveryController {
   @ApiResponse({ status: 409, description: 'Conta não elegível.' })
   @ApiResponse({ status: 429, description: 'Limite de solicitações.' })
   authorize(@Param('id', ParseUUIDPipe) id: string, @Req() req: RequestWithUser, @Body() dto: AuthorizeRecoveryDto, @Headers('x-totp-code') code = '') {
-    return this.service.authorize(req.user.userId, req.user.authVersion, id, code, dto.reason);
+    return this.service.authorize(req.user.userId, req.user.authVersion, id, code, dto.reason, dto.destination);
   }
 
   @Post('auth/totp-recovery/setup') @HttpCode(200)

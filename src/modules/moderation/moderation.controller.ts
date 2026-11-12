@@ -39,14 +39,14 @@ export class ModerationController {
   @ApiOperation({ summary: 'Listar leitores com autoria bloqueada', description: 'ADMIN ou SUPER_ADMIN; o bloqueio não indica necessariamente uma solicitação do titular.' })
   blockedAuthorAccounts(@Query() query: BlockedAuthorQuery) { return this.service.blockedAuthorAccounts(query.page, query.limit, query.search, query.filter); }
   @Get(':id')
-  @ApiOperation({ summary: 'Consultar usuário para moderação', description: 'ADMIN ou SUPER_ADMIN; inclui estado da conta e contagens de publicações e comentários.' })
+  @ApiOperation({ summary: 'Consultar usuário para moderação', description: 'ADMIN ou SUPER_ADMIN; inclui estado da conta, recoveryEmailVerified e contagens. Somente SUPER_ADMIN recebe recoveryDestinations: lista de { destination: primary|secondary, email } previamente verificados, com o principal primeiro. Nenhum segredo TOTP ou token é retornado.' })
   @ApiParam({ name: 'id', format: 'uuid' })
   @ApiResponse({ status: 200, description: 'Detalhes de moderação.', schema: { example: { id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', name: 'Ana', email: 'ana@example.com', role: 'READER', isActive: true, moderationSuspended: false, suspensionEndsAt: null, emailVerified: true, totpEnabled: true, createdAt: '2026-01-01T00:00:00.000Z', counts: { posts: 0, comments: 2 } } } })
   @ApiResponse({ status: 400, description: 'UUID inválido.' })
   @ApiResponse({ status: 401, description: 'Autenticação necessária.' })
   @ApiResponse({ status: 403, description: 'Requer administrador.' })
   @ApiResponse({ status: 404, description: 'Usuário não encontrado.' })
-  userDetail(@Param('id', ParseUUIDPipe) id: string) { return this.service.userDetail(id); }
+  userDetail(@Param('id', ParseUUIDPipe) id: string, @Req() req: RequestWithUser) { return this.service.userDetail(id, req.user.role); }
   @Get(':id/moderation-history')
   @ApiOperation({ summary: 'Consultar histórico administrativo do usuário', description: 'ADMIN ou SUPER_ADMIN; lista eventos de suspensão, restauração e permissões do usuário, em ordem decrescente.' })
   @ApiParam({ name: 'id', format: 'uuid' })
@@ -70,7 +70,7 @@ export class ModerationController {
   @ApiResponse({ status: 401, description: 'Autenticação necessária ou código TOTP inválido, reutilizado ou não configurado.' })
   @ApiResponse({ status: 403, description: 'Permissão insuficiente ou tentativa de alteração da própria função.' })
   @ApiResponse({ status: 404, description: 'Usuário ativo não encontrado.' })
-  @ApiResponse({ status: 409, description: 'Função inalterada, último SUPER_ADMIN ou requisitos administrativos não atendidos (incluindo 2FA ativo e e-mail verificado).' })
+  @ApiResponse({ status: 409, description: 'Função inalterada, último SUPER_ADMIN ou requisitos administrativos não atendidos: 2FA ativo, principal verificado e secundário de recuperação verificado.' })
   async changeRole(@Param('id', ParseUUIDPipe) id: string, @Req() req: RequestWithUser, @Body() dto: ChangeRoleDto, @Headers('x-totp-code') code?: string) {
     if (dto.role === UserRole.SUPER_ADMIN) {
       throw new BadRequestException('Não é permitido atribuir a função SUPER_ADMIN por esta rota. Superadministradores só podem ser configurados via procedimento de bootstrap seguro.');

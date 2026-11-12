@@ -157,7 +157,7 @@ export class TotpService {
       if (user.totpEnabled) {
         throw new ConflictException('A autenticação em dois fatores já está ativada.');
       }
-      if (!user.recoveryEmail || !user.recoveryEmailVerifiedAt) throw new ConflictException('Cadastre e confirme um e-mail de recuperação diferente do principal antes de ativar o 2FA.');
+      if (isAdministrator(user.role) && (!user.recoveryEmail || !user.recoveryEmailVerifiedAt)) throw new ConflictException('Contas administrativas precisam de e-mail de recuperação confirmado antes de ativar o 2FA.');
       const secret = generateSecret();
       const otpauthUri = generateURI({
         issuer: 'Grifório',
@@ -184,7 +184,7 @@ export class TotpService {
       if (user.totpEnabled) {
         throw new ConflictException('A autenticação em dois fatores já está ativada.');
       }
-      if (!user.recoveryEmail || !user.recoveryEmailVerifiedAt) throw new ConflictException('Confirme seu e-mail de recuperação antes de ativar o 2FA.');
+      if (isAdministrator(user.role) && (!user.recoveryEmail || !user.recoveryEmailVerifiedAt)) throw new ConflictException('Contas administrativas precisam de e-mail de recuperação confirmado antes de ativar o 2FA.');
       if (
         !user.totpPendingSecret ||
         !user.totpPendingExpiresAt ||

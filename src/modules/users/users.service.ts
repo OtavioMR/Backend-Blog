@@ -307,6 +307,8 @@ export class UsersService {
   async findById(id: string): Promise<User | null> {
     return this.usersRepository.findOne({
       where: { id, isActive: true },
+      // Security snapshot used by JWT validation; recovery data never enters the JWT or profile.
+      select: { id: true, email: true, role: true, isActive: true, authVersion: true, emailVerified: true, totpEnabled: true, recoveryEmail: true, recoveryEmailVerifiedAt: true },
     });
   }
 
