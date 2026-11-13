@@ -10,6 +10,9 @@ import { User } from '../src/modules/users/entities/user.entity.js';
 import { MailService } from '../src/modules/mail/mail.service.js';
 import { vi } from 'vitest';
 import { configureDateSerialization } from '../src/common/utils/date-serializer.js';
+import { JwtService } from '@nestjs/jwt';
+import { ConfigService } from '@nestjs/config';
+import { createHash, randomUUID } from 'node:crypto';
 
 // ESM / CJS interop for supertest in NodeNext environment
 const request =
@@ -194,6 +197,14 @@ describe('Auth E2E Test Suite (Secure Cookies, Refresh Token Rotation, Logout)',
 
     it('should return new access_token in body and rotate refreshToken cookie', async () => {
       expect(initialRefreshToken).toBeDefined();
+
+      // The legacy endpoint serves protocol-1 sessions only. Build a genuine
+      // signed legacy fixture; modern login above correctly creates protocol 2.
+      const jwt = app.get(JwtService);
+      const config = app.get(ConfigService);
+      const session = jwt.decode<{ sub: string; sid: string }>(initialAccessToken);
+      initialRefreshToken = await jwt.signAsync({ sub: session.sub, sid: session.sid, jti: randomUUID(), ver: 1, gen: 0 }, { secret: config.getOrThrow<string>('JWT_REFRESH_SECRET'), expiresIn: 604800 });
+      await usersRepository.query('UPDATE auth_sessions SET refresh_protocol=1, refresh_generation=0, recovery_proof_hash=NULL, token_hash=$2 WHERE id=$1', [session.sid, createHash('sha256').update(initialRefreshToken).digest('hex')]);
 
       // Ensure timestamp boundary cross for JWT uniqueness
       await new Promise((resolve) => setTimeout(resolve, 1050));

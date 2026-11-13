@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Not, Repository } from 'typeorm';
+import { Repository } from 'typeorm';
 import { escapeHtml } from '../../common/utils/escape-html.js';
 import { Post } from './entities/post.entity.js';
 import { ContentRating } from './enums/post-governance.enum.js';

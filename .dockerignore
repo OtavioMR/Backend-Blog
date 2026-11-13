@@ -7,3 +7,6 @@ coverage
 uploads
 *.log
 *.tsbuildinfo
+.tmp
+.temp
+scratch

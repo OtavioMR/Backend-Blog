@@ -175,6 +175,63 @@ describe.skipIf(process.env.RUN_DB_TESTS !== '1')('refresh V1 e V2 no PostgreSQL
   });
 
   // --- V2 Protocol Transactional & Recovery Tests ---
+  it('V2: uma aba antiga no endpoint legado não pode rotacionar nem revogar a sessão V2', async () => {
+    const f = await fixture();
+    await expect(f.service.refresh(f.pair.refreshToken, true)).rejects.toThrow('protocolo');
+    const rotated = await f.service.refreshV2({ sessionIdHeader: f.pair.sessionId, operationIdHeader: genOpId(), generationHeader: '0', rawCookieHeader: f.buildCookieHeader([{ gen: 0, rt: f.pair.refreshToken, proof: f.pair.recoveryProof }]), originHeader: 'http://localhost:5173' });
+    await expect(f.service.refresh(f.pair.refreshToken, true)).rejects.toThrow('protocolo');
+    expect((await f.authorize(rotated.accessToken)).userId).toBe(f.user.id);
+    expect(await f.repository.existsBy({ id: f.session.id })).toBe(true);
+  });
+  it('V2: a limpeza periódica remove ciphertext e metadados expirados com locks válidos no PostgreSQL', async () => {
+    const f = await fixture();
+    await f.service.refreshV2({ sessionIdHeader: f.pair.sessionId, operationIdHeader: genOpId(), generationHeader: '0', rawCookieHeader: f.buildCookieHeader([{ gen: 0, rt: f.pair.refreshToken, proof: f.pair.recoveryProof }]), originHeader: 'http://localhost:5173' });
+    await db.query("UPDATE auth_refresh_operations SET result_expires_at=clock_timestamp()-interval '1 second' WHERE session_id=$1", [f.session.id]);
+    await f.service.cleanupExpiredRefreshOperations();
+    expect((await f.opRepository.findBy({ sessionId: f.session.id }))[0].resultCiphertext).toBeNull();
+    await db.query("UPDATE auth_refresh_operations SET metadata_expires_at=clock_timestamp()-interval '1 second' WHERE session_id=$1", [f.session.id]);
+    await f.service.cleanupExpiredRefreshOperations();
+    expect(await f.opRepository.countBy({ sessionId: f.session.id })).toBe(0);
+  });
+
+  it('V2: metadados históricos não esgotam a capacidade de novas rotações', async () => {
+    const f = await fixture();
+    let rt = f.pair.refreshToken, proof = f.pair.recoveryProof!, generation = 0;
+    for (let index = 0; index < 65; index++) {
+      const result = await f.service.refreshV2({ sessionIdHeader: f.pair.sessionId, operationIdHeader: genOpId(), generationHeader: String(generation), rawCookieHeader: f.buildCookieHeader([{ gen: generation, rt, proof }]), originHeader: 'http://localhost:5173' });
+      rt = result.refreshToken; proof = result.recoveryProof; generation = result.generation;
+      await db.query("UPDATE auth_refresh_operations SET result_expires_at=clock_timestamp()-interval '1 second' WHERE session_id=$1", [f.session.id]);
+    }
+    expect(generation).toBe(65);
+    expect(await f.opRepository.countBy({ sessionId: f.session.id })).toBe(65);
+  });
+
+  it('V2: após expirar recuperação, só token ATUAL mais prova autorizam avançar a geração', async () => {
+    const f = await fixture(), operation = genOpId();
+    const request = { sessionIdHeader: f.pair.sessionId, operationIdHeader: operation, generationHeader: '0', rawCookieHeader: f.buildCookieHeader([{ gen: 0, rt: f.pair.refreshToken, proof: f.pair.recoveryProof }]), originHeader: 'http://localhost:5173' };
+    const result = await f.service.refreshV2(request);
+    await db.query("UPDATE auth_refresh_operations SET result_expires_at=clock_timestamp()-interval '1 second' WHERE session_id=$1", [f.session.id]);
+    try { await f.service.refreshV2(request); throw new Error('Expected recovery expiration'); }
+    catch (error) { expect((error as { getResponse: () => unknown }).getResponse()).toMatchObject({ code: 'RECOVERY_EXPIRED' }); expect((error as { getResponse: () => unknown }).getResponse()).not.toHaveProperty('retry_generation'); }
+    const currentCookies = f.buildCookieHeader([{ gen: 1, rt: result.refreshToken, proof: result.recoveryProof }]);
+    try { await f.service.refreshV2({ ...request, rawCookieHeader: currentCookies }); throw new Error('Expected coordination response'); }
+    catch (error) { expect((error as { getResponse: () => unknown }).getResponse()).toMatchObject({ code: 'RECOVERY_EXPIRED', retry_generation: 1 }); }
+    expect((await f.service.refreshV2({ ...request, operationIdHeader: genOpId(), generationHeader: '1', rawCookieHeader: currentCookies })).generation).toBe(2);
+  });
+
+  it('V2: logout concorrente não deixa uma rotação recriar a sessão revogada', async () => {
+    const f = await fixture(), entered = barrier(), release = barrier();
+    f.service.setTestHooks({ onBeforeCommit: async () => { entered.resolve(); await release.promise; } });
+    const cookies = f.buildCookieHeader([{ gen: 0, rt: f.pair.refreshToken, proof: f.pair.recoveryProof }]);
+    const refreshing = f.service.refreshV2({ sessionIdHeader: f.pair.sessionId, operationIdHeader: genOpId(), generationHeader: '0', rawCookieHeader: cookies, originHeader: 'http://localhost:5173' });
+    await entered.promise;
+    const loggingOut = f.service.logoutV2({ sessionIdHeader: f.pair.sessionId, rawCookieHeader: cookies, originHeader: 'http://localhost:5173' });
+    release.resolve();
+    const [rotated] = await Promise.all([refreshing, loggingOut]);
+    expect(await f.repository.existsBy({ id: f.session.id })).toBe(false);
+    await expect(f.authorize(rotated.accessToken)).rejects.toThrow();
+  });
+
   it('V2 (I1/I2/I3/I5): duas chamadas concorrentes com mesmo operation_id rotacionam 1x e devolvem exatamente o mesmo par cifrado sem estender prazos', async () => {
     const f = await fixture();
     const opId = genOpId();

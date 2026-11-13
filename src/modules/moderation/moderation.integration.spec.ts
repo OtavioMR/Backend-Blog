@@ -56,6 +56,7 @@ describe.skipIf(process.env.RUN_DB_TESTS !== '1')('operações administrativas n
   it('concede e revoga ADMIN com auditoria e invalidação das credenciais', async () => {
     const target = randomUUID();
     await runner.query("INSERT INTO users(id, name, email, password_hash, role, email_verified, totp_enabled) VALUES ($1, 'Pessoa sintética', $2, 'hash', 'READER', true, true)", [target, `${target}@example.invalid`]);
+    await runner.query('UPDATE users SET recovery_email=$2, recovery_email_verified_at=now() WHERE id=$1', [target, `recovery-${target}@example.invalid`]);
     await service.changeRole(admin, target, UserRole.ADMIN, 'Concessão sintética', 0);
     await service.changeRole(admin, target, UserRole.READER, 'Revogação sintética', 0);
     const [user] = await runner.query('SELECT role, auth_version FROM users WHERE id = $1', [target]);
@@ -71,6 +72,10 @@ describe.skipIf(process.env.RUN_DB_TESTS !== '1')('operações administrativas n
     expect(before).toMatchObject({ role: 'READER', auth_version: 0 });
     expect(await runner.query("SELECT id FROM audit_logs WHERE target_id = $1 AND action = 'user.permissions_changed'", [target])).toHaveLength(0);
     await runner.query('UPDATE users SET totp_enabled = true WHERE id = $1', [target]);
+    await expect(service.changeRole(admin, target, UserRole.ADMIN, 'Concessão sintética', 0)).rejects.toThrow('e-mail secundário');
+    expect((await runner.query('SELECT role, auth_version FROM users WHERE id=$1', [target]))[0]).toMatchObject({ role: 'READER', auth_version: 0 });
+    expect(await runner.query("SELECT id FROM audit_logs WHERE target_id=$1 AND action='user.permissions_changed'", [target])).toHaveLength(0);
+    await runner.query('UPDATE users SET recovery_email=$2, recovery_email_verified_at=now() WHERE id=$1', [target, `recovery-${target}@example.invalid`]);
     await expect(service.changeRole(admin, target, UserRole.ADMIN, 'Concessão sintética', 0)).resolves.toMatchObject({ role: 'ADMIN' });
   });
   it('permite liberar leitor rebaixado para aceitar as regras, sem conceder autoria antecipadamente', async () => {
@@ -218,6 +223,7 @@ describe.skipIf(process.env.RUN_DB_TESTS !== '1')('operações administrativas n
   it('permite publicação direta após concessão administrativa', async () => {
     const newAdmin = randomUUID(), newPost = randomUUID();
     await runner.query("INSERT INTO users(id, name, email, password_hash, role, email_verified, totp_enabled) VALUES ($1, 'Novo admin', $2, 'hash', 'READER', true, true)", [newAdmin, `${newAdmin}@example.invalid`]);
+    await runner.query('UPDATE users SET recovery_email=$2, recovery_email_verified_at=now() WHERE id=$1', [newAdmin, `recovery-${newAdmin}@example.invalid`]);
     await service.changeRole(admin, newAdmin, UserRole.ADMIN, 'Promoção aprovada', 0);
     await runner.query("INSERT INTO posts(id, title, slug, content, author_id, published) VALUES ($1, 'Artigo admin', $2, 'Conteúdo', $3, true)", [newPost, `admin-${newPost}`, newAdmin]);
     const [row] = await runner.query('SELECT u.first_post_approved, p.published FROM users u JOIN posts p ON p.author_id = u.id WHERE p.id = $1', [newPost]);

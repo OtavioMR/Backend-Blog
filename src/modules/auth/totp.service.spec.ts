@@ -5,7 +5,7 @@ import {
   ForbiddenException,
   UnauthorizedException,
 } from '@nestjs/common';
-import { TotpService, generateRecoveryCodes, hashRecoveryCode } from './totp.service.js';
+import { TotpService } from './totp.service.js';
 import { UserRole } from '../users/enums/user.enum.js';
 import bcrypt from 'bcrypt';
 import { generateSync } from 'otplib';
@@ -68,7 +68,7 @@ describe('TotpService', () => {
 
     const recoveryRepo = {
       create: (dto: any) => ({ ...dto, id: 'rec-' + Math.random() }),
-      save: vi.fn(async (entities: any | any[]) => {
+      save: vi.fn(async (entities: any) => {
         const arr = Array.isArray(entities) ? entities : [entities];
         mockRecoveryCodes.push(...arr);
         return entities;

@@ -128,7 +128,7 @@ export class AuthController {
       );
     }
 
-    const tokens = await this.authService.refresh(refreshToken);
+    const tokens = await this.authService.refresh(refreshToken, true);
 
     res.cookie(
       REFRESH_COOKIE_NAME,
@@ -159,7 +159,7 @@ export class AuthController {
   @ApiResponse({ status: 400, description: 'Cabeçalhos ou cookies malformados/ambíguos.' })
   @ApiResponse({ status: 401, description: 'Sessão inválida, expirada, revogada ou reutilização comprovada.' })
   @ApiResponse({ status: 403, description: 'Origem ou metadados de requisição não autorizados.' })
-  @ApiResponse({ status: 409, description: 'Prazo de recuperação expirado (RECOVERY_EXPIRED), operação superada (OPERATION_SUPERSEDED) ou geração incompatível.' })
+  @ApiResponse({ status: 409, description: 'Prazo de recuperação expirado (RECOVERY_EXPIRED), operação superada (OPERATION_SUPERSEDED) ou geração incompatível. retry_generation só é informado após comprovar posse do token atual e da prova da sessão; permite iniciar nova operação sem recuperar tokens antigos.' })
   @ApiResponse({ status: 431, description: 'Cabeçalho de cookies excedeu o orçamento.' })
   @ApiResponse({ status: 503, description: 'Indisponibilidade temporária.' })
   async refreshV2(

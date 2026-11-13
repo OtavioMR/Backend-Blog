@@ -14,7 +14,7 @@ describe.skipIf(process.env.RUN_DB_TESTS !== '1')('series workflow on configured
   let posts: PostsService;
   let series: PostSeriesService;
   const owner = randomUUID(), other = randomUUID();
-  const user = { userId: owner, role: UserRole.AUTHOR };
+  const user = { userId: owner, email: `${owner}@example.test`, role: UserRole.AUTHOR };
   beforeAll(async () => {
     dataSource.setOptions({ migrations: [] });
     await dataSource.initialize();
@@ -48,7 +48,7 @@ describe.skipIf(process.env.RUN_DB_TESTS !== '1')('series workflow on configured
     await expect(posts.create({ title: 'Synthetic unauthorized chapter', content: 'Synthetic unauthorized content.', seriesId: story.id }, other)).rejects.toThrow();
     const [after] = await runner.query('SELECT count(*)::int AS count FROM posts WHERE author_id=$1', [other]);
     expect(after.count).toBe(before.count);
-    await expect(series.mineDetail(story.id, { userId: other, role: UserRole.AUTHOR })).rejects.toThrow();
+    await expect(series.mineDetail(story.id, { userId: other, email: `${other}@example.test`, role: UserRole.AUTHOR })).rejects.toThrow();
   });
 
   it('keeps inactive links visible privately so they can be removed together without deleting texts', async () => {

@@ -78,7 +78,7 @@ describe('PostsService', () => {
   it('salva a descrição escolhida e a preserva ao alterar o conteúdo', async () => {
     const created = await service.create({ title: 'Artigo', content: 'Conteúdo do artigo', excerpt: '<b>Apresentação</b>' }, 'autor');
     expect(created.excerpt).toBe('Apresentação');
-    mockPostsRepository.findOne.mockResolvedValue({ ...created, authorId: 'autor' });
+    mockPostsRepository.findOne.mockResolvedValue(created);
     const user = { userId: 'autor', role: UserRole.AUTHOR } as any;
     const updated = await service.update(created.id, { content: 'Outro conteúdo do artigo' }, user);
     expect(updated.excerpt).toBe('Apresentação');
@@ -185,7 +185,7 @@ describe('PostsService', () => {
       const result = await service.findAll({ search: '  ', author: ' ' });
       expect(mockPostsRepository.findAndCount.mock.calls[0][0].where).toEqual({ published: true, isActive: true, moderationHidden: false });
       expect(result.data).toEqual([]);
-      expect(result.meta.total).toBe(0);
+      expect(result.meta).toHaveProperty('total', 0);
     });
 
     it('combina nome de categoria com autor', async () => {

@@ -11,15 +11,20 @@ import { Post } from '../src/modules/posts/entities/post.entity.js';
 import { AuditLog } from '../src/modules/audit/audit.entity.js';
 import { Report } from '../src/modules/reports/reports.entity.js';
 import { UserRole } from '../src/modules/users/enums/user.enum.js';
+import { TotpService } from '../src/modules/auth/totp.service.js';
+import { generateSync } from 'otplib';
 
 const request = typeof supertest === 'function' ? supertest : (supertest as any).default;
 describe('First post review', () => {
   let app: any, users: any, posts: any, reports: any, audits: any, authorId: string, authorToken: string, adminToken: string, postId: string;
+  let adminTotpSecret: string;
+  const previousTotpKey = process.env.TOTP_ENCRYPTION_KEY;
   const suffix = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
   const author = { name: 'Review Author', email: `review-a-${suffix}@example.com`, password: 'Password123!', birthDate: '1990-01-01', acceptedTerms: true, termsVersion: '1.0.0' };
   const admin = { name: 'Review Admin', email: `review-b-${suffix}@example.com`, password: 'Password123!', birthDate: '1990-01-01', acceptedTerms: true, termsVersion: '1.0.0' };
   const mail = { sendEmailVerification: vi.fn(), sendPasswordResetEmail: vi.fn(), sendEmailChangeConfirmation: vi.fn() };
   beforeAll(async () => {
+    process.env.TOTP_ENCRYPTION_KEY = 'c'.repeat(64);
     const module = await Test.createTestingModule({ imports: [AppModule] }).overrideProvider(MailService).useValue(mail).compile();
     app = module.createNestApplication(); app.use(cookieParser()); app.setGlobalPrefix('api/v1'); app.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true })); await app.init();
     users = module.get(getRepositoryToken(User)); posts = module.get(getRepositoryToken(Post)); reports = module.get(getRepositoryToken(Report)); audits = module.get(getRepositoryToken(AuditLog));
@@ -30,8 +35,11 @@ describe('First post review', () => {
     authorId = (await users.findOneBy({ email: author.email })).id;
     const adminUser = await users.findOneBy({ email: admin.email });
     authorToken = (await request(app.getHttpServer()).post('/api/v1/auth/login').send({ email: author.email, password: author.password }).expect(200)).body.access_token;
-    adminToken = (await request(app.getHttpServer()).post('/api/v1/auth/login').send({ email: admin.email, password: admin.password }).expect(200)).body.access_token;
-    await users.update(adminUser.id, { role: UserRole.ADMIN, firstPostApproved: true, totpEnabled: true });
+    const totp = module.get(TotpService);
+    adminTotpSecret = (await totp.setup(adminUser.id, admin.password)).secret;
+    await totp.enable(adminUser.id, generateSync({ secret: adminTotpSecret, epoch: Math.floor(Date.now() / 1000) - 30 }));
+    adminToken = (await request(app.getHttpServer()).post('/api/v1/auth/login').send({ email: admin.email, password: admin.password, totpCode: generateSync({ secret: adminTotpSecret }) }).expect(200)).body.access_token;
+    await users.update(adminUser.id, { role: UserRole.ADMIN, firstPostApproved: true, recoveryEmail: `recovery-${adminUser.id}@example.invalid`, recoveryEmailVerifiedAt: new Date() });
   });
   afterAll(async () => {
     if (reports && postId) await reports.delete({ postId });
@@ -43,6 +51,7 @@ describe('First post review', () => {
     if (users) await users.delete({ email: author.email });
     if (users) await users.delete({ email: admin.email });
     if (app) await app.close();
+    if (previousTotpKey === undefined) delete process.env.TOTP_ENCRYPTION_KEY; else process.env.TOTP_ENCRYPTION_KEY = previousTotpKey;
   });
   it('requires acceptance and review before publication and prevents edits while pending', async () => {
     await request(app.getHttpServer()).get('/api/v1/admin/analytics/overview').set('Authorization', `Bearer ${authorToken}`).expect(403);
@@ -70,7 +79,8 @@ describe('First post review', () => {
     await request(app.getHttpServer()).post('/api/v1/auth/login').send({ email: author.email, password: 'wrong-password' }).expect(401);
     await request(app.getHttpServer()).get('/api/v1/auth/sessions').set('Authorization', `Bearer ${authorToken}`).expect(401);
     await request(app.getHttpServer()).get(`/api/v1/posts/${postId}`).expect(404);
-    await request(app.getHttpServer()).post(`/api/v1/admin/users/${authorId}/restore`).set('Authorization', `Bearer ${adminToken}`).expect(201);
+    await request(app.getHttpServer()).post(`/api/v1/admin/users/${authorId}/restore`).set('Authorization', `Bearer ${adminToken}`).expect(401);
+    await request(app.getHttpServer()).post(`/api/v1/admin/users/${authorId}/restore`).set('Authorization', `Bearer ${adminToken}`).set('X-TOTP-Code', generateSync({ secret: adminTotpSecret, epoch: Math.floor(Date.now() / 1000) + 30 })).expect(201);
     await request(app.getHttpServer()).post('/api/v1/auth/login').send({ email: author.email, password: author.password }).expect(200);
     await request(app.getHttpServer()).get('/api/v1/auth/sessions').set('Authorization', `Bearer ${authorToken}`).expect(401);
     await request(app.getHttpServer()).get(`/api/v1/posts/${postId}`).expect(404);

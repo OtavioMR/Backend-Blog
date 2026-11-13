@@ -120,6 +120,7 @@ describe('Release acceptance: public content, cache, series and engagement', () 
   });
 
   it.skip('confirms and cancels newsletter subscriptions using browser links (disabled in V1)', async () => {
+    if (!newsletter) throw new Error('Newsletter module must be enabled before running this V2 test');
     const server = app.getHttpServer();
     await request(server).post('/api/v1/newsletter/subscribe').send({ email }).expect(200);
     const [subscriber] = await db.query('SELECT id, confirmed FROM newsletter_subscribers WHERE email = $1', [email]);

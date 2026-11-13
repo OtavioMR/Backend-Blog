@@ -206,7 +206,7 @@ export class AuthService {
       outcome.recoveryProof,
       setOpts,
     );
-    // Keep legacy refreshToken cookie updated as well when compatible, and expire strictly older v2 cookies.
+    // Never overwrite a fixed-name cookie in a delayed V2 response. Only expire older generations.
     const clearOpts = getV2CookieOptions(isProd, 0);
     for (const oldGen of outcome.clearGenerations) {
       if (oldGen < outcome.generation) {
@@ -463,7 +463,7 @@ export class AuthService {
     if (!session || session.authVersion !== user.authVersion || session.expiresAt.getTime() <= Date.now()) {
       throw new UnauthorizedException('Sessão expirada ou revogada.');
     }
-    if (disallowV2 && session.refreshProtocol === REFRESH_PROTOCOL_V2 && (session.refreshGeneration ?? 0) > 0) {
+    if (disallowV2 && session.refreshProtocol === REFRESH_PROTOCOL_V2) {
       throw new BadRequestException({
         statusCode: 400,
         code: 'PROTOCOL_V2_REQUIRED',
@@ -668,7 +668,7 @@ export class AuthService {
 
     type TxOutcome =
       | { status: 'ok'; data: RefreshV2SuccessResult }
-      | { status: 'error'; httpStatus: number; code: string; message: string };
+      | { status: 'error'; httpStatus: number; code: string; message: string; retryGeneration?: number };
 
     let txOutcome: TxOutcome;
     try {
@@ -827,6 +827,9 @@ export class AuthService {
               httpStatus: 409,
               code: 'RECOVERY_EXPIRED',
               message: 'O prazo de recuperação da operação expirou.',
+              // Advancing is safe only if the caller ALSO possesses the current
+              // signed token and session proof, not merely an old operation ID.
+              retryGeneration: verifiedTokens.has(session.token_hash) ? sessionGen : undefined,
             };
           }
 
@@ -898,11 +901,12 @@ export class AuthService {
               httpStatus: 409,
               code: 'GENERATION_MISMATCH',
               message: 'Geração declarada incompatível com o estado atual da sessão.',
+              retryGeneration: sessionGen,
             };
           }
 
           // Check capacity limit before rotating
-          const activeOpsCount = await opRepo.count({ where: { sessionId: session.id } });
+          const activeOpsCount = await opRepo.count({ where: { sessionId: session.id, resultExpiresAt: MoreThan(new Date(currentNowMs)) } });
           if (activeOpsCount >= MAX_OPERATIONS_PER_SESSION) {
             return {
               status: 'error',
@@ -1078,6 +1082,7 @@ export class AuthService {
           statusCode: 409,
           code: txOutcome.code,
           message: txOutcome.message,
+          ...(txOutcome.retryGeneration !== undefined ? { retry_generation: txOutcome.retryGeneration } : {}),
         });
       }
       if (txOutcome.httpStatus === 503) {
@@ -1226,11 +1231,11 @@ export class AuthService {
         // Lock candidate sessions in deterministic order before mutating operations
         await manager.query(
           `WITH target_sessions AS (
-             SELECT DISTINCT s.id
+             SELECT s.id
              FROM auth_sessions s
-             INNER JOIN auth_refresh_operations o ON o.session_id = s.id
-             WHERE (o.result_ciphertext IS NOT NULL AND o.result_expires_at <= clock_timestamp())
-                OR o.metadata_expires_at <= clock_timestamp()
+             WHERE EXISTS (SELECT 1 FROM auth_refresh_operations pending
+               WHERE pending.session_id = s.id AND ((pending.result_ciphertext IS NOT NULL AND pending.result_expires_at <= clock_timestamp())
+                 OR pending.metadata_expires_at <= clock_timestamp()))
              ORDER BY s.id
              LIMIT 100
              FOR UPDATE OF s SKIP LOCKED
@@ -1244,10 +1249,10 @@ export class AuthService {
         );
         await manager.query(
           `WITH target_sessions AS (
-             SELECT DISTINCT s.id
+             SELECT s.id
              FROM auth_sessions s
-             INNER JOIN auth_refresh_operations o ON o.session_id = s.id
-             WHERE o.metadata_expires_at <= clock_timestamp()
+             WHERE EXISTS (SELECT 1 FROM auth_refresh_operations pending
+               WHERE pending.session_id = s.id AND pending.metadata_expires_at <= clock_timestamp())
              ORDER BY s.id
              LIMIT 100
              FOR UPDATE OF s SKIP LOCKED

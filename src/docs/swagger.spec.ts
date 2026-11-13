@@ -335,7 +335,8 @@ describe('Swagger Documentation Configuration', () => {
     const setupConfig = createDocument.mock.calls[0][1];
     expect(setupConfig.info.description).toContain('/api/v1/users/confirm-email');
     expect(setupConfig.info.description).toContain('excerpt');
-    const generatedDocument = setup.mock.calls[0][2];
+    const documentOrFactory = setup.mock.calls[0][2];
+    const generatedDocument = typeof documentOrFactory === 'function' ? documentOrFactory() : documentOrFactory;
     expect(generatedDocument.tags?.map((tag) => tag.name)).toEqual(
       expect.arrayContaining(['Autenticação', 'Usuários', 'Artigos']),
     );

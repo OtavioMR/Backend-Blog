@@ -7,7 +7,7 @@ describe.skipIf(process.env.RUN_REDIS_TESTS !== '1')('public Redis cache across 
   let cache: PublicCacheService;
   let peer: PublicCacheService;
   beforeAll(async () => {
-    const config = { get: () => 'redis://127.0.0.1:16379' } as unknown as ConfigService;
+    const config = { get: () => (process.env.TEST_REDIS_URL ?? 'redis://127.0.0.1:16379') } as unknown as ConfigService;
     cache = new PublicCacheService(config);
     peer = new PublicCacheService(config);
     await vi.waitFor(async () => {

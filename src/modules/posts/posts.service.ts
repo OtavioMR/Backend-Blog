@@ -30,7 +30,7 @@ import type { PaginatedResult } from '../../common/interfaces/paginated-result.i
 import { OwnPostsQueryDto } from './dto/series.dto.js';
 import { isAdministrator, UserRole } from '../users/enums/user.enum.js';
 import type { AuthenticatedUser } from '../auth/interfaces/request-with-user.interface.js';
-import { ContentRating, AiTextDeclaration, AiCoverDeclaration } from './enums/post-governance.enum.js';
+import { ContentRating } from './enums/post-governance.enum.js';
 import { StorageService } from '../../common/storage/storage.service.js';
 import { isUserAdult } from '../../common/utils/age.util.js';
 

@@ -96,9 +96,10 @@ describe('Comentários e foto: fluxo completo', () => {
       'AUTHOR',
       other.id,
     ]);
-    await db.query('UPDATE users SET role = $1, first_post_approved = true, totp_enabled = true WHERE id = $2', [
+    await db.query('UPDATE users SET role = $1, first_post_approved = true, totp_enabled = true, recovery_email = $3, recovery_email_verified_at = now() WHERE id = $2', [
       'ADMIN',
       admin.id,
+      `recovery-${admin.id}@example.invalid`,
     ]);
     const auth = (token: string) => `Bearer ${token}`;
 

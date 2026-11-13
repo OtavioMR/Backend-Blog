@@ -58,4 +58,3 @@ describe('restauração de usuário com TOTP', () => {
     expect(service.restore).toHaveBeenCalledOnce();
   });
 });
-

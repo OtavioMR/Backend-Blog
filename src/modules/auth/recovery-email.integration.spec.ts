@@ -235,7 +235,10 @@ describe.skipIf(process.env.RUN_DB_TESTS !== '1')('Recovery email PostgreSQL', (
     expect((await dataSource.query('SELECT count(*)::int AS count FROM totp_recovery_grants WHERE user_id=$1', [id]))[0].count).toBe(before);
     // A previously issued link must no longer inherit the old email waiting period.
     await dataSource.query("UPDATE totp_recovery_grants SET available_at=now()+interval '23 hours' WHERE user_id=$1", [id]);
-    expect((await recovery.recover(token, password)).secret).toBeTruthy();
+    const recovered = await recovery.recover(token, password);
+    expect(recovered).toHaveProperty('secret');
+    if (!('secret' in recovered)) throw new Error('Expected a new TOTP enrollment');
+    expect(recovered.secret).toBeTruthy();
   });
   it('persists failed reauthentication attempts and locks further email changes', async () => {
     const id = await account(), address = `recovery-${id}@example.invalid`;

@@ -203,13 +203,21 @@ export function resolveRecoveryKeys(
   const keys = new Map<string, Buffer>();
   const primary = explicitKey?.trim() || fallbackSecret?.trim();
   if (!primary || primary.length < 16) return null;
-  const currentKeyId = explicitKey?.trim() ? 'v2-explicit-1' : 'v2-derived-1';
-  keys.set(currentKeyId, deriveKey(primary, currentKeyId));
+  const legacyId = explicitKey?.trim() ? 'v2-explicit-1' : 'v2-derived-1';
+  const currentKey = deriveKey(primary, legacyId);
+  // Identify the actual key, not its slot: after rotation the old ciphertext
+  // must still resolve to the previous key rather than the new primary key.
+  const keyId = (key: Buffer) => `v2-${createHash('sha256').update(key).digest('hex').slice(0, 24)}`;
+  const currentKeyId = keyId(currentKey);
+  keys.set(currentKeyId, currentKey);
+  keys.set(legacyId, currentKey);
   if (fallbackSecret?.trim() && explicitKey?.trim()) {
     keys.set('v2-derived-1', deriveKey(fallbackSecret.trim(), 'v2-derived-1'));
   }
   if (previousExplicitKey?.trim() && previousExplicitKey.trim().length >= 16) {
-    keys.set('v2-explicit-0', deriveKey(previousExplicitKey.trim(), 'v2-explicit-0'));
+    const previous = deriveKey(previousExplicitKey.trim(), legacyId);
+    keys.set(keyId(previous), previous);
+    keys.set(legacyId, previous);
   }
   return { currentKeyId, keys };
 }
@@ -324,7 +332,7 @@ export function validateOriginAndFetchMetadata(
       message: 'Origem da requisição inválida.',
     };
   }
-  if (!allowedOrigins.includes(normalizedOrigin)) {
+  if (originHeader !== normalizedOrigin || !allowedOrigins.includes(normalizedOrigin)) {
     return {
       ok: false,
       status: 403,
