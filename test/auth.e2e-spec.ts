@@ -74,8 +74,8 @@ describe('Auth E2E Test Suite (Secure Cookies, Refresh Token Rotation, Logout)',
     expect(registerResponse.body.email).toBe(testUser.email.toLowerCase());
     await request(app.getHttpServer()).post('/api/v1/auth/login').send({ email: testUser.email, password: testUser.password }).expect(401);
     const verificationToken = mail.sendEmailVerification.mock.calls[0][1] as string;
-    await request(app.getHttpServer()).post('/api/v1/users/confirm-email').send({ token: verificationToken }).expect(200);
-    await request(app.getHttpServer()).post('/api/v1/users/confirm-email').send({ token: verificationToken }).expect(400);
+    await request(app.getHttpServer()).post('/api/v1/users/confirm-email').send({ token: verificationToken, email: testUser.email }).expect(200);
+    await request(app.getHttpServer()).post('/api/v1/users/confirm-email').send({ token: verificationToken, email: testUser.email }).expect(400);
   });
 
   afterAll(async () => {

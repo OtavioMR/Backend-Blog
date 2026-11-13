@@ -43,8 +43,8 @@ describe('Sprint 2 with PostgreSQL', () => {
     const firstToken = mail.sendEmailVerification.mock.calls[0][1] as string;
     await request(server).post('/api/v1/users/resend-verification').send({ email }).expect(200);
     const nextToken = mail.sendEmailVerification.mock.calls[1][1] as string;
-    await request(server).post('/api/v1/users/confirm-email').send({ token: firstToken }).expect(400);
-    await request(server).post('/api/v1/users/confirm-email').send({ token: nextToken }).expect(200);
+    await request(server).post('/api/v1/users/confirm-email').send({ token: firstToken, email }).expect(400);
+    await request(server).post('/api/v1/users/confirm-email').send({ token: nextToken, email }).expect(200);
     for (let i = 0; i < 5; i++) await request(server).post('/api/v1/auth/login').send({ email, password: 'wrong-password' }).expect(401);
     await request(server).post('/api/v1/auth/login').send({ email, password }).expect(401);
     const [locked] = await db.query('SELECT failed_login_attempts, login_locked_until FROM users WHERE id = $1', [userId]);

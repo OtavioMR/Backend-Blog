@@ -6,6 +6,19 @@ import { MailService } from './mail.service.js';
 describe('MailService', () => {
   afterEach(() => vi.restoreAllMocks());
 
+  it('monta mensagem com c\u00f3digo e validade de 24 horas', async () => {
+    const enqueue = vi.fn().mockResolvedValue(undefined);
+    const service = new MailService({ get: () => undefined } as unknown as ConfigService, { enqueue } as never);
+    const before = Date.now();
+    await service.sendEmailVerification('reader@example.test', '012345');
+    const message = enqueue.mock.calls[0][0] as { html: string; text: string; expiresAt: number };
+    expect(message.html).toContain('012345');
+    expect(message.text).toContain('012345');
+    expect(message.html).not.toContain('href=');
+    expect(message.expiresAt).toBeGreaterThanOrEqual(before + 86400000);
+    expect(message.expiresAt).toBeLessThanOrEqual(Date.now() + 86400000);
+  });
+
   it('envia o token e as instruções de confirmação pela API', async () => {
     const sendMail = vi.fn().mockResolvedValue({});
     vi.spyOn(nodemailer, 'createTransport').mockReturnValue({ sendMail } as never);

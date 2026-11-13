@@ -3,6 +3,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import bcrypt from 'bcrypt';
 import { NotFoundException } from '@nestjs/common';
+import { VerificationCodeService } from './verification-code.service.js';
 import { UsersService } from './users.service.js';
 import { User } from './entities/user.entity.js';
 import { UserRole } from './enums/user.enum.js';
@@ -30,6 +31,7 @@ describe('UsersService', () => {
       providers: [
         UsersService,
         { provide: MailService, useValue: mockMailService },
+        { provide: VerificationCodeService, useValue: { generate: () => '012345', hash: (_email: string, token: string) => createHash('sha256').update(token).digest('hex'), checkAttempt: vi.fn().mockResolvedValue(undefined) } },
         {
           provide: getRepositoryToken(User),
           useValue: mockUsersRepository,
@@ -42,6 +44,39 @@ describe('UsersService', () => {
 
   it('should be defined', () => {
     expect(service).toBeDefined();
+  });
+
+  it('consome a verifica??o atomicamente e rejeita token expirado ou usado', async () => {
+    const builder = { update: vi.fn().mockReturnThis(), set: vi.fn().mockReturnThis(), where: vi.fn().mockReturnThis(), andWhere: vi.fn().mockReturnThis(), execute: vi.fn().mockResolvedValueOnce({ affected: 1 }).mockResolvedValue({ affected: 0 }) };
+    mockUsersRepository.createQueryBuilder = vi.fn().mockReturnValue(builder);
+    const token = 'a'.repeat(64);
+    await expect(service.confirmEmail(token)).resolves.toHaveProperty('message');
+    expect(builder.where).toHaveBeenCalledWith('email_verification_token_hash = :tokenHash', { tokenHash: createHash('sha256').update(token).digest('hex') });
+    expect(builder.andWhere).toHaveBeenCalledWith(expect.stringContaining('email_verification_expires_at > CURRENT_TIMESTAMP'));
+    expect(builder.set).toHaveBeenCalledWith(expect.objectContaining({ emailVerificationTokenHash: null, emailVerificationExpiresAt: null }));
+    await expect(service.confirmEmail(token)).rejects.toThrow('Token inválido ou expirado');
+  });
+
+  it('confirma c\u00f3digo com e-mail ap\u00f3s verificar limite de tentativas', async () => {
+    const builder = { update: vi.fn().mockReturnThis(), set: vi.fn().mockReturnThis(), where: vi.fn().mockReturnThis(), andWhere: vi.fn().mockReturnThis(), execute: vi.fn().mockResolvedValueOnce({ affected: 1 }).mockResolvedValue({ affected: 0 }) };
+    mockUsersRepository.createQueryBuilder = vi.fn().mockReturnValue(builder);
+    await expect(service.confirmEmail('012345', 'reader@example.test')).resolves.toHaveProperty('message');
+    await expect(service.confirmEmail('012345', 'reader@example.test')).rejects.toThrow();
+    await expect(service.confirmEmail('012345')).rejects.toThrow();
+    expect(builder.andWhere).toHaveBeenCalledWith(expect.stringContaining('email_verification_expires_at > CURRENT_TIMESTAMP'));
+  });
+
+  it('substitui o hash e a validade ao reenviar a verifica??o', async () => {
+    const user = { email: 'reader@example.test', emailVerificationTokenHash: 'old', emailVerificationExpiresAt: new Date(0) };
+    mockUsersRepository.findOne.mockResolvedValue(user);
+    mockMailService.sendEmailVerification = vi.fn().mockResolvedValue(undefined);
+    const before = Date.now();
+    await service.resendVerification(user.email);
+    const token = mockMailService.sendEmailVerification.mock.calls[0][1] as string;
+    expect(user.emailVerificationTokenHash).toBe(createHash('sha256').update(token).digest('hex'));
+    expect(user.emailVerificationTokenHash).not.toBe('old');
+    expect(user.emailVerificationExpiresAt.getTime()).toBeGreaterThanOrEqual(before + 86400000);
+    expect(mockUsersRepository.save).toHaveBeenCalledWith(user);
   });
 
   it('promotes only a verified, active reader who is not blocked', async () => {

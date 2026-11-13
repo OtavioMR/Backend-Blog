@@ -27,6 +27,7 @@ import { UpdateUserDto } from './dto/update-user.dto.js';
 import { UserRole } from './enums/user.enum.js';
 import { PaginationQueryDto } from '../../common/dto/pagination-query.dto.js';
 import { ResendVerificationDto } from './dto/resend-verification.dto.js';
+import { ConfirmRegistrationDto } from './dto/confirm-registration.dto.js';
 import { ConfirmEmailChangeDto } from './dto/confirm-email-change.dto.js';
 import { ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
@@ -83,17 +84,17 @@ export class UsersController {
 
   @Post('confirm-email')
   @ApiPublicRoute()
-  @ApiOperation({ summary: 'Confirmar e-mail de cadastro', description: 'Envie o token recebido por e-mail. Ele é válido por 24 horas, pode ser usado uma vez e é necessário para fazer login.' })
+  @ApiOperation({ summary: 'Confirmar e-mail de cadastro', description: 'Envie o código de seis dígitos e o e-mail da conta; tokens anteriores continuam aceitos. Ele é válido por 24 horas, pode ser usado uma vez e é necessário para fazer login.' })
   @ApiResponse({ status: 200, description: 'E-mail confirmado.', schema: { example: { message: 'E-mail confirmado com sucesso.' } } })
   @ApiResponse({ status: 400, description: 'Token inválido, expirado ou já utilizado.' })
   @ApiResponse({ status: 429, description: 'Limite de tentativas excedido.' })
   @HttpCode(HttpStatus.OK)
   @Throttle({ default: { limit: 10, ttl: 60_000 } })
-  confirmEmail(@Body() dto: ConfirmEmailChangeDto) { return this.usersService.confirmEmail(dto.token); }
+  confirmEmail(@Body() dto: ConfirmRegistrationDto) { return this.usersService.confirmEmail(dto.token, dto.email); }
 
   @Post('resend-verification')
   @ApiPublicRoute()
-  @ApiOperation({ summary: 'Reenviar confirmação de cadastro', description: 'Envia um novo token e invalida o anterior. A resposta é genérica mesmo quando não existe conta pendente; o envio depende do SMTP configurado.' })
+  @ApiOperation({ summary: 'Reenviar confirmação de cadastro', description: 'Envia um novo código e invalida o anterior. A resposta é genérica mesmo quando não existe conta pendente; o envio depende do SMTP configurado.' })
   @ApiResponse({ status: 200, description: 'Solicitação processada.', schema: { example: { message: 'Se a conta precisar de verificação, as instruções serão enviadas.' } } })
   @ApiResponse({ status: 400, description: 'E-mail inválido.' })
   @ApiResponse({ status: 429, description: 'Limite de solicitações excedido.' })

@@ -23,6 +23,7 @@ import { User } from './entities/user.entity.js';
 import { isAdministrator, UserRole } from './enums/user.enum.js';
 import { PaginationQueryDto } from '../../common/dto/pagination-query.dto.js';
 import type { PaginatedResult } from '../../common/interfaces/paginated-result.interface.js';
+import { VerificationCodeService } from './verification-code.service.js';
 import { MailService } from '../mail/mail.service.js';
 import { StorageService } from '../../common/storage/storage.service.js';
 import { calculateAge, isUserAdult as isAgeAdult, parseBirthDateParts } from '../../common/utils/age.util.js';
@@ -40,6 +41,7 @@ export class UsersService {
     @InjectRepository(User) private readonly usersRepository: Repository<User>,
     private readonly mailService: MailService,
     @Optional() private readonly storage?: StorageService,
+    @Optional() private readonly verificationCodes?: VerificationCodeService,
   ) {}
 
   async becomeAuthor(userId: string) {
@@ -228,11 +230,11 @@ export class UsersService {
     }
 
     const passwordHash = await bcrypt.hash(password, 12);
-    const verificationToken = randomBytes(32).toString('hex');
+    const verificationToken = this.verificationCodes!.generate();
     const termsVersion = createUserDto.termsVersion ?? '1.0.0';
     const user = this.usersRepository.create({
       emailVerified: false,
-      emailVerificationTokenHash: createHash('sha256').update(verificationToken).digest('hex'),
+      emailVerificationTokenHash: this.verificationCodes!.hash(email, verificationToken),
       emailVerificationExpiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
       name,
       email,
@@ -260,8 +262,11 @@ export class UsersService {
     return this.toPublic(savedUser);
   }
 
-  async confirmEmail(token: string): Promise<{ message: string }> {
-    const tokenHash = createHash('sha256').update(token).digest('hex');
+  async confirmEmail(token: string, email?: string): Promise<{ message: string }> {
+    const isCode = /^\d{6}$/.test(token);
+    if (isCode && !email) throw new BadRequestException('Informe o e-mail da conta.');
+    if (isCode) await this.verificationCodes!.checkAttempt(email!);
+    const tokenHash = isCode ? this.verificationCodes!.hash(email!, token) : createHash('sha256').update(token).digest('hex');
     const result = await this.usersRepository.createQueryBuilder().update(User)
       .set({ emailVerified: true, emailVerificationTokenHash: null, emailVerificationExpiresAt: null })
       .where('email_verification_token_hash = :tokenHash', { tokenHash })
@@ -274,8 +279,9 @@ export class UsersService {
   async resendVerification(email: string): Promise<{ message: string }> {
     const user = await this.usersRepository.findOne({ where: { email: email.trim().toLowerCase(), isActive: true, emailVerified: false } });
     if (user) {
-      const token = randomBytes(32).toString('hex');
-      user.emailVerificationTokenHash = createHash('sha256').update(token).digest('hex');
+      let token: string;
+      do { token = this.verificationCodes!.generate(); } while (this.verificationCodes!.hash(user.email, token) === user.emailVerificationTokenHash);
+      user.emailVerificationTokenHash = this.verificationCodes!.hash(user.email, token);
       user.emailVerificationExpiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
       await this.usersRepository.save(user);
       try { await this.mailService.sendEmailVerification(user.email, token); } catch { this.logger.error(`Failed to send verification email for user ${user.id}`); }

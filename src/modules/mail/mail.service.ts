@@ -32,11 +32,13 @@ export class MailService {
   }
 
   async sendEmailVerification(email: string, token: string): Promise<void> {
+    const code = escapeHtml(token);
     await this.queue.enqueue({
       expiresAt: Date.now() + 24 * 60 * 60 * 1000,
       to: email,
-      subject: 'Confirme seu e-mail',
-      text: `Para verificar sua conta, envie o token para POST /api/v1/users/confirm-email em até 24 horas: ${token}`,
+      subject: 'Confirme seu e-mail no Grif\u00f3rio',
+      text: `Bem-vindo ao Grif\u00f3rio!\n\nSeu c\u00f3digo de confirma\u00e7\u00e3o \u00e9: ${token}\n\nDigite-o na tela de confirma\u00e7\u00e3o. Ele \u00e9 v\u00e1lido por 24 horas. Se voc\u00ea n\u00e3o criou uma conta, ignore esta mensagem.`,
+      html: `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head><body style="margin:0;background:#f5f1eb;color:#29231f;font-family:Arial,sans-serif"><table role="presentation" style="width:100%;border-collapse:collapse"><tr><td style="padding:32px 16px"><table role="presentation" style="width:100%;max-width:600px;margin:auto;background:#fffdfa"><tr><td style="padding:36px 28px"><p style="color:#b94e27;font-weight:bold;letter-spacing:2px">GRIF\u00d3RIO</p><p style="color:#b94e27;font-size:12px;font-weight:bold;letter-spacing:1px">SUA CONTA</p><h1 style="font-family:Georgia,serif;font-size:32px;font-weight:normal">Uma boa leitura come\u00e7a aqui.</h1><p>Digite este c\u00f3digo na tela de confirma\u00e7\u00e3o:</p><p style="font-size:32px;letter-spacing:8px;font-weight:bold;color:#b94e27">${code}</p><p style="line-height:1.6">O c\u00f3digo \u00e9 v\u00e1lido por 24 horas e pode ser usado uma vez.</p><p style="font-size:13px;color:#655c55">Se voc\u00ea n\u00e3o criou uma conta, ignore esta mensagem.</p></td></tr></table></td></tr></table></body></html>`,
     });
   }
 
