@@ -227,6 +227,8 @@ describe('Swagger Documentation Configuration', () => {
     expect(document.paths['/api/v1/auth/sessions'].get?.security).toEqual([{ 'JWT-auth': [] }]);
     expect(document.paths['/api/v1/auth/sessions/{id}'].delete?.security).toEqual([{ 'JWT-auth': [] }]);
     expect(paths).toContain('/api/v1/auth/refresh');
+    expect(document.paths['/api/v1/auth/refresh'].post?.responses).toHaveProperty('409');
+    expect(document.paths['/api/v1/auth/refresh'].post?.responses).toHaveProperty('401');
     expect(paths).toContain('/api/v1/auth/logout');
     expect(paths).toContain('/api/v1/auth/forgot-password');
     expect(paths).toContain('/api/v1/auth/reset-password');
@@ -333,7 +335,8 @@ describe('Swagger Documentation Configuration', () => {
     const setupConfig = createDocument.mock.calls[0][1];
     expect(setupConfig.info.description).toContain('/api/v1/users/confirm-email');
     expect(setupConfig.info.description).toContain('excerpt');
-    const generatedDocument = setup.mock.calls[0][2];
+    const documentOrFactory = setup.mock.calls[0][2];
+    const generatedDocument = typeof documentOrFactory === 'function' ? documentOrFactory() : documentOrFactory;
     expect(generatedDocument.tags?.map((tag) => tag.name)).toEqual(
       expect.arrayContaining(['Autenticação', 'Usuários', 'Artigos']),
     );

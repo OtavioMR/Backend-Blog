@@ -7,6 +7,8 @@ export interface AuthenticatedUser {
   email: string;
   role: UserRole;
   totpEnabled?: boolean;
+  emailVerified?: boolean;
+  recoveryEmailVerified?: boolean;
 }
 
 export interface RequestWithUser extends Request {

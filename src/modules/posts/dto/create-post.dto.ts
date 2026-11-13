@@ -14,6 +14,11 @@ import {
 } from 'class-validator';
 
 export class CreatePostDto {
+  @ApiPropertyOptional({ description: 'Série do próprio autor: cria artigo e vínculo na mesma transação, na última posição (até 100 capítulos). Omitir para texto independente.', format: 'uuid' })
+  @IsOptional()
+  @IsUUID('4')
+  seriesId?: string;
+
   @ApiProperty({
     description: 'Título do artigo',
     example: 'Como estruturar projetos no NestJS',
@@ -31,12 +36,12 @@ export class CreatePostDto {
     example:
       'Neste artigo vamos discutir padrões arquiteturais no NestJS e melhores práticas de organização de código.',
     minLength: 10,
-    maxLength: 50000,
+    maxLength: 55000,
   })
   @IsString()
   @IsNotEmpty()
   @MinLength(10)
-  @MaxLength(50000)
+  @MaxLength(55000)
   content: string;
 
   @ApiPropertyOptional({ description: 'Descrição apresentada abaixo do título e nas listagens; gerada a partir do conteúdo quando omitida na criação.', maxLength: 200, example: 'Uma apresentação do artigo.' })

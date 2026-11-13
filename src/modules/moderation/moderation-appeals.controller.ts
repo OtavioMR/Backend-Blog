@@ -15,7 +15,6 @@ import {
 import {
   ApiBearerAuth,
   ApiOperation,
-  ApiParam,
   ApiProperty,
   ApiPropertyOptional,
   ApiResponse,

@@ -9,7 +9,7 @@ export class AuditService {
     const repository = manager.getRepository(AuditLog);
     await repository.save(repository.create({ actorId, action, targetType, targetId, details }));
   }
-  async list(page = 1, limit = 20, filters: { actorId?: string; targetId?: string; action?: string; targetType?: string; from?: string; to?: string; search?: string } = {}) {
+  async list(page = 1, limit = 20, filters: { actorId?: string; targetId?: string; action?: string; targetType?: string; from?: string; to?: string; search?: string; includeSessions?: boolean } = {}) {
     if (filters.from && filters.to && new Date(filters.from) > new Date(filters.to)) throw new BadRequestException('Intervalo de datas inválido.');
     const query = this.dataSource.getRepository(AuditLog).createQueryBuilder('log');
     if (filters.actorId) query.andWhere('log.actorId = :actorId', { actorId: filters.actorId });
@@ -18,6 +18,13 @@ export class AuditService {
     if (filters.targetType) query.andWhere('log.targetType = :targetType', { targetType: filters.targetType });
     if (filters.from) query.andWhere('log.createdAt >= :from', { from: filters.from });
     if (filters.to) query.andWhere('log.createdAt <= :to', { to: filters.to });
+
+    const sessionActions = ['auth.session_created', 'auth.session_revoked'];
+    const isExplicitSessionAction = filters.action ? sessionActions.includes(filters.action) : false;
+    const isExplicitSessionTarget = filters.targetType === 'session';
+    if (!filters.includeSessions && !isExplicitSessionAction && !isExplicitSessionTarget) {
+      query.andWhere("log.targetType != 'session' AND log.action NOT IN (:...sessionActions)", { sessionActions });
+    }
     if (filters.search?.trim()) {
       query.leftJoin('users', 'actor_search', 'actor_search.id = log.actorId AND actor_search.deleted_at IS NULL')
         .leftJoin('users', 'user_search', "log.targetType = 'user' AND user_search.id = log.targetId AND user_search.deleted_at IS NULL")

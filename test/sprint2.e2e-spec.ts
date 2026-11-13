@@ -90,7 +90,9 @@ describe('Sprint 2 with PostgreSQL', () => {
     expect(longDetail.body.content).toBe(longContent);
     expect(longDetail.body.readingTimeMinutes).toBe(8);
     await request(server).post('/api/v1/posts').set('Authorization', auth)
-      .send({ title: 'Too long article', content: 'a'.repeat(50001) }).expect(400);
+      .send({ title: 'Maximum length article', content: 'a'.repeat(55000) }).expect(201);
+    await request(server).post('/api/v1/posts').set('Authorization', auth)
+      .send({ title: 'Too long article', content: 'a'.repeat(55001) }).expect(400);
     await request(server).patch(`/api/v1/posts/${post.body.id}`).set('Authorization', auth).send({ published: false }).expect(200);
     const [draft] = await db.query('SELECT published_at FROM posts WHERE id = $1', [post.body.id]);
     expect(draft.published_at).toBeNull();

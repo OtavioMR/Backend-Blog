@@ -5,7 +5,7 @@ import {
   ForbiddenException,
   UnauthorizedException,
 } from '@nestjs/common';
-import { TotpService, generateRecoveryCodes, hashRecoveryCode } from './totp.service.js';
+import { TotpService } from './totp.service.js';
 import { UserRole } from '../users/enums/user.enum.js';
 import bcrypt from 'bcrypt';
 import { generateSync } from 'otplib';
@@ -68,7 +68,7 @@ describe('TotpService', () => {
 
     const recoveryRepo = {
       create: (dto: any) => ({ ...dto, id: 'rec-' + Math.random() }),
-      save: vi.fn(async (entities: any | any[]) => {
+      save: vi.fn(async (entities: any) => {
         const arr = Array.isArray(entities) ? entities : [entities];
         mockRecoveryCodes.push(...arr);
         return entities;
@@ -119,14 +119,24 @@ describe('TotpService', () => {
   it('rejeita setup se a senha estiver incorreta', async () => {
     await expect(service.setup('user-1', 'WrongPassword!')).rejects.toThrow(UnauthorizedException);
   });
-  it('exige e-mail de recuperação confirmado no setup e novamente na ativação', async () => {
+  it.each([UserRole.ADMIN, UserRole.SUPER_ADMIN])('exige secundário confirmado no setup e na ativação para %s', async role => {
     const user = mockUsers.get('user-1');
+    user.role = role;
     user.recoveryEmailVerifiedAt = null;
     await expect(service.setup('user-1', 'Password123!')).rejects.toThrow(ConflictException);
     user.recoveryEmailVerifiedAt = new Date();
     const setup = await service.setup('user-1', 'Password123!');
     user.recoveryEmail = null;
     await expect(service.enable('user-1', generateSync({ secret: setup.secret }))).rejects.toThrow(ConflictException);
+  });
+  it.each([UserRole.READER, UserRole.AUTHOR])('permite ativar 2FA sem secundário para %s', async role => {
+    const user = mockUsers.get('user-1');
+    user.role = role; user.recoveryEmail = null; user.recoveryEmailVerifiedAt = null;
+    const setup = await service.setup('user-1', 'Password123!');
+    const result = await service.enable('user-1', generateSync({ secret: setup.secret }));
+    expect(result.enabled).toBe(true); expect(result.recoveryCodes).toHaveLength(8);
+    expect(mockRecoveryCodes.every(item => !result.recoveryCodes.includes(item.codeHash))).toBe(true);
+    expect(user.recoveryEmail).toBeNull();
   });
 
   it('ativa o TOTP com código de 6 dígitos válido e emite códigos de recuperação', async () => {
@@ -215,6 +225,8 @@ describe('TotpService', () => {
     expect(u.totpEnabled).toBe(false);
     expect(u.totpSecret).toBeNull();
     expect(mockRecoveryCodes).toHaveLength(0);
+    expect(u.recoveryEmail).toBe('recovery@example.invalid');
+    expect(u.recoveryEmailVerifiedAt).toBeInstanceOf(Date);
   });
 
   it('regenera códigos de recuperação com senha e código TOTP', async () => {

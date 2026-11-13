@@ -13,7 +13,7 @@ describe('limites dos campos', () => {
     expect(errorsFor(Object.assign(new Dto(), { content: 'a'.repeat(1000) }), 'content')).toHaveLength(0);
     expect(errorsFor(Object.assign(new Dto(), { content: 'a'.repeat(1001) }), 'content')).toHaveLength(1);
   });
-  it.each([['title', 150], ['content', 50000]] as const)('valida o limite de artigo: %s', (field, max) => {
+  it.each([['title', 150], ['content', 55000]] as const)('valida o limite de artigo: %s', (field, max) => {
     expect(errorsFor(Object.assign(new CreatePostDto(), { [field]: 'a'.repeat(max) }), field)).toHaveLength(0);
     expect(errorsFor(Object.assign(new CreatePostDto(), { [field]: 'a'.repeat(max + 1) }), field)).toHaveLength(1);
   });

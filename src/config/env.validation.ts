@@ -1,5 +1,6 @@
 import { plainToInstance, Transform } from 'class-transformer';
 import {
+  IsBoolean,
   IsIn,
   IsInt,
   IsNotEmpty,
@@ -51,6 +52,15 @@ export class EnvironmentVariables {
   @IsNotEmpty()
   @Matches(/\S/)
   DB_NAME: string;
+
+  @Transform(({ value }: { value: unknown }) => value === 'true' ? true : value === 'false' ? false : value)
+  @IsBoolean()
+  DB_SSL = false;
+
+  @IsOptional()
+  @IsString()
+  @IsNotEmpty()
+  DB_SSL_CA?: string;
 
   @IsString()
   @MinLength(32)
@@ -145,6 +155,17 @@ export function validate(
     throw new Error(
       `Invalid environment configuration: ${errors.map((error) => `${error.property}: ${Object.values(error.constraints ?? {}).join(', ')}`).join('; ')}`,
     );
+  }
+  if (variables.NODE_ENV === 'production') {
+    if (variables.JWT_SECRET === variables.JWT_REFRESH_SECRET) {
+      throw new Error('JWT_SECRET and JWT_REFRESH_SECRET must be distinct in production');
+    }
+    if (new URL(variables.FRONTEND_URL).protocol !== 'https:') {
+      throw new Error('FRONTEND_URL must use HTTPS in production');
+    }
+  }
+  if (variables.STORAGE_DRIVER === 'vercel-blob' && !variables.BLOB_READ_WRITE_TOKEN?.trim()) {
+    throw new Error('BLOB_READ_WRITE_TOKEN is required for STORAGE_DRIVER=vercel-blob');
   }
   return variables;
 }

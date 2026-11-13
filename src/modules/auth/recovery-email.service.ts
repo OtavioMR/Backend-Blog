@@ -1,4 +1,4 @@
-import { BadRequestException, ConflictException, Injectable, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { DataSource, type EntityManager } from 'typeorm';
 import { randomBytes } from 'node:crypto';
@@ -6,19 +6,35 @@ import bcrypt from 'bcrypt';
 import { TotpService } from './totp.service.js';
 import { lockRecoveryUser, recoveryHash, recoveryFrontend } from './totp-recovery-operations.js';
 import { transactionalMail } from '../mail/transactional-mail.js';
+import { isAdministrator, UserRole } from '../users/enums/user.enum.js';
 
 @Injectable()
 export class RecoveryEmailService {
   constructor(private readonly db: DataSource, private readonly config: ConfigService, private readonly totp: TotpService) {}
   async status(userId: string) {
-    const [value]: { email: string | null; verified: boolean; pendingEmail: string | null; availableAt: Date | null }[] = await this.db.query(`SELECT recovery_email AS email, (recovery_email IS NOT NULL AND recovery_email_verified_at IS NOT NULL) AS verified,
-      CASE WHEN recovery_email_expires_at > now() AND recovery_email_auth_version = auth_version THEN pending_recovery_email ELSE NULL END AS "pendingEmail", recovery_email_verified_at AS "availableAt"
+    const [value]: { email: string | null; verified: boolean; pendingEmail: string | null; availableAt: Date | null; pending: { action: 'add' | 'replace' | 'remove'; email: string; expiresAt: string; confirmationDestination: 'primary' | 'secondary' } | null }[] = await this.db.query(`SELECT recovery_email AS email, (recovery_email IS NOT NULL AND recovery_email_verified_at IS NOT NULL) AS verified,
+      CASE WHEN recovery_email_expires_at > now() AND recovery_email_auth_version = auth_version AND recovery_email_token_hash IS NOT NULL THEN pending_recovery_email ELSE NULL END AS "pendingEmail", recovery_email_verified_at AS "availableAt",
+      CASE WHEN recovery_email_expires_at > now() AND recovery_email_auth_version = auth_version AND recovery_email_token_hash IS NOT NULL THEN
+        json_build_object('action', CASE WHEN pending_recovery_email IS NULL THEN 'remove' WHEN recovery_email IS NULL THEN 'add' ELSE 'replace' END,
+          'email', COALESCE(pending_recovery_email, email), 'expiresAt', recovery_email_expires_at,
+          'confirmationDestination', CASE WHEN pending_recovery_email IS NULL THEN 'primary' ELSE 'secondary' END)
+      ELSE NULL END AS pending
       FROM users WHERE id = $1 AND is_active AND deleted_at IS NULL`, [userId]);
     if (!value) throw new UnauthorizedException('Conta indisponível.');
     return value;
   }
   private async audit(manager: EntityManager, id: string, action: string) {
     await manager.query('INSERT INTO audit_logs(actor_id, action, target_type, target_id) VALUES ($1, $2, $3, $1)', [id, action, 'user']);
+  }
+  async cancelPending(userId: string, authVersion: number) {
+    return this.db.transaction(async manager => {
+      const user = await lockRecoveryUser(manager, userId);
+      if (!user || user.auth_version !== authVersion) throw new UnauthorizedException('Sessão inválida.');
+      await manager.query(`UPDATE users SET pending_recovery_email = NULL, recovery_email_token_hash = NULL, recovery_email_cancel_hash = NULL,
+        recovery_email_expires_at = NULL, recovery_email_auth_version = NULL WHERE id = $1`, [userId]);
+      await this.audit(manager, userId, 'auth.recovery_email_cancelled');
+      return { cancelled: true };
+    });
   }
   async request(userId: string, authVersion: number, email: string | null, password: string, code?: string) {
     const normalized = email?.trim().toLowerCase() ?? null;
@@ -33,6 +49,7 @@ export class RecoveryEmailService {
         return null;
       };
       if (Buffer.byteLength(password, 'utf8') > 72 || !(await bcrypt.compare(password, user.password_hash))) return failed();
+      if (!normalized && isAdministrator(user.role as UserRole)) throw new ForbiddenException('Contas administrativas devem manter um e-mail de recuperação verificado. Cadastre e confirme outro endereço para substituí-lo, ou solicite a revogação dos privilégios administrativos.');
       if (!normalized && (!user.recovery_email || !user.recovery_email_verified_at)) throw new ConflictException('Não há e-mail de recuperação confirmado para remover.');
       if (normalized && (normalized === user.email.toLowerCase() || normalized === user.recovery_email?.toLowerCase())) throw new BadRequestException('Use outro endereço, diferente do principal e do e-mail de recuperação atual.');
       if (user.totp_enabled && !(await this.totp.verifyLogin(userId, code, manager))) return failed();
@@ -44,15 +61,15 @@ export class RecoveryEmailService {
         await transactionalMail(manager, jwtSecret, { to: normalized, subject: 'Confirme seu e-mail de recuperação — Grifório',
           text: `Confirme este endereço como e-mail de recuperação em até 30 minutos: ${base}/confirmar-email-recuperacao#token=${token}\nSe não solicitou, ignore. Este link não permite entrar na conta.`, expiresAt: expiresAt.getTime() });
       } else {
-        await transactionalMail(manager, jwtSecret, { to: user.recovery_email!, subject: 'Confirme a remoção do e-mail de recuperação — Grifório',
+        await transactionalMail(manager, jwtSecret, { to: user.email, subject: 'Confirme a remoção do e-mail de recuperação — Grifório',
           text: `Para remover este e-mail de recuperação, confirme em até 30 minutos: ${base}/confirmar-email-recuperacao#remove=${token}\nSe não solicitou, ignore. Seu autenticador permanecerá ativo.`, expiresAt: expiresAt.getTime() });
       }
-      for (const to of new Set([user.email, ...(normalized ? [user.recovery_email] : [])].filter((value): value is string => !!value))) {
+      for (const to of new Set((normalized ? [user.email, user.recovery_email] : [user.recovery_email]).filter((value): value is string => !!value))) {
         await transactionalMail(manager, jwtSecret, { to, subject: 'Alteração de e-mail de recuperação solicitada — Grifório', text: `Foi solicitada uma alteração do e-mail de recuperação. Se não reconhece a operação, cancele antes da confirmação: ${base}/confirmar-email-recuperacao#cancel=${cancel}\nO endereço atual continua válido até a confirmação.`, expiresAt: expiresAt.getTime() });
       }
       await this.audit(manager, userId, 'auth.recovery_email_requested');
       await manager.query('UPDATE users SET failed_login_attempts = 0, login_locked_until = NULL WHERE id = $1', [user.id]);
-      return { sent: true };
+      return { sent: true, confirmationDestination: normalized ? 'secondary' : 'primary', expiresAt: expiresAt.toISOString() };
     });
     if (!result) throw new UnauthorizedException('Senha, sessão ou código atual do autenticador inválido, ou conta temporariamente bloqueada.');
     return result;
@@ -68,13 +85,15 @@ export class RecoveryEmailService {
       const [pending]: { pending_recovery_email: string | null; recovery_email_expires_at: Date; recovery_email_auth_version: number; recovery_email_token_hash: string | null; recovery_email_cancel_hash: string | null }[] = await manager.query('SELECT pending_recovery_email, recovery_email_expires_at, recovery_email_auth_version, recovery_email_token_hash, recovery_email_cancel_hash FROM users WHERE id = $1', [user.id]);
       if (!pending || pending[column] !== recoveryHash(token) || !pending.recovery_email_expires_at || pending.recovery_email_expires_at.getTime() <= Date.now() || pending.recovery_email_auth_version !== user.auth_version) throw new UnauthorizedException('Confirmação inválida ou expirada.');
       if (!cancel && remove) {
+        // Recheck under the user lock: the role may have changed after the request.
+        if (isAdministrator(user.role as UserRole)) throw new ForbiddenException('Contas administrativas não podem remover o e-mail de recuperação. Confirme um novo endereço para substituir o atual.');
         if (pending.pending_recovery_email !== null || !user.recovery_email || !user.recovery_email_verified_at) throw new ConflictException('Solicitação de remoção inválida.');
         await manager.query(`UPDATE users SET recovery_email = NULL, recovery_email_verified_at = NULL, recovery_email_available_at = NULL,
           totp_pending_secret = NULL, totp_pending_expires_at = NULL WHERE id = $1`, [user.id]);
         await manager.query('UPDATE totp_recovery_grants SET consumed_at = now(), pending_secret = NULL WHERE user_id = $1 AND consumed_at IS NULL', [user.id]);
         const secret = this.config.getOrThrow<string>('JWT_SECRET');
         for (const to of new Set([user.email, user.recovery_email])) {
-          await transactionalMail(manager, secret, { to, subject: 'E-mail de recuperação removido — Grifório', text: 'O e-mail de recuperação foi removido. O autenticador continua ativo, mas a recuperação pelo e-mail não está disponível. Se não reconhece esta operação, contate o responsável pela plataforma.', expiresAt: Date.now() + 24 * 60 * 60_000 });
+          await transactionalMail(manager, secret, { to, subject: 'E-mail de recuperação removido — Grifório', text: 'O e-mail secundário de recuperação foi removido. A configuração do autenticador foi mantida. Guarde seus códigos reserva: sem acesso a eles e ao autenticador, será necessária uma análise de identidade pelo responsável pela plataforma. O uso do e-mail principal para recuperar 2FA exige aprovação assistida. Se não reconhece esta operação, contate o responsável pela plataforma.', expiresAt: Date.now() + 24 * 60 * 60_000 });
         }
       } else if (!cancel) {
         if (!pending.pending_recovery_email || pending.pending_recovery_email.toLowerCase() === user.email.toLowerCase()) throw new ConflictException('O e-mail de recuperação deve ser diferente do principal.');

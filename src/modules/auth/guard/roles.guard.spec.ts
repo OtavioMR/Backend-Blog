@@ -4,7 +4,7 @@ import { RolesGuard } from './roles.guard.js';
 import { UserRole } from '../../users/enums/user.enum.js';
 
 describe('RolesGuard', () => {
-  const context = (role: UserRole, totpEnabled = true) => ({ getHandler: () => ({}), getClass: () => ({}), switchToHttp: () => ({ getRequest: () => ({ user: { role, totpEnabled } }) }) }) as any;
+  const context = (role: UserRole, totpEnabled = true, emailVerified = true, recoveryEmailVerified = true) => ({ getHandler: () => ({}), getClass: () => ({}), switchToHttp: () => ({ getRequest: () => ({ user: { role, totpEnabled, emailVerified, recoveryEmailVerified } }) }) }) as any;
   it('admite ADMIN e SUPER_ADMIN em operações administrativas e rejeita leitores e autores', () => {
     const guard = new RolesGuard({ getAllAndOverride: vi.fn().mockReturnValue([UserRole.ADMIN]) } as any);
     expect(guard.canActivate(context(UserRole.ADMIN, true))).toBe(true);
@@ -35,5 +35,11 @@ describe('RolesGuard', () => {
     expect(guard.canActivate(context(UserRole.ADMIN, true))).toBe(true);
     expect(guard.canActivate(context(UserRole.AUTHOR, true))).toBe(true);
     expect(guard.canActivate(context(UserRole.READER, true))).toBe(true);
+  });
+  it.each([UserRole.ADMIN, UserRole.SUPER_ADMIN])('bloqueia %s sem ambos os e-mails verificados', role => {
+    const guard = new RolesGuard({ getAllAndOverride: vi.fn().mockReturnValue([UserRole.ADMIN]) } as any);
+    expect(() => guard.canActivate(context(role, true, false, true))).toThrow(ForbiddenException);
+    expect(() => guard.canActivate(context(role, true, true, false))).toThrow(ForbiddenException);
+    expect(guard.canActivate(context(role, true, true, true))).toBe(true);
   });
 });

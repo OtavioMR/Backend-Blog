@@ -46,7 +46,7 @@ export class TotpController {
   @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @ApiOperation({
     summary: 'Iniciar configuração do TOTP',
-    description: 'Exige a senha atual e e-mail de recuperação diferente do principal já confirmado. Retorna o segredo, a URI otpauth e o QR Code em DataURL. A configuração expira em dez minutos.',
+    description: 'Exige a senha atual. Para ADMIN e SUPER_ADMIN, exige também e-mail secundário de recuperação confirmado. Para READER e AUTHOR o secundário é opcional, independente do 2FA. Retorna o segredo, a URI otpauth e o QR Code em DataURL. A configuração expira em dez minutos.',
   })
   @ApiResponse({
     status: 200,
@@ -70,10 +70,11 @@ export class TotpController {
 
   @Post('enable')
   @HttpCode(200)
+  @Header('Cache-Control', 'no-store')
   @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @ApiOperation({
     summary: 'Confirmar e ativar TOTP',
-    description: 'Valida o código de seis dígitos do Google Authenticator e exige e-mail de recuperação confirmado. Ativa o 2FA e emite os códigos de recuperação de uso único.',
+    description: 'Valida o código de seis dígitos do novo autenticador. E-mail secundário confirmado obrigatório somente para ADMIN e SUPER_ADMIN. Ativa o 2FA, invalida sessões anteriores e emite códigos reserva de uso único, exibidos apenas agora e armazenados como hashes.',
   })
   @ApiResponse({
     status: 200,

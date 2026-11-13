@@ -71,9 +71,9 @@ export function ApiRefreshDoc() {
   return applyDecorators(
     ApiPublicRoute(),
     ApiOperation({
-      summary: 'Renovar par de tokens via cookie HTTP-Only',
+      summary: 'Renovar sessão legada (protocolo 1) via cookie HTTP-Only',
       description:
-        'Lê o refresh token do cookie HTTP-Only, valida a assinatura e compara o hash com o banco de dados. Realiza rotação automática. A reutilização de um token antigo revoga a sessão afetada, preservando os outros dispositivos. O cliente deve serializar as renovações para não reutilizar tokens em chamadas concorrentes.',
+        'Atende somente sessões de protocolo 1. Sessões V2 recebem 400 PROTOCOL_V2_REQUIRED sem rotação ou revogação, inclusive quando um cliente antigo apresenta cookie obsoleto. Para protocolo 1, valida a assinatura e compara o hash com o banco; token já obsoleto revoga condicionalmente o snapshot afetado. Atualização concorrente retorna 409 sem revogar o vencedor. O protocolo 1 não recupera resultados perdidos; novos clientes devem usar /auth/refresh/v2.',
     }),
     ApiResponse({
       status: 200,
@@ -94,7 +94,7 @@ export function ApiRefreshDoc() {
     }),
     ApiResponse({
       status: 400,
-      description: 'Requisição mal formatada.',
+      description: 'Requisição mal formatada ou sessão V2 (PROTOCOL_V2_REQUIRED).',
       type: BadRequestResponseDto,
     }),
     ApiResponse({
@@ -102,6 +102,10 @@ export function ApiRefreshDoc() {
       description:
         'Refresh token não fornecido no cookie, expirado, inválido ou reutilizado/revogado.',
       type: UnauthorizedResponseDto,
+    }),
+    ApiResponse({
+      status: 409,
+      description: 'A sessão mudou durante a renovação. Nenhum token é devolvido e a sessão vencedora não é revogada. O cliente deve manter verificação incerta, sem repetir automaticamente o refresh token antigo.',
     }),
     ApiResponse({
       status: 500,

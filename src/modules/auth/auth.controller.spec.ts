@@ -101,6 +101,7 @@ describe('AuthController', () => {
 
       expect(mockAuthService.refresh).toHaveBeenCalledWith(
         'valid-cookie-token',
+        true,
       );
       expect(res.cookie).toHaveBeenCalledWith(
         'refreshToken',
@@ -130,6 +131,7 @@ describe('AuthController', () => {
 
       expect(mockAuthService.refresh).toHaveBeenCalledWith(
         'valid-fallback-token',
+        true,
       );
       expect(result.access_token).toBe('new-access-123');
     });

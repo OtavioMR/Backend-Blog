@@ -16,7 +16,7 @@ describe.skipIf(process.env.RUN_DB_TESTS !== '1' || process.env.RUN_REDIS_TESTS 
     await runner.startTransaction();
     const db = { query: runner.query.bind(runner), transaction: runner.manager.transaction.bind(runner.manager) } as unknown as DataSource;
     vi.spyOn(nodemailer, 'createTransport').mockReturnValue({ sendMail, close: vi.fn() } as never);
-    const values: Record<string, string | number> = { MAIL_QUEUE_PREFIX: `test-${randomUUID()}`, REDIS_URL: 'redis://127.0.0.1:16379', SMTP_HOST: 'localhost', SMTP_PORT: 25, SMTP_USER: 'user', SMTP_PASS: 'pass', JWT_SECRET: 'outbox-test-secret' };
+    const values: Record<string, string | number> = { MAIL_QUEUE_PREFIX: `test-${randomUUID()}`, REDIS_URL: (process.env.TEST_REDIS_URL ?? 'redis://127.0.0.1:16379'), SMTP_HOST: 'localhost', SMTP_PORT: 25, SMTP_USER: 'user', SMTP_PASS: 'pass', JWT_SECRET: 'outbox-test-secret' };
     service = new MailQueueService({ get: (key: string, fallback: unknown) => values[key] ?? fallback, getOrThrow: (key: string) => values[key] } as ConfigService, db);
   });
   afterAll(async () => {

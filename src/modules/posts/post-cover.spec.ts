@@ -8,7 +8,7 @@ vi.mock('node:fs/promises', () => ({ mkdir: vi.fn(), writeFile: vi.fn(), unlink:
 import { writeFile, unlink } from 'node:fs/promises';
 
 describe('capa de artigo', () => {
-  const owner = { userId: 'author', role: UserRole.AUTHOR };
+  const owner = { userId: 'author', email: 'author@example.test', role: UserRole.AUTHOR };
   let repo: any;
   let builder: any;
   let service: PostsService;
@@ -27,7 +27,7 @@ describe('capa de artigo', () => {
   });
   it('rejeita imagens inválidas e usuários sem permissão', async () => {
     await expect(service.uploadCover('id', Buffer.from('invalid'), owner)).rejects.toBeInstanceOf(BadRequestException);
-    await expect(service.removeCover('id', { userId: 'other', role: UserRole.READER })).rejects.toBeInstanceOf(ForbiddenException);
+    await expect(service.removeCover('id', { userId: 'other', email: 'other@example.test', role: UserRole.READER })).rejects.toBeInstanceOf(ForbiddenException);
     repo.findOne.mockResolvedValue(null);
     await expect(service.removeCover('id', owner)).rejects.toBeInstanceOf(NotFoundException);
   });

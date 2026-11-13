@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { ModerationService } from './moderation.service.js';
 import { AppealStatus, AppealTargetType, ModerationAppeal } from './entities/moderation-appeal.entity.js';
-import { BadRequestException, ConflictException, ForbiddenException, NotFoundException } from '@nestjs/common';
+import { ConflictException, ForbiddenException } from '@nestjs/common';
 import { Post } from '../posts/entities/post.entity.js';
 import { Comment } from '../comments/entities/comment.entity.js';
 

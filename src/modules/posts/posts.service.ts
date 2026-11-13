@@ -27,10 +27,10 @@ import { CreatePostDto } from './dto/create-post.dto.js';
 import { UpdatePostDto } from './dto/update-post.dto.js';
 import { FindPostsQueryDto } from './dto/find-posts-query.dto.js';
 import type { PaginatedResult } from '../../common/interfaces/paginated-result.interface.js';
-import { PaginationQueryDto } from '../../common/dto/pagination-query.dto.js';
+import { OwnPostsQueryDto } from './dto/series.dto.js';
 import { isAdministrator, UserRole } from '../users/enums/user.enum.js';
 import type { AuthenticatedUser } from '../auth/interfaces/request-with-user.interface.js';
-import { ContentRating, AiTextDeclaration, AiCoverDeclaration } from './enums/post-governance.enum.js';
+import { ContentRating } from './enums/post-governance.enum.js';
 import { StorageService } from '../../common/storage/storage.service.js';
 import { isUserAdult } from '../../common/utils/age.util.js';
 
@@ -71,7 +71,7 @@ export class PostsService {
     const categorySlug = query?.categorySlug?.trim();
     const tagSlug = query?.tagSlug?.trim();
 
-    const base: FindOptionsWhere<Post> = { published: true, isActive: true };
+    const base: FindOptionsWhere<Post> = { published: true, isActive: true, moderationHidden: false };
     if (query?.rating) base.contentRating = query.rating;
     if (query?.aiText) base.aiTextDeclaration = query.aiText;
 
@@ -96,13 +96,27 @@ export class PostsService {
     if (tagSlug) base.tags = { slug: tagSlug };
     const cursorMode = query?.cursor !== undefined;
     const cursor = cursorMode && query.cursor !== 'start' ? decodeCursor(query.cursor!) : null;
-    if (search || cursor) base.id = Raw(
+    const standalone = query?.standalone === 'true';
+    if (search || cursor || standalone) base.id = Raw(
       (column) => [
         search ? `${column} IN (SELECT id FROM posts WHERE search_vector @@ websearch_to_tsquery('blog_portuguese'::regconfig, :searchTerm) OR search_text LIKE blog_search_text(:partialTerm) ESCAPE '\\')` : '',
         cursor ? `(${column.replace(/\.id$/, '.publishedAt')}, ${column}) < (CAST(:cursorTime AS timestamptz), CAST(:cursorId AS uuid))` : '',
+        standalone ? `${column} NOT IN (SELECT si.post_id FROM post_series_items si)` : '',
       ].filter(Boolean).join(' AND '),
       { ...(search ? { searchTerm: search, partialTerm: likePattern(search) } : {}), ...(cursor ? { cursorTime: cursor.timestamp, cursorId: cursor.id } : {}) },
     );
+    if (query?.discovery === 'true') {
+      base.author = { ...(author ? { name: matches(author, 'authorTerm') } : {}), isActive: true, role: In([UserRole.AUTHOR, UserRole.ADMIN, UserRole.SUPER_ADMIN]) };
+      const previousId = base.id;
+      // Keep discovery independent from search/cursor modes to preserve their existing ranking contracts.
+      if (!search && !cursorMode) base.id = Raw(column => `${column} NOT IN (
+        SELECT si.post_id FROM post_series_items si JOIN posts p ON p.id = si.post_id
+        WHERE EXISTS (SELECT 1 FROM post_series_items newer JOIN posts np ON np.id = newer.post_id
+          WHERE newer.series_id = si.series_id AND np.published = true AND np.is_active = true
+          AND np.deleted_at IS NULL AND np.moderation_hidden = false
+          AND (np.published_at, np.id) > (p.published_at, p.id)))`);
+      else base.id = previousId;
+    }
     const where = base;
 
     const options: FindManyOptions<Post> = {
@@ -177,6 +191,23 @@ export class PostsService {
     });
 
 
+    if (query?.discovery === 'true' && data.length) {
+      const seriesRows = await this.postsRepository.query(`SELECT si.post_id AS "postId", s.id, s.title,
+        s.description, s.cover_image AS "coverImage", s.ai_cover_declaration AS "aiCoverDeclaration",
+        u.id AS "authorId", u.name AS "authorName",
+        (SELECT count(*)::int FROM post_series_items x JOIN posts p ON p.id=x.post_id WHERE x.series_id=s.id AND p.published AND p.is_active AND p.deleted_at IS NULL AND NOT p.moderation_hidden AND p.ai_text_declaration IN ('HUMAN_WITH_AI','PARTIAL_AI','FULL_AI')) AS "aiTextCount",
+        (SELECT count(*)::int FROM post_series_items x JOIN posts p ON p.id=x.post_id
+          WHERE x.series_id=s.id AND p.published AND p.is_active AND p.deleted_at IS NULL AND NOT p.moderation_hidden) AS "publishedCount",
+        (SELECT CASE max(CASE p.content_rating WHEN '18+' THEN 18 WHEN '16+' THEN 16 WHEN '14+' THEN 14 WHEN '12+' THEN 12 WHEN '10+' THEN 10 ELSE 0 END)
+          WHEN 18 THEN '18+' WHEN 16 THEN '16+' WHEN 14 THEN '14+' WHEN 12 THEN '12+' WHEN 10 THEN '10+' ELSE 'LIVRE' END
+          FROM post_series_items x JOIN posts p ON p.id=x.post_id WHERE x.series_id=s.id AND p.published AND p.is_active AND p.deleted_at IS NULL AND NOT p.moderation_hidden) AS "contentRating"
+        FROM post_series_items si JOIN post_series s ON s.id=si.series_id JOIN users u ON u.id=s.author_id
+        WHERE si.post_id=ANY($1::uuid[]) AND u.is_active AND u.deleted_at IS NULL AND u.role IN ('AUTHOR', 'ADMIN', 'SUPER_ADMIN')`, [data.map(p => p.id)]);
+      for (const row of seriesRows) {
+        const post = data.find(p => p.id === row.postId);
+        if (post) Object.assign(post, { discoverySeries: { ...row, author: { id: row.authorId, name: row.authorName } } });
+      }
+    }
     if (cursorMode) {
       let nextCursor: string | null = null;
       if (hasMore && data.length) {
@@ -220,11 +251,25 @@ export class PostsService {
     return Promise.all(ranked.slice(0, 4).map(({ post }) => this.findById(post.id, user)));
   }
 
-  async findMine(authorId: string, query: PaginationQueryDto): Promise<PaginatedResult<Post>> {
+  private async attachPrivateSeries(posts: Post[]) {
+    if (!posts.length) return;
+    const rows = await this.postsRepository.query(`SELECT si.post_id AS "postId", s.id, s.title
+      FROM post_series_items si JOIN post_series s ON s.id = si.series_id WHERE si.post_id = ANY($1::uuid[])`, [posts.map(post => post.id)]);
+    for (const post of posts) {
+      const row = rows.find((item: { postId: string }) => item.postId === post.id);
+      Object.assign(post, { seriesContext: row ? { id: row.id, title: row.title } : null });
+    }
+  }
+
+  async findMine(authorId: string, query: OwnPostsQueryDto): Promise<PaginatedResult<Post>> {
     const page = query.page ?? 1;
     const limit = query.limit ?? 10;
     const [data, total] = await this.postsRepository.findAndCount({
-      where: { authorId, isActive: true },
+      where: { authorId, isActive: true,
+        ...(query.search?.trim() ? { title: Raw(column => `unaccent(${column}) ILIKE unaccent(:ownSearch) ESCAPE '\\'`, { ownSearch: likePattern(query.search.trim()) }) } : {}),
+        ...(query.status === 'published' ? { published: true } : query.status === 'draft' ? { published: false } : query.status === 'pending' ? { reviewStatus: 'PENDING' } : {}),
+        ...(query.kind && query.kind !== 'all' ? { id: Raw(column => `${column} ${query.kind === 'standalone' ? 'NOT IN' : 'IN'} (SELECT post_id FROM post_series_items)`) } : {}),
+      },
       relations: { author: true, categories: true, tags: true },
       select: {
         id: true, slug: true, title: true, content: true, excerpt: true, coverImage: true, publishedAt: true, scheduledAt: true, published: true, reviewStatus: true, commentsEnabled: true,
@@ -238,6 +283,7 @@ export class PostsService {
       skip: (page - 1) * limit,
       take: limit,
     });
+    await this.attachPrivateSeries(data);
     return { data: data.map(post => {
       Object.assign(post, { readingTimeMinutes: readingTimeMinutes(post.content ?? '') });
       delete (post as Partial<Post>).content;
@@ -340,7 +386,7 @@ export class PostsService {
         JOIN post_series s ON s.id = current_item.series_id
         JOIN users u ON u.id = s.author_id AND u.is_active = true AND u.deleted_at IS NULL AND u.role IN ('AUTHOR', 'ADMIN', 'SUPER_ADMIN')
         JOIN post_series_items item ON item.series_id = s.id
-        JOIN posts p ON p.id = item.post_id AND p.published = true AND p.is_active = true AND p.deleted_at IS NULL
+        JOIN posts p ON p.id = item.post_id AND p.published = true AND p.is_active = true AND p.deleted_at IS NULL AND p.moderation_hidden = false
         WHERE current_item.post_id = $1 ORDER BY item.position`, [post.id]);
       const index = rows.findIndex(row => row.postId === post.id);
       const neighbor = (row: typeof rows[number] | undefined) => row ? { id: row.postId, slug: row.slug } : null;
@@ -350,11 +396,12 @@ export class PostsService {
       } });
     }
 
+    if (isAuthor) await this.attachPrivateSeries([post]);
     return post;
   }
 
   async create(createPostDto: CreatePostDto, authorId: string): Promise<Post> {
-    const { categoryIds, tagNames, scheduledAt, ...postData } = createPostDto;
+    const { categoryIds, tagNames, scheduledAt, seriesId, ...postData } = createPostDto;
     const schedule = this.validateSchedule(scheduledAt, postData.published);
     postData.title = sanitizePlainText(postData.title);
     postData.content = sanitizePostContent(postData.content);
@@ -402,7 +449,16 @@ export class PostsService {
       post.slug = suffix === 1 ? baseSlug : `${baseSlug}-${suffix}`;
       if (await this.postsRepository.findOne({ where: { legacySlug: post.slug }, withDeleted: true, select: { id: true } })) continue;
       try {
-        savedPost = await this.postsRepository.save(post);
+        savedPost = seriesId ? await this.postsRepository.manager.transaction(async manager => {
+          const series = await manager.query('SELECT id, title FROM post_series WHERE id = $1 AND author_id = $2 FOR UPDATE', [seriesId, authorId]);
+          if (!series.length) throw new ForbiddenException('A série deve pertencer ao autor do artigo.');
+          const [count] = await manager.query('SELECT count(*)::int AS count, COALESCE(max(position), 0)::int AS position FROM post_series_items WHERE series_id = $1', [seriesId]);
+          if (count.count >= 100) throw new BadRequestException('A série já possui 100 capítulos.');
+          const created = await manager.getRepository(Post).save(post);
+          await manager.query('INSERT INTO post_series_items(series_id, post_id, position) VALUES ($1, $2, $3)', [seriesId, created.id, count.position + 1]);
+          await manager.query('UPDATE post_series SET updated_at = now() WHERE id = $1', [seriesId]);
+          return Object.assign(created, { seriesContext: { id: seriesId, title: series[0].title } });
+        }) : await this.postsRepository.save(post);
         break;
       } catch (error) {
         const dbError = error as { driverError?: { code?: string; constraint?: string } };

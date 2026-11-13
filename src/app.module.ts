@@ -47,6 +47,10 @@ import { StorageModule } from './common/storage/storage.module.js';
         username: configService.get<string>('DB_USER', 'postgres'),
         password: configService.get<string>('DB_PASSWORD', 'postgres'),
         database: configService.get<string>('DB_NAME', 'blog_db'),
+        ssl: configService.get<boolean>('DB_SSL', false) ? {
+          rejectUnauthorized: true,
+          ...(configService.get<string>('DB_SSL_CA') ? { ca: configService.getOrThrow<string>('DB_SSL_CA').replace(/\\n/g, '\n') } : {}),
+        } : false,
         autoLoadEntities: true,
         synchronize: false, // Mantido como false conforme planejado para usar migrations
       }),

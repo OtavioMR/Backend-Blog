@@ -1,4 +1,4 @@
-import { ApiProperty, OmitType } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional, OmitType } from '@nestjs/swagger';
 import { CategoryResponseDto } from './category-response.dto.js';
 import { TagResponseDto } from './tag-response.dto.js';
 import { PaginationMetaResponseDto } from './pagination-meta-response.dto.js';
@@ -33,6 +33,10 @@ export class PostSeriesNavigationDto {
 }
 
 export class PostResponseDto {
+  @ApiPropertyOptional({ type: 'object', nullable: true, description: 'Somente consulta privada do titular e criação de capítulo. Vínculo existente preservado no PATCH.', properties: { id: { type: 'string', format: 'uuid' }, title: { type: 'string' } } })
+  seriesContext?: { id: string; title: string } | null;
+  @ApiPropertyOptional({ type: 'object', description: 'Somente discovery=true: card da série representada por este artigo, com capa própria, autor, contagem pública, classificação máxima e quantidade de capítulos com IA.', properties: { id: { type: 'string', format: 'uuid' }, title: { type: 'string' }, description: { type: 'string' }, coverImage: { type: 'string', nullable: true }, aiCoverDeclaration: { type: 'string' }, publishedCount: { type: 'integer' }, contentRating: { type: 'string' }, aiTextCount: { type: 'integer' }, author: { type: 'object', properties: { id: { type: 'string' }, name: { type: 'string' } } } } })
+  discoverySeries?: object;
   @ApiProperty({ type: () => PostSeriesNavigationDto, nullable: true, required: false, description: 'Navegação entre artigos públicos da série; presente no detalhe de artigos publicados.' })
   series?: PostSeriesNavigationDto | null;
   @ApiProperty({

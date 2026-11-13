@@ -11,8 +11,8 @@ try {
     await manager.query("SELECT pg_advisory_xact_lock(hashtext('griforio.admin.roles'))");
     const owners: { count: string }[] = await manager.query("SELECT count(*)::text AS count FROM users WHERE role = 'SUPER_ADMIN' AND deleted_at IS NULL");
     if (Number(owners[0].count) !== 0) throw new Error('Já existe uma conta SUPER_ADMIN; bootstrap recusado.');
-    const rows: { id: string; role: string }[] = await manager.query('SELECT id, role FROM users WHERE id = $1 AND is_active = true AND email_verified = true AND deleted_at IS NULL FOR UPDATE', [userId]);
-    if (!rows.length) throw new Error('Conta ativa e verificada não encontrada.');
+    const rows: { id: string; role: string }[] = await manager.query('SELECT id, role FROM users WHERE id = $1 AND is_active = true AND email_verified = true AND totp_enabled = true AND recovery_email IS NOT NULL AND recovery_email_verified_at IS NOT NULL AND deleted_at IS NULL FOR UPDATE', [userId]);
+    if (!rows.length) throw new Error('A conta deve estar ativa, com 2FA e e-mails principal e secundário verificados antes do bootstrap.');
     await manager.query("UPDATE users SET role = 'SUPER_ADMIN', first_post_approved = true, auth_version = auth_version + 1, refresh_token_hash = NULL WHERE id = $1", [userId]);
     if (rows[0].role === 'AUTHOR') {
       const rejected: { id: string }[] = await manager.query("UPDATE posts SET review_status = 'REJECTED', review_note = 'A função de autoria foi alterada; a revisão foi encerrada.' WHERE author_id = $1 AND review_status = 'PENDING' RETURNING id", [userId]);

@@ -55,4 +55,22 @@ describe('environment validation', () => {
       'sensitive',
     );
   });
+
+  it('accepts explicit PostgreSQL TLS and an optional CA without disabling certificate verification', () => {
+    expect(validate({ ...valid, DB_SSL: 'true', DB_SSL_CA: 'provider-ca' })).toMatchObject({ DB_SSL: true, DB_SSL_CA: 'provider-ca' });
+    expect(validate({ ...valid, DB_SSL: 'false' }).DB_SSL).toBe(false);
+    expect(() => validate({ ...valid, DB_SSL: 'disable-verification' })).toThrow('DB_SSL');
+  });
+
+  it('requires HTTPS and distinct JWT secrets in production', () => {
+    const production = { ...valid, NODE_ENV: 'production', FRONTEND_URL: 'https://griforio.example' };
+    expect(validate(production).NODE_ENV).toBe('production');
+    expect(() => validate({ ...production, FRONTEND_URL: 'http://griforio.example' })).toThrow('HTTPS');
+    expect(() => validate({ ...production, JWT_REFRESH_SECRET: production.JWT_SECRET })).toThrow('distinct');
+  });
+
+  it('rejects a configured Blob driver without a token instead of silently using local disk', () => {
+    expect(() => validate({ ...valid, STORAGE_DRIVER: 'vercel-blob' })).toThrow('BLOB_READ_WRITE_TOKEN');
+    expect(validate({ ...valid, STORAGE_DRIVER: 'vercel-blob', BLOB_READ_WRITE_TOKEN: 'synthetic-token' }).STORAGE_DRIVER).toBe('vercel-blob');
+  });
 });

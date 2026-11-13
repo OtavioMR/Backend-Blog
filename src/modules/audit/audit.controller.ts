@@ -1,13 +1,13 @@
 import { Controller, Get, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiPropertyOptional, ApiResponse, ApiTags } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
-import { IsDateString, IsInt, IsOptional, IsString, IsUUID, Max, MaxLength, Min } from 'class-validator';
+import { Transform, Type } from 'class-transformer';
+import { IsBoolean, IsDateString, IsInt, IsOptional, IsString, IsUUID, Max, MaxLength, Min } from 'class-validator';
 import { Roles } from '../../common/decorators/roles.decorator.js';
 import { JwtAuthGuard } from '../auth/guard/jwt-auth.guard.js';
 import { RolesGuard } from '../auth/guard/roles.guard.js';
 import { UserRole } from '../users/enums/user.enum.js';
 import { AuditService } from './audit.service.js';
-class AuditQuery {
+export class AuditQuery {
   @ApiPropertyOptional({ default: 1, minimum: 1 }) @IsOptional() @Type(() => Number) @IsInt() @Min(1) page?: number;
   @ApiPropertyOptional({ default: 20, minimum: 1, maximum: 100 }) @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(100) limit?: number;
   @ApiPropertyOptional({ format: 'uuid' }) @IsOptional() @IsUUID() actorId?: string;
@@ -17,6 +17,15 @@ class AuditQuery {
   @ApiPropertyOptional({ description: 'Pesquisa por ação, responsável ou conteúdo afetado.', maxLength: 100 }) @IsOptional() @IsString() @MaxLength(100) search?: string;
   @ApiPropertyOptional({ format: 'date-time' }) @IsOptional() @IsDateString() from?: string;
   @ApiPropertyOptional({ format: 'date-time' }) @IsOptional() @IsDateString() to?: string;
+  @ApiPropertyOptional({ description: 'Incluir eventos de login e sessão (auth.session_created, auth.session_revoked). Padrão: false.', default: false })
+  @IsOptional()
+  @Transform(({ value }) => {
+    if (value === 'true' || value === true || value === '1') return true;
+    if (value === 'false' || value === false || value === '0') return false;
+    return value;
+  })
+  @IsBoolean()
+  includeSessions?: boolean;
 }
 @ApiTags('Auditoria') @ApiBearerAuth('JWT-auth')
 @UseGuards(JwtAuthGuard, RolesGuard) @Roles(UserRole.ADMIN)

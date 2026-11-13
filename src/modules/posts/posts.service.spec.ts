@@ -78,7 +78,7 @@ describe('PostsService', () => {
   it('salva a descrição escolhida e a preserva ao alterar o conteúdo', async () => {
     const created = await service.create({ title: 'Artigo', content: 'Conteúdo do artigo', excerpt: '<b>Apresentação</b>' }, 'autor');
     expect(created.excerpt).toBe('Apresentação');
-    mockPostsRepository.findOne.mockResolvedValue({ ...created, authorId: 'autor' });
+    mockPostsRepository.findOne.mockResolvedValue(created);
     const user = { userId: 'autor', role: UserRole.AUTHOR } as any;
     const updated = await service.update(created.id, { content: 'Outro conteúdo do artigo' }, user);
     expect(updated.excerpt).toBe('Apresentação');
@@ -112,7 +112,7 @@ describe('PostsService', () => {
 
       expect(mockPostsRepository.findAndCount).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: { published: true, isActive: true },
+          where: { published: true, isActive: true, moderationHidden: false },
         }),
       );
       expect(result.data).toHaveLength(2);
@@ -135,6 +135,7 @@ describe('PostsService', () => {
           where: {
             published: true,
             isActive: true,
+            moderationHidden: false,
             categories: { id: 'cat-uuid-1', isActive: true },
           },
         }),
@@ -151,6 +152,7 @@ describe('PostsService', () => {
           where: {
             published: true,
             isActive: true,
+            moderationHidden: false,
             categories: { slug: 'tecnologia', isActive: true },
           },
         }),
@@ -161,7 +163,7 @@ describe('PostsService', () => {
       mockPostsRepository.findAndCount.mockResolvedValue([[], 0]);
       await service.findAll({ search: ' Nest%_ ', author: ' José ', categoryId: 'id', categorySlug: 'ignorado', tagSlug: 'tag', page: 2, limit: 5 });
       const options = mockPostsRepository.findAndCount.mock.calls[0][0];
-      expect(options.where).toMatchObject({ published: true, isActive: true, categories: { id: 'id', isActive: true }, tags: { slug: 'tag' } });
+      expect(options.where).toMatchObject({ published: true, isActive: true, moderationHidden: false, categories: { id: 'id', isActive: true }, tags: { slug: 'tag' } });
       expect(options.where.author.name.objectLiteralParameters).toEqual({ authorTerm: '%José%' });
       expect(options.where.id.objectLiteralParameters).toEqual({ searchTerm: 'Nest%_', partialTerm: '%Nest\\%\\_%' });
       expect(options.skip).toBe(5);
@@ -181,9 +183,9 @@ describe('PostsService', () => {
     it('ignora texto e autor vazios e retorna paginação vazia', async () => {
       mockPostsRepository.findAndCount.mockResolvedValue([[], 0]);
       const result = await service.findAll({ search: '  ', author: ' ' });
-      expect(mockPostsRepository.findAndCount.mock.calls[0][0].where).toEqual({ published: true, isActive: true });
+      expect(mockPostsRepository.findAndCount.mock.calls[0][0].where).toEqual({ published: true, isActive: true, moderationHidden: false });
       expect(result.data).toEqual([]);
-      expect(result.meta.total).toBe(0);
+      expect(result.meta).toHaveProperty('total', 0);
     });
 
     it('combina nome de categoria com autor', async () => {
@@ -197,7 +199,7 @@ describe('PostsService', () => {
     it('ignora nome de categoria vazio', async () => {
       mockPostsRepository.findAndCount.mockResolvedValue([[], 0]);
       await service.findAll({ categoryName: '  ' });
-      expect(mockPostsRepository.findAndCount.mock.calls[0][0].where).toEqual({ published: true, isActive: true });
+      expect(mockPostsRepository.findAndCount.mock.calls[0][0].where).toEqual({ published: true, isActive: true, moderationHidden: false });
     });
   });
 
@@ -431,6 +433,22 @@ describe('PostsService', () => {
       expect(adult.isRestricted).toBe(true);
       expect(adult.coverImage).toBeNull();
       expect(adult.excerpt).toContain('classificação indicativa 18+');
+    });
+
+    it('filtra apenas artigos avulsos quando standalone=true', async () => {
+      mockPostsRepository.findAndCount.mockResolvedValue([[], 0]);
+
+      await service.findAll({
+        page: 1,
+        limit: 6,
+        authorId: '036c1058-4c77-4e95-9d0a-91c370dc3054',
+        standalone: 'true',
+      });
+
+      const call = mockPostsRepository.findAndCount.mock.calls.at(-1)?.[0];
+      expect(call.where.authorId).toBe('036c1058-4c77-4e95-9d0a-91c370dc3054');
+      expect(call.where.id).toBeDefined();
+      expect(call.where.id.getSql('post.id')).toContain('NOT IN (SELECT si.post_id FROM post_series_items si)');
     });
   });
 });

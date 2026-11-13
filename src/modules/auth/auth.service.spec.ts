@@ -2,8 +2,9 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { Test, TestingModule } from '@nestjs/testing';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
-import { BadRequestException, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, ConflictException, UnauthorizedException } from '@nestjs/common';
 import bcrypt from 'bcrypt';
+import { createHash } from 'node:crypto';
 
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { AuthSession } from './entities/session.entity.js';
@@ -63,6 +64,8 @@ describe('AuthService', () => {
     };
 
     mockSessions = { save: vi.fn(), update: vi.fn().mockResolvedValue({ affected: 1 }), delete: vi.fn().mockResolvedValue({ affected: 1 }), find: vi.fn() };
+    mockSessions.findOne = vi.fn().mockResolvedValue({ id: 'session-1', authVersion: 0,
+      tokenHash: createHash('sha256').update('valid.jwt.refreshToken').digest('hex'), expiresAt: new Date(Date.now() + 60000) });
     const manager = { getRepository: () => mockSessions, query: vi.fn() };
     mockSessions.manager = { transaction: (callback: any) => callback(manager) };
     mockMailService = {
@@ -140,13 +143,17 @@ describe('AuthService', () => {
         'user@example.com',
       );
       expect(mockSessions.save).toHaveBeenCalledWith(expect.objectContaining({ userId: 'uuid-123' }));
-      expect(result).toEqual({
+      expect(result).toEqual(expect.objectContaining({
         accessToken: 'access-token-123',
         refreshToken: 'refresh-token-456',
         tokenType: 'Bearer',
         expiresIn: 900,
         refreshExpiresIn: 604800,
-      });
+        refreshGeneration: 0,
+        refreshProtocol: 2,
+        sessionId: expect.any(String),
+        recoveryProof: expect.any(String),
+      }));
     });
 
     it('retorna desafio 2FA quando o usuario possui totpEnabled e nao informou codigo', async () => {
@@ -187,13 +194,17 @@ describe('AuthService', () => {
         code: '123456',
       });
 
-      expect(result).toEqual({
+      expect(result).toEqual(expect.objectContaining({
         accessToken: 'access-token-123',
         refreshToken: 'refresh-token-456',
         tokenType: 'Bearer',
         expiresIn: 900,
         refreshExpiresIn: 604800,
-      });
+        refreshGeneration: 0,
+        refreshProtocol: 2,
+        sessionId: expect.any(String),
+        recoveryProof: expect.any(String),
+      }));
     });
 
     it('should throw UnauthorizedException when user is not found', async () => {
@@ -292,11 +303,44 @@ describe('AuthService', () => {
 
     it('rejects a reused refresh token', async () => {
       mockJwtService.verifyAsync.mockResolvedValue({ sub: 'user-1', sid: 'session-1' });
-      mockUsersService.findByIdForAuth.mockResolvedValue({ id: 'user-1', isActive: true });
-      mockSessions.update.mockResolvedValue({ affected: 0 });
+      mockUsersService.findByIdForAuth.mockResolvedValue({ id: 'user-1', isActive: true, authVersion: 0 });
+      mockSessions.findOne.mockResolvedValue({ id: 'session-1', tokenHash: 'already-rotated-hash', authVersion: 0, expiresAt: new Date(Date.now() + 60000) });
       mockJwtService.signAsync.mockResolvedValue('signed-token');
       await expect(service.refresh(rawRefreshToken)).rejects.toThrow(UnauthorizedException);
-      expect(mockSessions.delete).toHaveBeenCalledWith({ id: 'session-1', userId: 'user-1' });
+      expect(mockSessions.delete).toHaveBeenCalledWith(expect.objectContaining({ id: 'session-1', userId: 'user-1', tokenHash: 'already-rotated-hash', authVersion: 0 }));
+      expect(mockSessions.update).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      null,
+      { tokenHash: 'other', authVersion: 0, expiresAt: new Date(0) },
+      { tokenHash: 'other', authVersion: 1, expiresAt: new Date(Date.now() + 60000) },
+    ])('does not delete a missing, expired or invalid-version session: %j', async session => {
+      mockJwtService.verifyAsync.mockResolvedValue({ sub: 'user-1', sid: 'session-1' });
+      mockUsersService.findByIdForAuth.mockResolvedValue({ id: 'user-1', isActive: true, authVersion: 0 });
+      mockSessions.findOne.mockResolvedValue(session);
+      await expect(service.refresh(rawRefreshToken)).rejects.toThrow(UnauthorizedException);
+      expect(mockSessions.delete).not.toHaveBeenCalled();
+      expect(mockSessions.update).not.toHaveBeenCalled();
+      expect(mockJwtService.signAsync).not.toHaveBeenCalled();
+    });
+
+    it('rejects a lost compare-and-swap without revoking the winner', async () => {
+      mockJwtService.verifyAsync.mockResolvedValue({ sub: 'user-1', sid: 'session-1' });
+      mockUsersService.findByIdForAuth.mockResolvedValue({ id: 'user-1', isActive: true, authVersion: 0 });
+      mockJwtService.signAsync.mockResolvedValue('candidate-token');
+      mockSessions.update.mockResolvedValue({ affected: 0 });
+      await expect(service.refresh(rawRefreshToken)).rejects.toThrow(ConflictException);
+      expect(mockSessions.delete).not.toHaveBeenCalled();
+    });
+
+    it('propagates database failure without deleting the session', async () => {
+      mockJwtService.verifyAsync.mockResolvedValue({ sub: 'user-1', sid: 'session-1' });
+      mockUsersService.findByIdForAuth.mockResolvedValue({ id: 'user-1', isActive: true, authVersion: 0 });
+      mockSessions.findOne.mockRejectedValue(new Error('database unavailable'));
+      await expect(service.refresh(rawRefreshToken)).rejects.toThrow('database unavailable');
+      expect(mockSessions.delete).not.toHaveBeenCalled();
+      expect(mockSessions.update).not.toHaveBeenCalled();
     });
 
     it('should rotate tokens and update stored hash when refresh token is valid', async () => {
@@ -307,6 +351,7 @@ describe('AuthService', () => {
         role: UserRole.READER,
         isActive: true,
         refreshTokenHash: 'stored-hash',
+        authVersion: 0,
       });
       vi.spyOn(bcrypt, 'compare').mockImplementation(async () => true);
       vi.spyOn(bcrypt, 'hash').mockImplementation(async () => 'new-rotated-hash');
