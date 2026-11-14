@@ -189,6 +189,7 @@ export class PostsService {
     if (query?.discovery === 'true' && data.length) {
       const seriesRows = await this.postsRepository.query(`SELECT si.post_id AS "postId", s.id, s.title,
         s.description, s.cover_image AS "coverImage", s.ai_cover_declaration AS "aiCoverDeclaration",
+        (SELECT p.cover_image FROM post_series_items x JOIN posts p ON p.id=x.post_id WHERE x.series_id=s.id AND p.published AND p.is_active AND p.deleted_at IS NULL AND NOT p.moderation_hidden AND p.cover_image IS NOT NULL ORDER BY x.position LIMIT 1) AS "fallbackCoverImage",
         u.id AS "authorId", u.name AS "authorName",
         (SELECT count(*)::int FROM post_series_items x JOIN posts p ON p.id=x.post_id WHERE x.series_id=s.id AND p.published AND p.is_active AND p.deleted_at IS NULL AND NOT p.moderation_hidden AND p.ai_text_declaration IN ('HUMAN_WITH_AI','PARTIAL_AI','FULL_AI')) AS "aiTextCount",
         (SELECT count(*)::int FROM post_series_items x JOIN posts p ON p.id=x.post_id
@@ -345,13 +346,13 @@ export class PostsService {
     post.tags = post.tags || [];
     post.title = sanitizePlainText(post.title);
 
-    const isRestricted = false;
+    const isRestricted = post.contentRating === '18+' && !user;
     Object.assign(post, {
       readingTimeMinutes: readingTimeMinutes(post.content ?? ''),
       isRestricted,
     });
 
-    post.content = sanitizePostContent(post.content);
+    post.content = isRestricted ? null as unknown as string : sanitizePostContent(post.content);
     post.excerpt = sanitizePlainText(post.excerpt ?? '');
 
     if (post.published) {

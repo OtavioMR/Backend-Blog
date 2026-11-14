@@ -362,8 +362,8 @@ describe('PostsService', () => {
       });
 
       const result = await service.findById('post-18', null);
-      expect((result as any).isRestricted).toBe(false);
-      expect(result.content).toContain('Cenas explícitas');
+      expect((result as any).isRestricted).toBe(true);
+      expect(result.content).toBeNull();
       expect(result.coverImage).toBe('/uploads/covers/maduro.webp');
       expect(result.excerpt).toBe('Prévia detalhada de cenas fortes.');
     });

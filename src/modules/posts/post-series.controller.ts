@@ -12,6 +12,7 @@ import { PostSeriesService } from './post-series.service.js';
 
 class SeriesResponse {
   @ApiProperty({ nullable: true, example: '/uploads/post-covers/550e8400-e29b-41d4-a716-446655440000.webp' }) coverImage: string | null;
+  @ApiPropertyOptional({ nullable: true, description: 'Primeira capa de capítulo disponível para visualização privada quando a série não tem capa própria.' }) fallbackCoverImage?: string | null;
   @ApiProperty({ enum: ['NONE', 'HUMAN_OR_PHOTO', 'AI_GENERATED', 'HYBRID'] }) aiCoverDeclaration: string;
   @ApiPropertyOptional({ description: 'Total de capítulos ativos; somente consulta privada.' }) chapterCount?: number;
   @ApiPropertyOptional({ description: 'Total de capítulos publicados visíveis.' }) publishedCount?: number;
@@ -26,6 +27,7 @@ class SeriesResponse {
   @ApiProperty({ format: 'date-time' }) updatedAt: Date;
 }
 class SeriesPost {
+  @ApiPropertyOptional({ nullable: true, description: 'Capa do capítulo, quando disponível.' }) coverImage?: string | null;
   @ApiProperty({ format: 'uuid' }) id: string;
   @ApiProperty({ example: 'meu-artigo' }) slug: string;
   @ApiProperty({ example: 'Meu artigo' }) title: string;
