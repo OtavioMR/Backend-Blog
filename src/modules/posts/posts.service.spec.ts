@@ -347,7 +347,7 @@ describe('PostsService', () => {
   });
 
   describe('Proteção de conteúdo 18+ e Classificação Indicativa', () => {
-    it('redige corpo, capa e prévia de artigo 18+ para visitante não autenticado', async () => {
+    it('entrega corpo, capa e prévia de artigo 18+ para visitante não autenticado', async () => {
       mockPostsRepository.findOne.mockResolvedValue({
         id: 'post-18',
         title: 'Conto Maduro',
@@ -362,10 +362,10 @@ describe('PostsService', () => {
       });
 
       const result = await service.findById('post-18', null);
-      expect((result as any).isRestricted).toBe(true);
-      expect(result.content).toBeNull();
-      expect(result.coverImage).toBeNull();
-      expect(result.excerpt).toContain('classificação indicativa 18+');
+      expect((result as any).isRestricted).toBe(false);
+      expect(result.content).toContain('Cenas explícitas');
+      expect(result.coverImage).toBe('/uploads/covers/maduro.webp');
+      expect(result.excerpt).toBe('Prévia detalhada de cenas fortes.');
     });
 
     it('entrega conteúdo integral de artigo 18+ para autor ou adulto verificado', async () => {
@@ -390,7 +390,7 @@ describe('PostsService', () => {
       expect(result.coverImage).toBe('/uploads/covers/maduro.webp');
     });
 
-    it('redige capa e prévia de artigos 18+ na listagem pública (findAll)', async () => {
+    it('exibe capa e prévia de artigos 18+ na listagem pública (findAll)', async () => {
       mockPostsRepository.findAndCount.mockResolvedValue([
         [
           {
@@ -430,9 +430,9 @@ describe('PostsService', () => {
       expect(regular.excerpt).toBe('Prévia normal');
 
       const adult = result.data[1];
-      expect(adult.isRestricted).toBe(true);
-      expect(adult.coverImage).toBeNull();
-      expect(adult.excerpt).toContain('classificação indicativa 18+');
+      expect(adult.isRestricted).toBe(false);
+      expect(adult.coverImage).toBe('/uploads/covers/adulto.webp');
+      expect(adult.excerpt).toBe('Prévia com conteúdo potencialmente sensível');
     });
 
     it('filtra apenas artigos avulsos quando standalone=true', async () => {
