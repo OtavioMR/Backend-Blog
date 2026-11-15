@@ -1,3 +1,4 @@
+import { randomUUID as createRunId } from 'node:crypto';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { createHmac } from 'node:crypto';
 import { Test } from '@nestjs/testing';
@@ -17,6 +18,7 @@ function code(secret: string, counter: number) {
   const input = Buffer.alloc(8); input.writeBigUInt64BE(BigInt(counter)); const mac = createHmac('sha1', Buffer.from(bytes)).update(input).digest(); const offset = mac[19] & 15;
   return String((mac.readUInt32BE(offset) & 0x7fffffff) % 1000000).padStart(6, '0');
 }
+process.env.RATE_LIMIT_NAMESPACE = `e2e-${createRunId()}`;
 describe('Social authentication', () => {
   let app: any, users: any, audits: any, id: string, newUserId: string, token: string;
   const previous = { id: process.env.GOOGLE_CLIENT_ID, secret: process.env.GOOGLE_CLIENT_SECRET, callback: process.env.GOOGLE_CALLBACK_URL, totp: process.env.TOTP_ENCRYPTION_KEY, githubId: process.env.GITHUB_CLIENT_ID, githubSecret: process.env.GITHUB_CLIENT_SECRET, githubCallback: process.env.GITHUB_CALLBACK_URL };

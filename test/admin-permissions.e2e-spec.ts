@@ -1,3 +1,4 @@
+import { randomUUID as createRunId } from 'node:crypto';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { createHmac, randomUUID } from 'node:crypto';
 import { Test } from '@nestjs/testing';
@@ -19,6 +20,7 @@ function totp(secret: string, counter: number) {
   return String((hash.readUInt32BE(offset) & 0x7fffffff) % 1_000_000).padStart(6, '0');
 }
 
+process.env.RATE_LIMIT_NAMESPACE = `e2e-${createRunId()}`;
 describe('Administração e privilégios', () => {
   let app: any, users: any, audits: any;
   const ids: string[] = [], suffix = randomUUID(), password = 'Password123!';

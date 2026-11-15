@@ -1,3 +1,4 @@
+import { randomUUID as createRunId } from 'node:crypto';
 import { Test } from '@nestjs/testing';
 import { ValidationPipe } from '@nestjs/common';
 import { NestExpressApplication } from '@nestjs/platform-express';
@@ -14,6 +15,7 @@ import { getStorageToken } from '@nestjs/throttler';
 const request = supertest;
 let png: Buffer;
 
+process.env.RATE_LIMIT_NAMESPACE = `e2e-${createRunId()}`;
 describe('Comentários e foto: fluxo completo', () => {
   let app: NestExpressApplication;
   let db: DataSource;

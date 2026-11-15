@@ -119,10 +119,12 @@ export class EnvironmentVariables {
   @Matches(/\S/)
   SMTP_FROM: string;
 
-  @IsUrl({ require_protocol: true, require_tld: false, protocols: ['redis', 'rediss'] })
-  @Matches(/^rediss?:\/\/[^/?#]+(?:\/\d+)?$/)
-  REDIS_URL = 'redis://127.0.0.1:6379';
+  @IsString()
+  @Matches(/^[A-Za-z0-9._-]{1,128}$/)
+  MAIL_QUEUE_NAME = 'default';
 
+  @IsString()
+  TRUST_PROXY_CIDRS = '';
   @IsOptional()
   @IsString()
   CONTACT_SUPPORT_EMAIL = 'suporte@griforio.com.br';

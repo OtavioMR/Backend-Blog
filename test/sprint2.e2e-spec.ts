@@ -1,3 +1,4 @@
+import { randomUUID as createRunId } from 'node:crypto';
 import { PostSchedulerService } from '../src/modules/posts/post-scheduler.service.js';
 import { beforeAll, afterAll, describe, expect, it, vi } from 'vitest';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
@@ -8,6 +9,7 @@ import { randomUUID } from 'node:crypto';
 import { AppModule } from '../src/app.module.js';
 import { MailService } from '../src/modules/mail/mail.service.js';
 
+process.env.RATE_LIMIT_NAMESPACE = `e2e-${createRunId()}`;
 describe('Sprint 2 with PostgreSQL', () => {
   let app: INestApplication;
   let db: DataSource;

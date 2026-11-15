@@ -1,3 +1,5 @@
+> **Registro histórico anterior à refatoração de 14/11/2026.** A infraestrutura e as evidências abaixo descrevem a versão anterior. Operação vigente: [arquitetura PostgreSQL](POSTGRES_ARCHITECTURE.md); [validação atual](POSTGRES_VALIDATION.md).
+
 # Auditoria da versão 1.0.0
 
 Data: 2 de novembro de 2026. Escopo: 55 issues originais, issue adicional #57, rastreabilidade da #56, código local, testes, migrations, configuração e execução Docker. As issues foram consultadas no GitHub; fechamento e sincronização acompanham esta entrega.

@@ -1,3 +1,5 @@
+> **Registro histórico anterior à refatoração de 14/11/2026.** A infraestrutura e as evidências abaixo descrevem a versão anterior. Operação vigente: [arquitetura PostgreSQL](POSTGRES_ARCHITECTURE.md); [validação atual](POSTGRES_VALIDATION.md).
+
 # Recuperação de acesso: implementação e validação real
 
 Data: 11/11/2026. Alterações locais no backend e no frontend. Sem commits, push ou implantação externa.

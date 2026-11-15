@@ -1,3 +1,5 @@
+> **Atualização 14/11/2026:** sessões administrativas cifradas, fila persistente e limites compartilhados usam PostgreSQL. [Arquitetura atual](docs/POSTGRES_ARCHITECTURE.md); [validação](docs/POSTGRES_VALIDATION.md). Registros anteriores de infraestrutura são históricos.
+
 # Blog API — Documentação Técnica Completa e Guia de Integração Frontend
 
 Recuperação de autenticador perdido: consulte o [procedimento de recuperação assistida e de emergência](docs/TOTP_RECOVERY.md), incluindo autorizações com expiração, confirmação do novo fator e o comando de operação no servidor.
@@ -6,7 +8,7 @@ Para ativar o 2FA, o titular precisa cadastrar e confirmar um e-mail de recupera
 
 > Para as alterações administrativas mais recentes, incluindo SUPER_ADMIN, TOTP para mudanças de função e incompatibilidades do PATCH de usuários, consulte [README-ADMIN.md](README-ADMIN.md). Em caso de divergência com seções anteriores, esse contrato prevalece.
 
-API RESTful em **NestJS 11 + TypeScript**, **TypeORM + PostgreSQL** e **Redis** para plataforma editorial e de blog multiusuário com controle de acesso baseado em papéis (`READER`, `AUTHOR`, `ADMIN`), fluxo de revisão editorial do primeiro artigo, autenticação JWT com rotação de refresh token em cookie `HttpOnly`, autenticação em dois fatores (TOTP), login social OAuth2 (Google e GitHub), agendamento de publicações, revisões de artigos, séries, coleções salvas, comentários aninhados, notificações, newsletter (double opt-in), denúncias, moderação administrativa, métricas e trilha de auditoria.
+API RESTful em **NestJS 12 + TypeScript**, **TypeORM + PostgreSQL** para plataforma editorial e de blog multiusuário com controle de acesso baseado em papéis (`READER`, `AUTHOR`, `ADMIN`), fluxo de revisão editorial do primeiro artigo, autenticação JWT com rotação de refresh token em cookie `HttpOnly`, autenticação em dois fatores (TOTP), login social OAuth2 (Google e GitHub), agendamento de publicações, revisões de artigos, séries, coleções salvas, comentários aninhados, notificações, newsletter (double opt-in), denúncias, moderação administrativa, métricas e trilha de auditoria.
 
 ---
 
@@ -62,7 +64,7 @@ Principais características arquiteturais implementadas no código:
 - **Serialização padronizada de datas:** `configureDateSerialization()` em `src/common/utils/date-serializer.ts` sobrescreve `Date.prototype.toJSON` para emitir strings ISO 8601 com offset explícito do fuso horário configurado em `APP_TIMEZONE` (padrão `America/Sao_Paulo`, ex.: `2026-04-19T14:30:00.000-03:00`).
 - **Validação estrita de entrada:** `ValidationPipe` global configurado com `whitelist: true`, `forbidNonWhitelisted: true` e `transform: true`. Qualquer propriedade extra não declarada no DTO causa erro `400 Bad Request` (`property X should not exist`).
 - **Sanitização de conteúdo:** `sanitizePlainText()` remove qualquer HTML de campos textuais simples (títulos, nomes, bios, comentários, categorias, tags) e `sanitizePostContent()` permite apenas um subconjunto seguro de tags HTML (`b`, `i`, `em`, `strong`, `u`, `s`, `p`, `br`, `ul`, `ol`, `li`, `blockquote`, `code`, `pre`, `h1`-`h6`, `a`, `hr`) com atributos seguros e protocolos restritos (`http`, `https`, `mailto`).
-- **Cache público em Redis:** `PublicCacheInterceptor` (`src/common/public-cache.interceptor.ts`) faz cache de requisições `GET` anônimas (sem headers `Authorization` ou `Cookie`) para `/api/v1/posts`, `/api/v1/categories` e `/api/v1/tags` por **60 segundos** em Redis e invalida todas as chaves `public-cache:*` automaticamente após qualquer requisição mutante (`POST`, `PATCH`, `PUT`, `DELETE`).
+- **Consultas públicas diretas:** listagens, categorias e tags consultam PostgreSQL sem cache distribuído, com as regras atuais de visibilidade.
 - **Rate Limiting global e por rota:** `ThrottlerGuard` global aplica **100 requisições por minuto por IP**, com limites mais restritivos via `@Throttle()` em rotas sensíveis (login, cadastro/verificação, comentários, curtidas, denúncias, recuperação de senha, TOTP, OAuth).
 - **Trabalhadores em background (Cron / Outbox):**
   - `PostSchedulerService`: executa a cada minuto (`CronExpression.EVERY_MINUTE`) publicando artigos cujo `scheduledAt <= NOW()` (desde que o autor tenha `firstPostApproved = true` ou seja `ADMIN`) e enfileirando notificações para seguidores e assinantes da newsletter.
@@ -77,7 +79,7 @@ Principais características arquiteturais implementadas no código:
 | Runtime & Framework | Node.js >= 20 + NestJS (`@nestjs/common`, `@nestjs/core`, `@nestjs/platform-express`) | `^11.0.1` | Servidor HTTP REST, injeção de dependência, guards, interceptors e pipes |
 | Linguagem | TypeScript | `^5.7.3` | Tipagem estática no backend e contratos compartilhados |
 | ORM & Banco de Dados | TypeORM (`typeorm`, `@nestjs/typeorm`) + PostgreSQL (`pg`) | `^0.3.28` / `^8.19.0` | Persistência relacional, migrations, constraints e busca full-text (`blog_portuguese` + `unaccent`) |
-| Cache & Rate Limit | Redis (`ioredis`) + `@nestjs/throttler` | `^5.10.1` / `^6.5.0` | Cache público de listagens/artigos e controle de taxa de requisições |
+| Coordenação & Rate Limit | PostgreSQL + `@nestjs/throttler` | — | Sessões BFF, fila cifrada, contadores e limites compartilhados |
 | Autenticação & Segurança | `@nestjs/jwt`, `passport-jwt`, `bcrypt`, `helmet`, `cookie-parser` | `^11.0.2` / `^4.0.1` / `^6.0.0` / `^8.1.0` | Access Token JWT, hash de senhas/tokens, headers HTTP seguros e cookies `HttpOnly` |
 | Processamento de Imagens | `multer` + `sharp` | `^2.1.1` / `^0.34.5` | Upload `multipart/form-data`, validação de assinatura binária, redimensionamento e conversão para WebP |
 | Agendamento & Saúde | `@nestjs/schedule`, `@nestjs/terminus` | `^6.1.1` / `^11.1.1` | Publicação agendada de artigos, fila de e-mails e health check do banco |
@@ -90,7 +92,7 @@ Principais características arquiteturais implementadas no código:
 ## 3. Configuração do ambiente
 
 ### Pré-requisitos
-- **Docker** e **Docker Compose** (recomendado para subir PostgreSQL 15, Redis 7 e a API)
+- **Docker** e **Docker Compose** (recomendado para subir PostgreSQL 16 e a API)
 - **Node.js 20+** e **npm** (para execução local fora de container ou execução do frontend)
 
 ### Passo 1 — Configurar variáveis de ambiente do Backend
@@ -106,7 +108,7 @@ Preencha obrigatoriamente `DB_PASSWORD`, `JWT_SECRET` (mínimo de 32 caracteres)
 ### Passo 2 — Executar com Docker Compose (Recomendado)
 
 ```bash
-# Construir e iniciar PostgreSQL, Redis, pgAdmin e a API NestJS
+# Construir e iniciar PostgreSQL e a API NestJS
 docker compose up --build -d
 
 # Acompanhar os logs da API
@@ -117,7 +119,7 @@ Ao iniciar, o container `api` executa `sh ./scripts/start-prod.sh`, que compila/
 
 ### Passo 3 — Executar localmente em modo de desenvolvimento (Alternativa)
 
-Caso queira rodar apenas o banco e o Redis no Docker e a API localmente:
+Caso queira rodar apenas o banco no Docker e a API localmente:
 
 ```powershell
 npm.cmd install
@@ -199,10 +201,6 @@ npm.cmd run dev -- -p 5173
 | `DB_SSL_REJECT_UNAUTHORIZED` | Não | `true` | Quando `DB_SSL=true`, controla `rejectUnauthorized` no certificado TLS do banco. |
 | `JWT_SECRET` | Sim | — | Segredo HMAC do JWT e de tokens internos (TOTP temporário, OAuth state/challenge, dedupe de views). **Mínimo de 32 caracteres**. Rejeita valores conhecidos de exemplo. |
 | `JWT_EXPIRES_IN` | Não | `15m` | Tempo de expiração do Access Token JWT (formato `^\d+(s|m|h|d)$`, ex.: `15m`, `1h`). |
-| `REDIS_HOST` | Não | `localhost` | Host do servidor Redis usado pelo `PublicCacheService`. |
-| `REDIS_PORT` | Não | `6379` | Porta TCP do servidor Redis (`1` a `65535`). |
-| `REDIS_PASSWORD` | Não | `undefined` | Senha opcional para autenticação no Redis. |
-| `REDIS_DB` | Não | `0` | Índice do banco lógico Redis (`>= 0`). |
 | `SMTP_HOST` | Condicional | `undefined` | Host do servidor SMTP. Se definido, exige `SMTP_PORT` e `MAIL_FROM`. Sem `SMTP_HOST`, os e-mails são registrados no log da aplicação. |
 | `SMTP_PORT` | Condicional | `undefined` | Porta do servidor SMTP (`1` a `65535`). Obrigatória quando `SMTP_HOST` está presente. |
 | `SMTP_SECURE` | Não | `false` | Define TLS implícito no SMTP (`true` normalmente para porta 465). |
@@ -794,7 +792,7 @@ Controller: `src/modules/users/users.controller.ts`
 Controller: `src/modules/posts/posts.controller.ts`
 
 #### `GET /api/v1/posts`
-- **Descrição:** Lista artigos públicos (`published: true`, `isActive: true`). Não retorna o campo `content` para economizar banda, mas calcula e retorna `readingTimeMinutes` (estimado a 200 palavras/minuto, mínimo 1). Cacheada em Redis por 60s para requisições anônimas.
+- **Descrição:** Lista artigos públicos (`published: true`, `isActive: true`). Não retorna o campo `content` para economizar banda, mas calcula e retorna `readingTimeMinutes` (estimado a 200 palavras/minuto, mínimo 1). Consulta PostgreSQL em toda requisição, respeitando a visibilidade atual.
 - **Autenticação / Roles:** Pública.
 - **Query Parameters (`FindPostsQueryDto`):**
   | Parâmetro | Tipo | Padrão | Descrição / Validação |

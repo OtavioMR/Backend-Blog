@@ -1,3 +1,4 @@
+import { randomUUID as createRunId } from 'node:crypto';
 import { randomUUID } from 'node:crypto';
 import { writeFile } from 'node:fs/promises';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
@@ -7,17 +8,17 @@ import { DataSource } from 'typeorm';
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { AppModule } from '../src/app.module.js';
-import { PublicCacheService } from '../src/common/public-cache.service.js';
 import { MailService } from '../src/modules/mail/mail.service.js';
 import { NewsletterService } from '../src/modules/newsletter/newsletter.service.js';
 import { AuthService } from '../src/modules/auth/auth.service.js';
 import { AnalyticsService } from '../src/modules/analytics/analytics.service.js';
 
-describe('Release acceptance: public content, cache, series and engagement', () => {
-  let app: INestApplication, db: DataSource, cache: PublicCacheService, newsletter: NewsletterService | undefined;
+process.env.RATE_LIMIT_NAMESPACE = `e2e-${createRunId()}`;
+describe('Release acceptance: public content, direct queries, series and engagement', () => {
+  let app: INestApplication, db: DataSource, newsletter: NewsletterService | undefined;
   let authorId: string, readerId: string, authorToken: string, readerToken: string;
   let authService: AuthService, analytics: AnalyticsService;
-  let cacheHitAverage: number;
+  let publicQueryAverage: number;
   const suffix = randomUUID().replace(/-/g, '');
   const email = `release-${suffix}@example.test`;
   const password = 'Release123!';
@@ -33,7 +34,7 @@ describe('Release acceptance: public content, cache, series and engagement', () 
     app.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }));
     await app.init();
     for (const job of module.get(SchedulerRegistry).getCronJobs().values()) await job.stop();
-    db = module.get(DataSource); cache = module.get(PublicCacheService);
+    db = module.get(DataSource);
     try { newsletter = module.get(NewsletterService); } catch { /* disabled in V1 */ }
     authService = module.get(AuthService); analytics = module.get(AnalyticsService);
     for (const [name, address, author] of [['Release Author', `author-${email}`, true], ['Release Reader', `reader-${email}`, false]] as const) {
@@ -57,7 +58,6 @@ describe('Release acceptance: public content, cache, series and engagement', () 
       await db.query('DELETE FROM comments WHERE author_id = ANY($1::uuid[])', [[authorId, readerId].filter(Boolean)]);
       await db.query('DELETE FROM posts WHERE author_id = $1', [authorId]);
       await db.query('DELETE FROM users WHERE id = ANY($1::uuid[])', [[authorId, readerId].filter(Boolean)]);
-      await cache.invalidate();
     }
     await app?.close();
   });
@@ -82,17 +82,16 @@ describe('Release acceptance: public content, cache, series and engagement', () 
     expect((await request(server).get(`/api/v1/posts/${ids[0]}`).expect(200)).body.content).toBe('Public chapter 0');
   });
 
-  it('serves cache hits without SQL and invalidates before a write response completes', async () => {
+  it('queries PostgreSQL on every public read and reflects writes immediately', async () => {
     const path = `/api/v1/posts?author=Release%20Author&limit=100`;
-    await vi.waitFor(async () => expect(await cache.key(path)).toBeTruthy());
     await request(app.getHttpServer()).get(path).expect(200);
     const log = vi.spyOn(db.logger, 'logQuery');
     const hit = await request(app.getHttpServer()).get(path).expect(200);
-    expect(log).not.toHaveBeenCalled();
+    expect(log).toHaveBeenCalled();
     const started = performance.now();
     for (let index = 0; index < 20; index++) await request(app.getHttpServer()).get(path).expect(200);
-    cacheHitAverage = (performance.now() - started) / 20;
-    expect(log).not.toHaveBeenCalled();
+    publicQueryAverage = (performance.now() - started) / 20;
+    expect(log).toHaveBeenCalled();
     expect(hit.body.data.map((item: { id: string }) => item.id)).toEqual(expect.arrayContaining(ids));
     log.mockRestore();
     await request(app.getHttpServer()).patch(`/api/v1/posts/${ids[0]}`).set('Authorization', `Bearer ${authorToken}`).send({ title: `Updated ${suffix}` }).expect(200);
@@ -110,7 +109,7 @@ describe('Release acceptance: public content, cache, series and engagement', () 
     const log = vi.spyOn(db.logger, 'logQuery');
     const list = await request(server).get(`/api/v1/posts/${ids[0]}/comments`).expect(200);
     expect(list.body.data[0].id).toBe(comment.body.id);
-    expect(log).toHaveBeenCalledTimes(2);
+    expect(log.mock.calls.filter(([sql]) => /SELECT/i.test(sql) && /(?:FROM|JOIN) "?(?:posts|comments)"?/i.test(sql))).toHaveLength(2);
     log.mockRestore();
     const notifications = await request(server).get('/api/v1/notifications').set('Authorization', `Bearer ${authorToken}`).expect(200);
     expect(notifications.body.data).toEqual(expect.arrayContaining([expect.objectContaining({ type: 'comment', commentId: comment.body.id })]));
@@ -152,12 +151,12 @@ describe('Release acceptance: public content, cache, series and engagement', () 
       await measure('analytics', () => analytics.overview());
     }
     const averages = Object.fromEntries(Object.entries(samples).map(([key, values]) => [key, Math.round(values.reduce((a, b) => a + b) / values.length * 100) / 100]));
-    averages.cacheHitHttp = Math.round(cacheHitAverage * 100) / 100;
+    averages.publicQueryHttp = Math.round(publicQueryAverage * 100) / 100;
     const recoveryStart = performance.now();
     for (let index = 0; index < 4; index++) await request(app.getHttpServer()).post('/api/v1/auth/forgot-password')
       .send({ email: `${index % 2 ? 'missing' : 'author'}-${email}` }).expect(200);
     averages.recoveryHttp = Math.round((performance.now() - recoveryStart) / 4 * 100) / 100;
-    console.info('Release performance averages (ms, local PostgreSQL/Redis):', JSON.stringify(averages));
+    console.info('Release performance averages (ms, local PostgreSQL):', JSON.stringify(averages));
     if (process.env.RELEASE_METRICS_PATH) await writeFile(process.env.RELEASE_METRICS_PATH, JSON.stringify(averages, null, 2));
     expect(averages.knownLogin / averages.unknownLogin).toBeGreaterThan(0.7);
     expect(averages.knownLogin / averages.unknownLogin).toBeLessThan(1.4);

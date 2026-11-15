@@ -1,3 +1,5 @@
+> **Atualização 14/11/2026:** sessões administrativas cifradas, fila persistente e limites compartilhados usam PostgreSQL. [Arquitetura atual](docs/POSTGRES_ARCHITECTURE.md); [validação](docs/POSTGRES_VALIDATION.md). Registros anteriores de infraestrutura são históricos.
+
 # Administração do Grifório
 
 Este documento descreve o contrato administrativo e as limitações operacionais conhecidas.

@@ -1,3 +1,7 @@
+> **Atualização 14/11/2026:** sessões administrativas cifradas, fila persistente e limites compartilhados usam PostgreSQL. [Arquitetura atual](docs/POSTGRES_ARCHITECTURE.md); [validação](docs/POSTGRES_VALIDATION.md). Registros anteriores de infraestrutura são históricos.
+
+**Refatoração concluída localmente (14/11/2026):** Redis/BullMQ removidos; sessões administrativas cifradas, fila e limites compartilhados em PostgreSQL. Backend: 455 testes e 42 E2E aprovados, com um skip V2 da newsletter. Frontend: contratos, administração distribuída, matriz real V2/HTTPS e oito regressões de interface aprovados. Lint, typecheck, builds, Docker e 62 migrations validados. Nenhum commit, push ou deploy. Os limites externos do primeiro deploy permanecem documentados.
+
 ## 📋 Backlog Geral e Rastreabilidade — Backend Blog
 
 **Consolidação final para merge (12/11/2026):** comparadas main local/remota e árvore completa; sete commits prévios à frente, sem commits exclusivos da main remota. Dois DTOs órfãos removidos; temporários excluídos do contexto Docker; duas linhas vazias no EOF de testes normalizadas, sem alterar asserts. Migrations históricas, V2, endpoint legado de transição e dependências preservados. Lint/typecheck/build, 448 testes, 38 E2E + 1 skip V2 newsletter, 60 migrations em banco vazio e matriz real integrada aprovados. Conteúdo APTO PARA MERGE após versionamento integral pelo usuário, sem commit/push/merge/deploy. Parecer e inventário: [MERGE_READINESS.md](docs/MERGE_READINESS.md).

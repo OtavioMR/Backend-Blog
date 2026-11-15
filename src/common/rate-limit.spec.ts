@@ -1,3 +1,5 @@
+import { TypeOrmModule } from '@nestjs/typeorm';
+import dataSource from '../database/data-source.js';
 import { Controller, Get, INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import supertest from 'supertest';
@@ -20,12 +22,12 @@ class TestController {
   }
 }
 
-describe('rate limiting', () => {
+describe.skipIf(process.env.RUN_DB_TESTS !== '1')('rate limiting', () => {
   let app: INestApplication;
 
   beforeAll(async () => {
     const module = await Test.createTestingModule({
-      imports: [RateLimitModule],
+      imports: [TypeOrmModule.forRoot({ ...dataSource.options, migrations: [], retryAttempts: 1 }), RateLimitModule],
       controllers: [TestController],
     }).compile();
     app = module.createNestApplication();
@@ -33,7 +35,7 @@ describe('rate limiting', () => {
   });
 
   afterAll(async () => {
-    await app.close();
+    await app?.close();
   });
 
   it('allows 100 requests and rejects the next with a retry time', async () => {
@@ -47,12 +49,12 @@ describe('rate limiting', () => {
   });
 });
 
-describe('post and reaction rate limits', () => {
+describe.skipIf(process.env.RUN_DB_TESTS !== '1')('post and reaction rate limits', () => {
   let app: INestApplication;
   const id = 'b1ffcd88-8b1a-4ce7-aa5c-5cc8ac271b22';
   beforeAll(async () => {
     const module = await Test.createTestingModule({
-      imports: [RateLimitModule], controllers: [PostsController, PostInteractionsController],
+      imports: [TypeOrmModule.forRoot({ ...dataSource.options, migrations: [], retryAttempts: 1 }), RateLimitModule], controllers: [PostsController, PostInteractionsController],
       providers: [
         { provide: PostsService, useValue: { create: () => ({}), update: () => ({}) } },
         { provide: PostInteractionsService, useValue: { set: () => undefined } },
@@ -62,7 +64,7 @@ describe('post and reaction rate limits', () => {
     } }).overrideGuard(RolesGuard).useValue({ canActivate: () => true }).compile();
     app = module.createNestApplication(); await app.init();
   });
-  afterAll(async () => { await app.close(); });
+  afterAll(async () => { await app?.close(); });
   it('limits article creation and updates independently', async () => {
     for (let i = 0; i < 10; i++) await supertest(app.getHttpServer()).post('/posts').send({ tagNames: ['new'] }).expect(201);
     await supertest(app.getHttpServer()).post('/posts').send({}).expect(429);
@@ -77,11 +79,11 @@ describe('post and reaction rate limits', () => {
   });
 });
 
-describe('comment creation rate limit', () => {
+describe.skipIf(process.env.RUN_DB_TESTS !== '1')('comment creation rate limit', () => {
   let app: INestApplication;
   beforeAll(async () => {
     const module = await Test.createTestingModule({
-      imports: [RateLimitModule],
+      imports: [TypeOrmModule.forRoot({ ...dataSource.options, migrations: [], retryAttempts: 1 }), RateLimitModule],
       controllers: [PostCommentsController],
       providers: [{ provide: CommentsService, useValue: { create: () => ({}) } }],
     }).overrideGuard(JwtAuthGuard).useValue({ canActivate: (context: { switchToHttp: () => { getRequest: () => { user: object } } }) => {
@@ -91,7 +93,7 @@ describe('comment creation rate limit', () => {
     app = module.createNestApplication();
     await app.init();
   });
-  afterAll(async () => { await app.close(); });
+  afterAll(async () => { await app?.close(); });
   it('rejects the sixth comment creation in a minute', async () => {
     const path = '/posts/b1ffcd88-8b1a-4ce7-aa5c-5cc8ac271b22/comments';
     for (let i = 0; i < 5; i++) await supertest(app.getHttpServer()).post(path).send({ content: 'test' }).expect(201);

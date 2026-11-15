@@ -1,3 +1,4 @@
+import { randomUUID as createRunId } from 'node:crypto';
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
@@ -20,6 +21,7 @@ const request =
     ? supertest
     : (supertest as unknown as { default: typeof supertest }).default;
 
+process.env.RATE_LIMIT_NAMESPACE = `e2e-${createRunId()}`;
 describe('Auth E2E Test Suite (Secure Cookies, Refresh Token Rotation, Logout)', () => {
   const mail = { sendEmailVerification: vi.fn(), sendPasswordResetEmail: vi.fn(), sendEmailChangeConfirmation: vi.fn() };
   let app: INestApplication;

@@ -1,3 +1,4 @@
+import { randomUUID as createRunId } from 'node:crypto';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
@@ -10,6 +11,7 @@ import { Post } from '../src/modules/posts/entities/post.entity.js';
 import { User } from '../src/modules/users/entities/user.entity.js';
 import { UserRole } from '../src/modules/users/enums/user.enum.js';
 
+process.env.RATE_LIMIT_NAMESPACE = `e2e-${createRunId()}`;
 describe('Sprint 1 com PostgreSQL', () => {
   let app: INestApplication;
   let posts: Repository<Post>;

@@ -10,5 +10,5 @@ export async function transactionalMail(manager: EntityManager, secret: string, 
   const cipher = createCipheriv('aes-256-gcm', key, iv);
   const encrypted = Buffer.concat([cipher.update(JSON.stringify(content), 'utf8'), cipher.final()]);
   const payload = Buffer.concat([iv, cipher.getAuthTag(), encrypted]).toString('base64url');
-  await manager.query('INSERT INTO mail_outbox(payload, expires_at) VALUES ($1, $2)', [payload, new Date(expiresAt)]);
+  await manager.query('INSERT INTO mail_outbox(payload, expires_at, queue_name) VALUES ($1, $2, $3)', [payload, new Date(expiresAt), process.env.MAIL_QUEUE_NAME ?? 'default']);
 }

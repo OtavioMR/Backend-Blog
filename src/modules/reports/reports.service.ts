@@ -1,4 +1,4 @@
-import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException, Optional } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import { paginationMeta } from '../../common/utils/pagination.js';
@@ -9,14 +9,13 @@ import { CreateReportDto, ListReportsDto, ResolveReportDto, ReviewReportDto } fr
 import { Report, ReportStatus, ReportTarget } from './reports.entity.js';
 import { User } from '../users/entities/user.entity.js';
 import { isAdministrator, UserRole } from '../users/enums/user.enum.js';
-import { PublicCacheService } from '../../common/public-cache.service.js';
 
 @Injectable()
 export class ReportsService {
   constructor(@InjectRepository(Report) private readonly reports: Repository<Report>,
     @InjectRepository(Post) private readonly posts: Repository<Post>,
     @InjectRepository(Comment) private readonly comments: Repository<Comment>, private readonly audit: AuditService,
-    @InjectRepository(User) private readonly users: Repository<User>, @Optional() private readonly cache?: PublicCacheService) {}
+    @InjectRepository(User) private readonly users: Repository<User>) {}
 
   async create(reporterId: string, dto: CreateReportDto) {
     const reason = dto.reason.trim();
@@ -153,7 +152,6 @@ export class ReportsService {
       await this.audit.record(manager, actorId, 'report.review', 'report', id, { status: dto.status, note, action: dto.action });
       return { id, status: dto.status, action: dto.action };
     });
-    if (dto.action !== 'NONE') await this.cache?.invalidate();
     return result;
   }
   async review(id: string, moderatorId: string, dto: ReviewReportDto) {

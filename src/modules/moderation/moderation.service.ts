@@ -1,5 +1,4 @@
-import { BadRequestException, ConflictException, ForbiddenException, Injectable, Logger, NotFoundException, Optional } from '@nestjs/common';
-import { PublicCacheService } from '../../common/public-cache.service.js';
+import { BadRequestException, ConflictException, ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { DataSource, In } from 'typeorm';
 import { User } from '../users/entities/user.entity.js';
@@ -17,7 +16,7 @@ import { ModerationAppeal, AppealStatus, AppealTargetType } from './entities/mod
 @Injectable()
 export class ModerationService {
   private readonly logger = new Logger(ModerationService.name);
-  constructor(private readonly dataSource: DataSource, private readonly audit: AuditService, @Optional() private readonly cache?: PublicCacheService) {}
+  constructor(private readonly dataSource: DataSource, private readonly audit: AuditService) {}
   async listPosts(filters: { page?: number; limit?: number; authorId?: string; search?: string; status?: 'published' | 'pending' | 'rejected' | 'hidden' | 'draft' }) {
     const page = filters.page ?? 1, limit = filters.limit ?? 10;
     const query = this.dataSource.getRepository(Post).createQueryBuilder('p').leftJoinAndSelect('p.author', 'author');
@@ -70,7 +69,6 @@ export class ModerationService {
       if (post.authorId !== actorId) await manager.query('INSERT INTO notifications(recipient_id, actor_id, type, post_id, details) VALUES ($1, $2, $3, $4, $5)', [post.authorId, actorId, hide ? 'post_hidden' : 'post_restored', id, JSON.stringify({ reason: reason.trim() })]);
       return { id, isActive: !hide, moderationHidden: hide };
     });
-    await this.cache?.invalidate();
     return result;
   }
   async changePostRating(id: string, actorId: string, rating: string, reason: string) {
@@ -96,7 +94,6 @@ export class ModerationService {
       }
       return { id, contentRating: rating, previousRating: oldRating };
     });
-    await this.cache?.invalidate();
     return result;
   }
   async listTags(page = 1, limit = 10) {
@@ -120,7 +117,6 @@ export class ModerationService {
         await this.audit.record(manager, actorId, id ? 'tag.updated' : 'tag.created', 'tag', saved.id, { previous, name, slug });
         return { id: saved.id, name: saved.name, slug: saved.slug };
       });
-      await this.cache?.invalidate();
       return result;
     } catch (error) {
       if ((error as { code?: string }).code === '23505') throw new ConflictException('Já existe uma tag com este slug.');
@@ -136,7 +132,6 @@ export class ModerationService {
       await manager.query('DELETE FROM tags WHERE id = $1', [id]);
       await this.audit.record(manager, actorId, 'tag.deleted', 'tag', id, { name: rows[0].name, slug: rows[0].slug });
     });
-    await this.cache?.invalidate();
     return { deleted: true };
   }
   async mergeTag(id: string, targetId: string, actorId: string) {
@@ -148,7 +143,6 @@ export class ModerationService {
       await manager.query('DELETE FROM tags WHERE id = $1', [id]);
       await this.audit.record(manager, actorId, 'tag.merged', 'tag', id, { targetId });
     });
-    await this.cache?.invalidate();
     return { merged: true, targetId };
   }
   async listComments(filters: { page?: number; limit?: number; search?: string; authorId?: string; postId?: string; status?: 'active' | 'hidden' | 'deleted'; from?: string; to?: string }) {
@@ -178,7 +172,6 @@ export class ModerationService {
       if (comment.authorId !== actorId) await manager.query('INSERT INTO notifications(recipient_id, actor_id, type, post_id, comment_id, details) VALUES ($1, $2, $3, $4, $5, $6)', [comment.authorId, actorId, hide ? 'comment_hidden' : 'comment_restored', comment.postId, id, JSON.stringify({ reason: reason.trim() })]);
       return { id, isActive: !hide, moderationHidden: hide };
     });
-    await this.cache?.invalidate();
     return result;
   }
   async listUsers(query: AdminUsersQuery) {
@@ -382,7 +375,6 @@ export class ModerationService {
         }
       });
     } catch (error) { this.logger.error('Failed to restore expired suspensions', error instanceof Error ? error.stack : String(error)); }
-    await this.cache?.invalidate();
   }
 
   async createAppeal(userId: string, dto: { targetType: AppealTargetType; targetId: string; reason: string }) {
@@ -578,7 +570,6 @@ export class ModerationService {
       return { id, protocol: appeal.protocol, status: decision, reviewedAt: new Date() };
     });
 
-    await this.cache?.invalidate();
     return result;
   }
 }

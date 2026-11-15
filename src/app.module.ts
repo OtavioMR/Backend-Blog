@@ -23,8 +23,6 @@ import { AuditModule } from './modules/audit/audit.module.js';
 import { AnalyticsModule } from './modules/analytics/analytics.module.js';
 import { ReportsModule } from './modules/reports/reports.module.js';
 import { validate } from './config/env.validation.js';
-import { PublicCacheModule } from './common/public-cache.module.js';
-import { PublicCacheInterceptor } from './common/public-cache.interceptor.js';
 import { StorageModule } from './common/storage/storage.module.js';
 
 @Module({
@@ -53,10 +51,10 @@ import { StorageModule } from './common/storage/storage.module.js';
         } : false,
         autoLoadEntities: true,
         synchronize: false, // Mantido como false conforme planejado para usar migrations
+        extra: { max: 10, connectionTimeoutMillis: 5000, statement_timeout: 10000 },
       }),
     }),
     UsersModule,
-    PublicCacheModule,
     AuthModule,
     PostsModule,
     CategoriesModule,
@@ -75,7 +73,6 @@ import { StorageModule } from './common/storage/storage.module.js';
   providers: [
     { provide: APP_FILTER, useClass: GlobalExceptionFilter },
     { provide: APP_INTERCEPTOR, useClass: TracingInterceptor },
-    { provide: APP_INTERCEPTOR, useClass: PublicCacheInterceptor },
     { provide: APP_INTERCEPTOR, useClass: ClassSerializerInterceptor },
   ],
 })

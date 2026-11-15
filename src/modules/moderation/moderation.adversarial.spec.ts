@@ -1,3 +1,5 @@
+import { TypeOrmModule } from '@nestjs/typeorm';
+import configuredDataSource from '../../database/data-source.js';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import {
   ConflictException,
@@ -191,13 +193,13 @@ describe('Adversarial Moderation Restore: 2FA Validation & Replay Prevention', (
   });
 });
 
-describe('Adversarial Moderation Restore: Rate Limiting Quota Exhaustion (5 requests limit)', () => {
+describe.skipIf(process.env.RUN_DB_TESTS !== '1')('Adversarial Moderation Restore: Rate Limiting Quota Exhaustion (5 requests limit)', () => {
   let app: INestApplication;
   const targetId = 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11';
 
   beforeAll(async () => {
     const module = await Test.createTestingModule({
-      imports: [RateLimitModule],
+      imports: [TypeOrmModule.forRoot({ ...configuredDataSource.options, migrations: [], retryAttempts: 1 }), RateLimitModule],
       controllers: [ModerationController],
       providers: [
         RolesGuard,

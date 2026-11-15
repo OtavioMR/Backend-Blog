@@ -31,7 +31,7 @@ describe('HTTP security', () => {
       imports: [TestModule],
     }).compile();
     app = module.createNestApplication<NestExpressApplication>();
-    configureHttpSecurity(app, 'https://frontend.example/path');
+    configureHttpSecurity(app, 'https://frontend.example/path', '127.0.0.0/8,::1/128');
     setupSwagger(app);
     await app.init();
   });
@@ -83,5 +83,19 @@ describe('HTTP security', () => {
           .set('X-Forwarded-For', '203.0.113.2')
       ).status,
     ).toBe(200);
+  });
+
+  it('ignores forged forwarding headers by default and rejects ambiguous proxy settings', async () => {
+    const module = await Test.createTestingModule({ imports: [TestModule] }).compile();
+    const direct = module.createNestApplication<NestExpressApplication>();
+    try {
+      configureHttpSecurity(direct, 'https://frontend.example', '');
+      await direct.init();
+      await request(direct.getHttpServer()).get('/probe').set('X-Forwarded-For', '203.0.113.50').expect(200);
+      await request(direct.getHttpServer()).get('/probe').set('X-Forwarded-For', '203.0.113.51').expect(429);
+      for (const invalid of ['1', 'true', '0.0.0.0/0', '::/0', 'invalid']) {
+        expect(() => configureHttpSecurity(direct, 'https://frontend.example', invalid)).toThrow('TRUST_PROXY_CIDRS');
+      }
+    } finally { await direct.close(); }
   });
 });

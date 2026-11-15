@@ -1,3 +1,4 @@
+import { randomUUID as createRunId } from 'node:crypto';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { Test } from '@nestjs/testing';
 import { ValidationPipe } from '@nestjs/common';
@@ -15,6 +16,7 @@ import { TotpService } from '../src/modules/auth/totp.service.js';
 import { generateSync } from 'otplib';
 
 const request = typeof supertest === 'function' ? supertest : (supertest as any).default;
+process.env.RATE_LIMIT_NAMESPACE = `e2e-${createRunId()}`;
 describe('First post review', () => {
   let app: any, users: any, posts: any, reports: any, audits: any, authorId: string, authorToken: string, adminToken: string, postId: string;
   let adminTotpSecret: string;

@@ -1,3 +1,5 @@
+> **Registro histórico anterior à refatoração de 14/11/2026.** A infraestrutura e as evidências abaixo descrevem a versão anterior. Operação vigente: [arquitetura PostgreSQL](POSTGRES_ARCHITECTURE.md); [validação atual](POSTGRES_VALIDATION.md).
+
 # Preparação para produção — 12/11/2026
 
 > Atualização posterior: o bloqueador de integração do refresh legado foi tratado e validado em navegador real. Este relatório preserva o diagnóstico e os números da etapa anterior. Estado atual: [REFRESH_V2_OPERATIONS.md](REFRESH_V2_OPERATIONS.md), com referência à matriz completa no frontend. A homologação da infraestrutura e os limites do BFF continuam aplicáveis.

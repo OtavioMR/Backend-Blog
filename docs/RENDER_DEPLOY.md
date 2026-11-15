@@ -1,3 +1,5 @@
+> **Registro histórico anterior à refatoração de 14/11/2026.** A infraestrutura e as evidências abaixo descrevem a versão anterior. Operação vigente: [arquitetura PostgreSQL](POSTGRES_ARCHITECTURE.md); [validação atual](POSTGRES_VALIDATION.md).
+
 # Preparação para Render — sem deploy executado
 
 Estado em 12/11/2026: build e configuração local verificados; **a abertura pública ainda está bloqueada** pelos pontos de autenticação e infraestrutura descritos abaixo. Nenhum serviço Render foi criado ou alterado.

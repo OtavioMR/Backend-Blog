@@ -1,3 +1,5 @@
+import { MailQueueController } from '../modules/mail/mail-queue.controller.js';
+import { MailQueueService } from '../modules/mail/mail-queue.service.js';
 import { PostSeriesController, PostSeriesNavigationController } from '../modules/posts/post-series.controller.js';
 import { PostSeriesService } from '../modules/posts/post-series.service.js';
 import { PostRevisionsController } from '../modules/posts/post-revisions.controller.js';
@@ -83,9 +85,10 @@ describe('Swagger Documentation Configuration', () => {
         AuthController,
         CommentsController,
         PostCommentsController,
-        HealthController,
+        HealthController, MailQueueController,
       ],
       providers: [
+        { provide: MailQueueService, useValue: {} },
         { provide: TotpRecoveryService, useValue: {} },
         { provide: RecoveryEmailService, useValue: {} },
         { provide: PostSeriesService, useValue: {} }, { provide: PostRevisionsService, useValue: {} }, { provide: TotpService, useValue: {} }, { provide: SocialAuthService, useValue: {} },
@@ -147,7 +150,7 @@ describe('Swagger Documentation Configuration', () => {
     for (const [path, method] of [
       ['/api/v1/series/me', 'get'], ['/api/v1/series', 'post'], ['/api/v1/series/{id}/manage', 'get'], ['/api/v1/series/{id}/items', 'put'], ['/api/v1/series/{id}', 'patch'], ['/api/v1/series/{id}', 'delete'],
       ['/api/v1/posts/{postId}/revisions', 'get'], ['/api/v1/posts/{postId}/revisions/{revisionId}', 'get'], ['/api/v1/posts/{postId}/revisions/{revisionId}/restore', 'post'],
-      ['/api/v1/feed', 'get'], ['/api/v1/authors/{id}/follow', 'put'],
+      ['/api/v1/admin/mail-queue', 'get'], ['/api/v1/feed', 'get'], ['/api/v1/authors/{id}/follow', 'put'],
       ['/api/v1/collections', 'post'], ['/api/v1/collections/{id}/posts/{postId}', 'put'],
       ['/api/v1/comments/{id}/like', 'get'], ['/api/v1/notifications', 'get'], ['/api/v1/notifications/{id}/read', 'patch'],
     ] as const) {

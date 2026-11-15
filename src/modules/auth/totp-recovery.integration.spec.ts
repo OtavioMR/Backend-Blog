@@ -12,7 +12,7 @@ import { User } from '../users/entities/user.entity.js';
 import { AuthSession } from './entities/session.entity.js';
 import type { AuditService } from '../audit/audit.service.js';
 
-// Real transactions and row locks; no SMTP or Redis interaction, even with production-like env.
+// Real transactions and row locks; no SMTP interaction, even with production-like env.
 vi.mock('../mail/transactional-mail.js', () => ({ transactionalMail: vi.fn(async () => {}) }));
 
 describe.skipIf(process.env.RUN_DB_TESTS !== '1')('TOTP recovery PostgreSQL', () => {

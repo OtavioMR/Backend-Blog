@@ -1,3 +1,5 @@
+> **Registro histórico anterior à refatoração de 14/11/2026.** A infraestrutura e as evidências abaixo descrevem a versão anterior. Operação vigente: [arquitetura PostgreSQL](POSTGRES_ARCHITECTURE.md); [validação atual](POSTGRES_VALIDATION.md).
+
 # Backend-Blog — parecer final de merge
 
 **Backend: APTO PARA MERGE.**

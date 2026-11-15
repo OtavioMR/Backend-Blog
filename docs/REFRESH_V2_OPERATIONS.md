@@ -1,3 +1,5 @@
+> **Registro histórico anterior à refatoração de 14/11/2026.** A infraestrutura e as evidências abaixo descrevem a versão anterior. Operação vigente: [arquitetura PostgreSQL](POSTGRES_ARCHITECTURE.md); [validação atual](POSTGRES_VALIDATION.md).
+
 # Refresh V2 — operação e evidências de estabilidade
 
 Atualização de 12/11/2026, local, sem deploy. O cliente público e o BFF agora usam `/auth/refresh/v2` e `/auth/logout/v2`. O relatório completo da prova em navegador está em `Front-Blog/docs/SESSION_V2_VALIDATION.md` no workspace.
