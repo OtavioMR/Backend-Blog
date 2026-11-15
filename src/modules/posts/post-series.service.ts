@@ -108,8 +108,8 @@ export class PostSeriesService {
       AND EXISTS (SELECT 1 FROM post_series_items si JOIN posts p ON p.id=si.post_id WHERE si.series_id=s.id AND ${visible})`, [id]);
     if (!rows.length) throw new NotFoundException('Série não encontrada.');
     const posts = await this.db.query(`SELECT p.id, p.slug, p.title,
-      CASE WHEN p.content_rating='18+' THEN 'Conteúdo restrito a maiores de 18 anos autenticados.' ELSE p.excerpt END AS excerpt,
-      CASE WHEN p.content_rating='18+' THEN NULL ELSE p.cover_image END AS "coverImage",
+      p.excerpt AS excerpt,
+      p.cover_image AS "coverImage",
       p.content_rating AS "contentRating", p.ai_text_declaration AS "aiTextDeclaration", p.ai_cover_declaration AS "aiCoverDeclaration", p.published_at AS "publishedAt", si.position
       FROM post_series_items si JOIN posts p ON p.id=si.post_id WHERE si.series_id=$1 AND ${visible} ORDER BY si.position`, [id]);
     const ratings = ['LIVRE', '10+', '12+', '14+', '16+', '18+'];
@@ -124,6 +124,7 @@ export class PostSeriesService {
   }
   async mine(user: AuthenticatedUser) {
     return this.db.query(`SELECT ${fields},
+      (SELECT p.cover_image FROM post_series_items si JOIN posts p ON p.id=si.post_id WHERE si.series_id=s.id AND p.is_active AND p.deleted_at IS NULL AND p.cover_image IS NOT NULL ORDER BY si.position LIMIT 1) AS "fallbackCoverImage",
       (SELECT count(*)::int FROM post_series_items si JOIN posts p ON p.id=si.post_id WHERE si.series_id=s.id AND p.is_active AND p.deleted_at IS NULL) AS "chapterCount",
       (SELECT count(*)::int FROM post_series_items si JOIN posts p ON p.id=si.post_id WHERE si.series_id=s.id AND ${visible}) AS "publishedCount"
       FROM post_series s WHERE s.author_id=$1 ORDER BY s.created_at DESC, s.id DESC LIMIT 100`, [user.userId]);
@@ -131,7 +132,7 @@ export class PostSeriesService {
   async mineDetail(id: string, user: AuthenticatedUser) {
     return this.db.transaction(async manager => {
       const series = await this.owned(manager, id, user);
-      const posts = await manager.query(`SELECT p.id, p.slug, p.title, p.published, p.review_status AS "reviewStatus", p.scheduled_at AS "scheduledAt", p.is_active AS "isActive", si.position
+      const posts = await manager.query(`SELECT p.id, p.slug, p.title, p.cover_image AS "coverImage", p.published, p.review_status AS "reviewStatus", p.scheduled_at AS "scheduledAt", p.is_active AS "isActive", si.position
         FROM post_series_items si JOIN posts p ON p.id=si.post_id WHERE si.series_id=$1 ORDER BY si.position`, [id]);
       return { ...series, posts };
     });

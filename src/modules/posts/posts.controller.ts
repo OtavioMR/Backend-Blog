@@ -74,6 +74,7 @@ export class PostsController {
   }
 
   @ApiFindPostByIdDoc()
+  @ApiOperation({ description: 'Publicacoes 18+ preservam capa e sinopse; o texto integral exige autenticacao.' })
   @UseGuards(OptionalJwtAuthGuard)
   @Get(':id')
   findById(@Param('id') id: string, @Req() request: RequestWithUser) {

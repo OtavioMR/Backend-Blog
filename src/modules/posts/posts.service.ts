@@ -32,7 +32,6 @@ import { isAdministrator, UserRole } from '../users/enums/user.enum.js';
 import type { AuthenticatedUser } from '../auth/interfaces/request-with-user.interface.js';
 import { ContentRating } from './enums/post-governance.enum.js';
 import { StorageService } from '../../common/storage/storage.service.js';
-import { isUserAdult } from '../../common/utils/age.util.js';
 
 function readingTimeMinutes(content: string): number {
   const text = sanitizePlainText(content.replace(/<[^>]*>/g, ' '));
@@ -173,7 +172,7 @@ export class PostsService {
 
     // Garante que posts sem categoria retornem array vazio e remove categorias desativadas
     const formattedData = data.map((post) => {
-      const isRestricted = post.contentRating === '18+';
+      const isRestricted = false;
       Object.assign(post, {
         readingTimeMinutes: readingTimeMinutes(post.content ?? ''),
         isRestricted,
@@ -183,10 +182,6 @@ export class PostsService {
       post.excerpt = sanitizePlainText(post.excerpt ?? '');
       post.categories = (post.categories || []).filter((cat) => cat.isActive);
       post.tags = post.tags || [];
-      if (isRestricted) {
-        post.coverImage = null;
-        post.excerpt = 'Este conteúdo possui classificação indicativa 18+ e seu acesso integral é restrito a maiores de 18 anos cadastrados e autenticados.';
-      }
       return post;
     });
 
@@ -194,6 +189,7 @@ export class PostsService {
     if (query?.discovery === 'true' && data.length) {
       const seriesRows = await this.postsRepository.query(`SELECT si.post_id AS "postId", s.id, s.title,
         s.description, s.cover_image AS "coverImage", s.ai_cover_declaration AS "aiCoverDeclaration",
+        (SELECT p.cover_image FROM post_series_items x JOIN posts p ON p.id=x.post_id WHERE x.series_id=s.id AND p.published AND p.is_active AND p.deleted_at IS NULL AND NOT p.moderation_hidden AND p.cover_image IS NOT NULL ORDER BY x.position LIMIT 1) AS "fallbackCoverImage",
         u.id AS "authorId", u.name AS "authorName",
         (SELECT count(*)::int FROM post_series_items x JOIN posts p ON p.id=x.post_id WHERE x.series_id=s.id AND p.published AND p.is_active AND p.deleted_at IS NULL AND NOT p.moderation_hidden AND p.ai_text_declaration IN ('HUMAN_WITH_AI','PARTIAL_AI','FULL_AI')) AS "aiTextCount",
         (SELECT count(*)::int FROM post_series_items x JOIN posts p ON p.id=x.post_id
@@ -350,34 +346,14 @@ export class PostsService {
     post.tags = post.tags || [];
     post.title = sanitizePlainText(post.title);
 
-    let isAdult = false;
-    if (user) {
-      if (isAdmin || isAuthor) {
-        isAdult = true;
-      } else {
-        const rows: { birth_date: string | null }[] = await this.postsRepository.manager.query(
-          `SELECT birth_date FROM users WHERE id = $1 AND is_active = true AND deleted_at IS NULL`,
-          [user.userId],
-        );
-        const birthDate = rows[0]?.birth_date;
-        isAdult = isUserAdult(birthDate);
-      }
-    }
-
-    const isRestricted = post.contentRating === '18+' && !isAdult;
+    const isRestricted = post.contentRating === '18+' && !user;
     Object.assign(post, {
       readingTimeMinutes: readingTimeMinutes(post.content ?? ''),
       isRestricted,
     });
 
-    if (isRestricted) {
-      post.content = null as any;
-      post.coverImage = null;
-      post.excerpt = 'Este conteúdo possui classificação indicativa 18+ e seu acesso integral é restrito a maiores de 18 anos cadastrados e autenticados.';
-    } else {
-      post.content = sanitizePostContent(post.content);
-      post.excerpt = sanitizePlainText(post.excerpt ?? '');
-    }
+    post.content = isRestricted ? null as unknown as string : sanitizePostContent(post.content);
+    post.excerpt = sanitizePlainText(post.excerpt ?? '');
 
     if (post.published) {
       const rows: { id: string; title: string; postId: string; slug: string }[] = await this.postsRepository.query(`
