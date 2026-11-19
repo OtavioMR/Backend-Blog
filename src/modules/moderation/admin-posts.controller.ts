@@ -28,40 +28,40 @@ class PostQuery extends PaginationQueryDto {
   @ApiPropertyOptional({ format: 'uuid' }) @IsOptional() @IsUUID() authorId?: string;
   @ApiPropertyOptional({ maxLength: 150 }) @IsOptional() @IsString() @MaxLength(150) search?: string;
 }
-@ApiTags('Moderação de artigos') @ApiBearerAuth('JWT-auth')
+@ApiTags('Moderação de contos') @ApiBearerAuth('JWT-auth')
 @UseGuards(JwtAuthGuard, RolesGuard) @Roles(UserRole.ADMIN)
 @Controller('admin/posts')
 export class AdminPostsController {
   constructor(private readonly service: ModerationService) {}
   @Get()
-  @ApiOperation({ summary: 'Listar artigos para moderação', description: 'Inclui rascunhos, pendentes, publicados, rejeitados e ocultados; aceita paginação, autor e busca por título.' })
-  @ApiResponse({ status: 200, description: 'Artigos paginados.', schema: { example: { data: [{ id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', title: 'Artigo', published: false, reviewStatus: 'PENDING', isActive: true, moderationHidden: false }], meta: { page: 1, limit: 10, total: 1, totalPages: 1, hasNextPage: false, hasPreviousPage: false } } } }) @ApiResponse({ status: 400, description: 'Filtros inválidos.' }) @ApiResponse({ status: 401, description: 'Autenticação necessária.' }) @ApiResponse({ status: 403, description: 'Requer administrador.' })
+  @ApiOperation({ summary: 'Listar contos para moderação', description: 'Inclui rascunhos, pendentes, publicados, rejeitados e ocultados; aceita paginação, autor e busca por título.' })
+  @ApiResponse({ status: 200, description: 'Contos paginados.', schema: { example: { data: [{ id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', title: 'Conto', published: false, reviewStatus: 'PENDING', isActive: true, moderationHidden: false }], meta: { page: 1, limit: 10, total: 1, totalPages: 1, hasNextPage: false, hasPreviousPage: false } } } }) @ApiResponse({ status: 400, description: 'Filtros inválidos.' }) @ApiResponse({ status: 401, description: 'Autenticação necessária.' }) @ApiResponse({ status: 403, description: 'Requer administrador.' })
   list(@Query() query: PostQuery) { return this.service.listPosts(query); }
   @Get(':id')
-  @ApiOperation({ summary: 'Consultar artigo completo para moderação', description: 'Inclui conteúdo e resultado editorial, mesmo quando o artigo está oculto.' })
-  @ApiParam({ name: 'id', format: 'uuid' }) @ApiResponse({ status: 200, description: 'Artigo de moderação.' }) @ApiResponse({ status: 400, description: 'UUID inválido.' }) @ApiResponse({ status: 401, description: 'Autenticação necessária.' }) @ApiResponse({ status: 403, description: 'Requer administrador.' }) @ApiResponse({ status: 404, description: 'Artigo não encontrado.' })
+  @ApiOperation({ summary: 'Consultar conto completo para moderação', description: 'Inclui conteúdo e resultado editorial, mesmo quando o conto está oculto.' })
+  @ApiParam({ name: 'id', format: 'uuid' }) @ApiResponse({ status: 200, description: 'Conto de moderação.' }) @ApiResponse({ status: 400, description: 'UUID inválido.' }) @ApiResponse({ status: 401, description: 'Autenticação necessária.' }) @ApiResponse({ status: 403, description: 'Requer administrador.' }) @ApiResponse({ status: 404, description: 'Conto não encontrado.' })
   detail(@Param('id', ParseUUIDPipe) id: string) { return this.service.postDetail(id); }
   @Get(':id/history')
-  @ApiOperation({ summary: 'Consultar ações editoriais auditadas de um artigo' })
-  @ApiParam({ name: 'id', format: 'uuid' }) @ApiResponse({ status: 200, description: 'Histórico paginado.' }) @ApiResponse({ status: 400, description: 'UUID ou paginação inválidos.' }) @ApiResponse({ status: 401, description: 'Autenticação necessária.' }) @ApiResponse({ status: 403, description: 'Requer administrador.' }) @ApiResponse({ status: 404, description: 'Artigo não encontrado.' })
+  @ApiOperation({ summary: 'Consultar ações editoriais auditadas de um conto' })
+  @ApiParam({ name: 'id', format: 'uuid' }) @ApiResponse({ status: 200, description: 'Histórico paginado.' }) @ApiResponse({ status: 400, description: 'UUID ou paginação inválidos.' }) @ApiResponse({ status: 401, description: 'Autenticação necessária.' }) @ApiResponse({ status: 403, description: 'Requer administrador.' }) @ApiResponse({ status: 404, description: 'Conto não encontrado.' })
   history(@Param('id', ParseUUIDPipe) id: string, @Query() query: PaginationQueryDto) { return this.service.contentHistory('post', id, query.page, query.limit); }
   @Post(':id/hide')
-  @ApiOperation({ summary: 'Ocultar artigo publicado', description: 'Preserva o artigo e seu estado editorial, registrando a justificativa.' })
-  @ApiParam({ name: 'id', format: 'uuid' }) @ApiResponse({ status: 201, description: 'Artigo ocultado.' }) @ApiResponse({ status: 400, description: 'Dados inválidos.' }) @ApiResponse({ status: 401, description: 'Autenticação necessária.' }) @ApiResponse({ status: 403, description: 'Requer administrador.' }) @ApiResponse({ status: 404, description: 'Artigo não encontrado.' }) @ApiResponse({ status: 409, description: 'Transição inválida.' })
+  @ApiOperation({ summary: 'Ocultar conto publicado', description: 'Preserva o conto e seu estado editorial, registrando a justificativa.' })
+  @ApiParam({ name: 'id', format: 'uuid' }) @ApiResponse({ status: 201, description: 'Conto ocultado.' }) @ApiResponse({ status: 400, description: 'Dados inválidos.' }) @ApiResponse({ status: 401, description: 'Autenticação necessária.' }) @ApiResponse({ status: 403, description: 'Requer administrador.' }) @ApiResponse({ status: 404, description: 'Conto não encontrado.' }) @ApiResponse({ status: 409, description: 'Transição inválida.' })
   hide(@Param('id', ParseUUIDPipe) id: string, @Req() req: RequestWithUser, @Body() dto: ReasonDto) { return this.service.moderatePost(id, req.user.userId, true, dto.reason); }
   @Post(':id/restore')
-  @ApiOperation({ summary: 'Restaurar artigo ocultado pela administração', description: 'Requer autor ativo e preserva o estado de publicação anterior.' })
-  @ApiParam({ name: 'id', format: 'uuid' }) @ApiResponse({ status: 201, description: 'Artigo restaurado.' }) @ApiResponse({ status: 400, description: 'Dados inválidos.' }) @ApiResponse({ status: 401, description: 'Autenticação necessária.' }) @ApiResponse({ status: 403, description: 'Requer administrador.' }) @ApiResponse({ status: 404, description: 'Artigo não encontrado.' }) @ApiResponse({ status: 409, description: 'Transição inválida ou autor indisponível.' })
+  @ApiOperation({ summary: 'Restaurar conto ocultado pela administração', description: 'Requer autor ativo e preserva o estado de publicação anterior.' })
+  @ApiParam({ name: 'id', format: 'uuid' }) @ApiResponse({ status: 201, description: 'Conto restaurado.' }) @ApiResponse({ status: 400, description: 'Dados inválidos.' }) @ApiResponse({ status: 401, description: 'Autenticação necessária.' }) @ApiResponse({ status: 403, description: 'Requer administrador.' }) @ApiResponse({ status: 404, description: 'Conto não encontrado.' }) @ApiResponse({ status: 409, description: 'Transição inválida ou autor indisponível.' })
   restore(@Param('id', ParseUUIDPipe) id: string, @Req() req: RequestWithUser, @Body() dto: ReasonDto) { return this.service.moderatePost(id, req.user.userId, false, dto.reason); }
 
   @Patch(':id/rating')
-  @ApiOperation({ summary: 'Corrigir classificação etária de um artigo', description: 'Permite que a moderação altere a classificação etária do artigo com justificativa e notificação ao autor.' })
+  @ApiOperation({ summary: 'Corrigir classificação etária de um conto', description: 'Permite que a moderação altere a classificação etária do conto com justificativa e notificação ao autor.' })
   @ApiParam({ name: 'id', format: 'uuid' })
   @ApiResponse({ status: 200, description: 'Classificação etária alterada.' })
   @ApiResponse({ status: 400, description: 'Dados inválidos.' })
   @ApiResponse({ status: 401, description: 'Autenticação necessária.' })
   @ApiResponse({ status: 403, description: 'Requer administrador.' })
-  @ApiResponse({ status: 404, description: 'Artigo não encontrado.' })
+  @ApiResponse({ status: 404, description: 'Conto não encontrado.' })
   @ApiResponse({ status: 409, description: 'Classificação idêntica à atual.' })
   changeRating(@Param('id', ParseUUIDPipe) id: string, @Req() req: RequestWithUser, @Body() dto: ChangeRatingDto) {
     return this.service.changePostRating(id, req.user.userId, dto.contentRating, dto.reason);

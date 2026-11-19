@@ -66,7 +66,7 @@ describe('ModerationAppeals Workflow', () => {
   });
 
   describe('createAppeal', () => {
-    it('cria recurso com protocolo GRIF-REC e prazo SLA de 15 dias para artigo ocultado', async () => {
+    it('cria recurso com protocolo GRIF-REC e prazo SLA de 15 dias para conto ocultado', async () => {
       mockPostsRepo.findOne.mockResolvedValue({
         id: 'post-1',
         authorId: 'user-author',
@@ -78,7 +78,7 @@ describe('ModerationAppeals Workflow', () => {
       const result = await service.createAppeal('user-author', {
         targetType: AppealTargetType.POST,
         targetId: 'post-1',
-        reason: 'O artigo não viola as diretrizes da comunidade e trata de ficção.',
+        reason: 'O conto não viola as diretrizes da comunidade e trata de ficção.',
       });
 
       expect(result.protocol).toMatch(/^GRIF-REC-\d{8}-[A-F0-9]{6}$/);
@@ -149,7 +149,7 @@ describe('ModerationAppeals Workflow', () => {
       ).rejects.toThrow('Conflito de interesse');
     });
 
-    it('restaura automaticamente o artigo quando o recurso é aceito', async () => {
+    it('restaura automaticamente o conto quando o recurso é aceito', async () => {
       const appeal = {
         id: 'appeal-1',
         protocol: 'GRIF-REC-1',
@@ -173,7 +173,7 @@ describe('ModerationAppeals Workflow', () => {
       expect(mockPostsRepo.update).toHaveBeenCalledWith('post-1', { isActive: true, moderationHidden: false });
     });
 
-    it('permite recorrer contra alteração administrativa de classificação indicativa mesmo se artigo não estiver ocultado', async () => {
+    it('permite recorrer contra alteração administrativa de classificação indicativa mesmo se conto não estiver ocultado', async () => {
       mockPostsRepo.findOne.mockResolvedValue({
         id: 'post-1',
         authorId: 'user-author',

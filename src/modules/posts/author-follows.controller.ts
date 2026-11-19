@@ -10,8 +10,8 @@ import { AuthorFollowsService } from './author-follows.service.js';
 class FollowStatusDto { @ApiProperty({ example: true }) following: boolean; }
 class FeedItemDto {
   @ApiProperty({ format: 'uuid' }) id: string;
-  @ApiProperty({ example: 'meu-artigo' }) slug: string;
-  @ApiProperty({ example: 'Meu artigo' }) title: string;
+  @ApiProperty({ example: 'meu-conto' }) slug: string;
+  @ApiProperty({ example: 'Meu conto' }) title: string;
   @ApiProperty({ example: 'Resumo' }) excerpt: string;
   @ApiProperty({ type: String, nullable: true, example: null }) coverImage: string | null;
   @ApiProperty({ type: String, format: 'date-time', nullable: true }) publishedAt: Date | null;
@@ -31,7 +31,7 @@ class PersonalFeedDto {
 export class AuthorFollowsController {
   constructor(private readonly service: AuthorFollowsService) {}
   @Get('feed')
-  @ApiOperation({ summary: 'Feed personalizado', description: 'Artigos públicos dos autores ativos seguidos, ordenados por publicação decrescente e ID; lista vazia quando não há resultados.' })
+  @ApiOperation({ summary: 'Feed personalizado', description: 'Contos públicos dos autores ativos seguidos, ordenados por publicação decrescente e ID; lista vazia quando não há resultados.' })
   @ApiResponse({ status: 200, description: 'Feed paginado.', type: PersonalFeedDto })
   @ApiResponse({ status: 400, description: 'Paginação inválida.' })
   feed(@Req() req: RequestWithUser, @Query() query: PaginationQueryDto) { return this.service.feed(req.user.userId, query); }

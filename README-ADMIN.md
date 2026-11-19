@@ -19,7 +19,7 @@ Todas as rotas abaixo usam o prefixo `/api/v1` e exigem token JWT Bearer. A role
 | --- | --- | --- | --- | --- |
 | Consultar, moderar e suspender contas comuns | Não | Não | Sim | Sim |
 | Denunciar conteúdo ou perfil | Sim | Sim | Sim | Sim |
-| Revisar denúncias, artigos e comentários | Não | Não | Sim | Sim |
+| Revisar denúncias, contos e comentários | Não | Não | Sim | Sim |
 | Criar, editar e mesclar recursos editoriais | Não | Não | Sim | Sim |
 | Consultar indicadores e auditoria | Não | Não | Sim | Sim |
 | Conceder ou revogar ADMIN/SUPER_ADMIN | Não | Não | Não | Sim, com TOTP |
@@ -63,11 +63,11 @@ Resposta: `{ "id": "UUID", "role": "ADMIN" }`. São possíveis respostas 400 par
 
 `GET /reports` filtra por `status`, `target`, `moderatorId`, `from` e `to`; `GET /reports/:id` inclui o contexto do alvo para administradores e `GET /reports/:id/history` apresenta ações auditadas. `PATCH /reports/:id/assign` recebe `{ "moderatorId": "UUID" }` e coloca a denúncia em `IN_REVIEW`. `PATCH /reports/:id` conclui uma denúncia aberta com `{ "status": "RESOLVED", "note": "Conteúdo analisado" }`; a justificativa agora é obrigatória. Os estados finais são `RESOLVED` e `DISMISSED`. Essa decisão não altera automaticamente o conteúdo. Para vincular uma ocultação, `POST /reports/:id/resolve` aceita `status`, `note` e `action` (`NONE`, `HIDE_POST` ou `HIDE_COMMENT`); a decisão, a ação e a auditoria são atômicas.
 
-`GET /admin/comments` aceita paginação, `search`, `authorId`, `postId`, `status`, `from` e `to`. `POST /admin/comments/:id/hide` e `POST /admin/comments/:id/restore` recebem `{ "reason": "Motivo da decisão" }`; somente uma ocultação administrativa pode ser revertida. `GET /admin/posts` e `GET /admin/posts/:id` permitem consultar artigos na moderação, inclusive ocultos. `POST /admin/posts/:id/hide` e `POST /admin/posts/:id/restore` usam o mesmo corpo e preservam o estado de publicação. Esses eventos são auditados e geram notificações.
+`GET /admin/comments` aceita paginação, `search`, `authorId`, `postId`, `status`, `from` e `to`. `POST /admin/comments/:id/hide` e `POST /admin/comments/:id/restore` recebem `{ "reason": "Motivo da decisão" }`; somente uma ocultação administrativa pode ser revertida. `GET /admin/posts` e `GET /admin/posts/:id` permitem consultar contos na moderação, inclusive ocultos. `POST /admin/posts/:id/hide` e `POST /admin/posts/:id/restore` usam o mesmo corpo e preservam o estado de publicação. Esses eventos são auditados e geram notificações.
 
-`GET /post-reviews/:id` permite ao autor consultar a justificativa de rejeição. O primeiro artigo mantém a revisão obrigatória; a rejeição exige justificativa e a aprovação libera o autor para publicação posterior.
+`GET /post-reviews/:id` permite ao autor consultar a justificativa de rejeição. O primeiro conto mantém a revisão obrigatória; a rejeição exige justificativa e a aprovação libera o autor para publicação posterior.
 
-Os estados editoriais existentes são `DRAFT`, `PENDING`, `APPROVED` e `REJECTED`. Publicação e ocultação são propriedades separadas: um artigo aprovado pode permanecer publicado e ficar temporariamente inativo por moderação. Rascunhos e revisões pendentes não são públicos. Artigos publicados podem ser editados conforme as regras existentes do autor; a edição não inicia uma nova revisão geral. A revisão pendente impede edição, e o responsável não pode decidir sobre o próprio artigo.
+Os estados editoriais existentes são `DRAFT`, `PENDING`, `APPROVED` e `REJECTED`. Publicação e ocultação são propriedades separadas: um conto aprovado pode permanecer publicado e ficar temporariamente inativo por moderação. Rascunhos e revisões pendentes não são públicos. Contos publicados podem ser editados conforme as regras existentes do autor; a edição não inicia uma nova revisão geral. A revisão pendente impede edição, e o responsável não pode decidir sobre o próprio conto.
 
 Para concluir uma denúncia com ocultação:
 
@@ -79,11 +79,11 @@ Content-Type: application/json
 { "status": "RESOLVED", "note": "Violação confirmada", "action": "HIDE_COMMENT" }
 ```
 
-A resposta tem o formato `{ "id": "UUID", "status": "RESOLVED", "action": "HIDE_COMMENT" }`. `HIDE_COMMENT` exige denúncia de comentário; `HIDE_POST`, denúncia de artigo. Uma denúncia `DISMISSED` aceita somente `NONE`. Para uma transição inválida ou um alvo já indisponível, a operação retorna 409 e não conclui a denúncia.
+A resposta tem o formato `{ "id": "UUID", "status": "RESOLVED", "action": "HIDE_COMMENT" }`. `HIDE_COMMENT` exige denúncia de comentário; `HIDE_POST`, denúncia de conto. Uma denúncia `DISMISSED` aceita somente `NONE`. Para uma transição inválida ou um alvo já indisponível, a operação retorna 409 e não conclui a denúncia.
 
 ## Tags e indicadores
 
-`GET /admin/tags` inclui a quantidade de artigos; `POST /admin/tags` e `PATCH /admin/tags/:id` recebem `{ "name": "Tecnologia" }`. `DELETE /admin/tags/:id` só exclui tags sem uso. `POST /admin/tags/:id/merge` recebe `{ "targetId": "UUID" }` e transfere associações sem duplicá-las. As operações são auditadas.
+`GET /admin/tags` inclui a quantidade de contos; `POST /admin/tags` e `PATCH /admin/tags/:id` recebem `{ "name": "Tecnologia" }`. `DELETE /admin/tags/:id` só exclui tags sem uso. `POST /admin/tags/:id/merge` recebe `{ "targetId": "UUID" }` e transfere associações sem duplicá-las. As operações são auditadas.
 
 `GET /admin/categories` lista categorias com contagem de uso; a desativação pelo CRUD existente preserva as associações, mas remove a categoria da apresentação pública. `GET /admin/analytics/overview` apresenta totais e contagens de criação para `from` e `to`, quando fornecidos. `GET /admin/analytics/activity` apresenta série diária e atividade recente, usando o fuso da sessão do banco. A série de newsletter conta a primeira criação de cada registro, não reinscrições posteriores. `GET /admin/analytics/newsletter` apresenta apenas contagens agregadas de assinaturas e envios, sem endereços. Cancelamentos históricos não são contabilizados, pois o modelo atual não guarda essa série.
 
@@ -91,7 +91,7 @@ A resposta tem o formato `{ "id": "UUID", "status": "RESOLVED", "action": "HIDE_
 
 Os fluxos de atribuição e decisão ficam no histórico auditado. A listagem de notificações retorna `reportId` quando uma denúncia é atribuída, sem incluir dados do denunciante. A fila de novas denúncias é consultada por `/reports` e pelo painel; não gera notificação individual para todos os administradores.
 
-Séries mantêm as permissões e a autoria existentes; não foi criado um segundo estado de visibilidade para agrupamentos. O mecanismo de artigos em alta também permanece inalterado, sem destaque manual adicional. Ocultações anteriores à introdução dos campos de moderação não são automaticamente classificadas como reversíveis, para evitar restaurar uma exclusão feita pelo autor.
+Séries mantêm as permissões e a autoria existentes; não foi criado um segundo estado de visibilidade para agrupamentos. O mecanismo de contos em alta também permanece inalterado, sem destaque manual adicional. Ocultações anteriores à introdução dos campos de moderação não são automaticamente classificadas como reversíveis, para evitar restaurar uma exclusão feita pelo autor.
 
 O histórico de cancelamentos de newsletter não pode ser reconstruído a partir dos dados atuais. TOTP obrigatório foi aplicado à mudança de privilégios; outras ações administrativas não exigem nova verificação. A política operacional de retenção e o monitoramento de entrega de e-mails dependem da infraestrutura de implantação.
 

@@ -56,14 +56,14 @@ describe('CategoriesService', () => {
       const result = await service.create(
         {
           name: 'Tecnologia & Inovação',
-          description: 'Artigos sobre tech',
+          description: 'Contos sobre tech',
         },
         'admin-uuid-1',
       );
 
       expect(mockCategoryRepository.create).toHaveBeenCalledWith({
         name: 'Tecnologia & Inovação',
-        description: 'Artigos sobre tech',
+        description: 'Contos sobre tech',
         slug: 'tecnologia-inovacao',
         isActive: true,
         creatorId: 'admin-uuid-1',

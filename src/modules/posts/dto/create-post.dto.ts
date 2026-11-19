@@ -14,14 +14,14 @@ import {
 } from 'class-validator';
 
 export class CreatePostDto {
-  @ApiPropertyOptional({ description: 'Série do próprio autor: cria artigo e vínculo na mesma transação, na última posição (até 100 capítulos). Omitir para texto independente.', format: 'uuid' })
+  @ApiPropertyOptional({ description: 'Série do próprio autor: cria conto e vínculo na mesma transação, na última posição (até 100 capítulos). Omitir para texto independente.', format: 'uuid' })
   @IsOptional()
   @IsUUID('4')
   seriesId?: string;
 
   @ApiProperty({
-    description: 'Título do artigo',
-    example: 'Como estruturar projetos no NestJS',
+    description: 'Título do conto',
+    example: 'A casa que acendia sozinha',
     minLength: 3,
     maxLength: 150,
   })
@@ -32,9 +32,9 @@ export class CreatePostDto {
   title: string;
 
   @ApiProperty({
-    description: 'Conteúdo detalhado do artigo',
+    description: 'Conteúdo detalhado do conto',
     example:
-      'Neste artigo vamos discutir padrões arquiteturais no NestJS e melhores práticas de organização de código.',
+      'À meia-noite, a casa do outro lado da rua acendeu a luz pela primeira vez em dez anos.',
     minLength: 10,
     maxLength: 55000,
   })
@@ -44,14 +44,14 @@ export class CreatePostDto {
   @MaxLength(55000)
   content: string;
 
-  @ApiPropertyOptional({ description: 'Descrição apresentada abaixo do título e nas listagens; gerada a partir do conteúdo quando omitida na criação.', maxLength: 200, example: 'Uma apresentação do artigo.' })
+  @ApiPropertyOptional({ description: 'Descrição apresentada abaixo do título e nas listagens; gerada a partir do conteúdo quando omitida na criação.', maxLength: 200, example: 'Uma apresentação do conto.' })
   @IsOptional()
   @IsString()
   @MaxLength(200)
   excerpt?: string;
 
   @ApiPropertyOptional({
-    description: 'Status de publicação do artigo',
+    description: 'Status de publicação do conto',
     example: true,
     default: false,
   })
@@ -65,7 +65,7 @@ export class CreatePostDto {
   scheduledAt?: string | null;
 
   @ApiPropertyOptional({
-    description: 'Lista de IDs (UUID) das categorias vinculadas ao artigo',
+    description: 'Lista de IDs (UUID) das categorias vinculadas ao conto',
     example: ['b1a7d654-2a6c-4876-b9b6-79cf021516e8'],
     type: [String],
   })
@@ -77,7 +77,7 @@ export class CreatePostDto {
   @ApiPropertyOptional({
     description:
       'Nomes das tags. Tags inexistentes são criadas automaticamente.',
-    example: ['NestJS', 'PostgreSQL'],
+    example: ['Mistério', 'Cidade pequena'],
     type: [String],
     maxItems: 10,
   })
@@ -90,7 +90,7 @@ export class CreatePostDto {
   tagNames?: string[];
 
   @ApiPropertyOptional({
-    description: 'Classificação indicativa do artigo (LIVRE, 10+, 12+, 14+, 16+, 18+)',
+    description: 'Classificação indicativa do conto (LIVRE, 10+, 12+, 14+, 16+, 18+)',
     example: 'LIVRE',
     enum: ['LIVRE', '10+', '12+', '14+', '16+', '18+'],
     default: 'LIVRE',

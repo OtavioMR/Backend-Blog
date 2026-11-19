@@ -81,7 +81,7 @@ export class ModerationAppealsController {
   @Post('moderation/appeals')
   @ApiOperation({
     summary: 'Submeter recurso contra decisão de moderação',
-    description: 'Permite ao autor recorrer de ocultação de artigo, comentário ou ação editorial. Gera protocolo e prazo SLA de 15 dias.',
+    description: 'Permite ao autor recorrer de ocultação de conto, comentário ou ação editorial. Gera protocolo e prazo SLA de 15 dias.',
   })
   @ApiResponse({ status: 201, description: 'Recurso registrado com sucesso com protocolo GRIF-REC.' })
   createAppeal(@Req() req: RequestWithUser, @Body() dto: CreateAppealDto) {

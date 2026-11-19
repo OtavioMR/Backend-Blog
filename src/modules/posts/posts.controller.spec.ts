@@ -56,7 +56,7 @@ describe('PostsController', () => {
     it('deve chamar postsService.create com o DTO e o userId do autor', async () => {
       const dto: CreatePostDto = {
         title: 'Como estruturar NestJS',
-        content: 'Conteúdo detalhado do artigo...',
+        content: 'Conteúdo detalhado do conto...',
         published: true,
       };
       const req: any = {

@@ -48,7 +48,7 @@ export class PostCommentsController {
   @ApiPublicRoute()
   @ApiExtraModels(PaginatedCommentsResponseDto, RootCommentResponseDto)
   @ApiOperation({
-    summary: 'Listar comentários do post',
+    summary: 'Listar comentários do conto',
     description:
       'Acesso público. Comentários principais aparecem dos mais recentes aos mais antigos, com até cinco respostas iniciais por conversa. Comentários desativados mantêm o autor e exibem “Comentário excluído”.',
   })
@@ -69,12 +69,12 @@ export class PostCommentsController {
   @ApiQuery({ name: 'cursor', required: false, type: String, example: 'start', description: 'Use start na primeira página e nextCursor nas seguintes. Retorna meta.hasMore e meta.nextCursor.' })
   @ApiResponse({ status: 400, description: 'Cursor ou parâmetros inválidos.' })
   @ApiResponse({ status: 409, description: 'A lista mudou durante a consulta; repita a requisição.' })
-  @ApiResponse({ status: 403, description: 'Comentários desativados no post.' })
+  @ApiResponse({ status: 403, description: 'Comentários desativados no conto.' })
   @ApiResponse({ status: 200, description: 'Comentários e primeiras respostas, com metadados de paginação.', schema: { oneOf: [
     { $ref: getSchemaPath(PaginatedCommentsResponseDto) },
     { type: 'object', properties: { data: { type: 'array', items: { $ref: getSchemaPath(RootCommentResponseDto) } }, meta: { type: 'object', properties: { hasMore: { type: 'boolean', example: true }, nextCursor: { type: 'string', nullable: true } } } } },
   ] } })
-  @ApiResponse({ status: 404, description: 'Post não encontrado ou indisponível.' })
+  @ApiResponse({ status: 404, description: 'Conto não encontrado ou indisponível.' })
   @Get()
   list(
     @Param('postId', ParseUUIDPipe) postId: string,
@@ -102,9 +102,9 @@ export class PostCommentsController {
     example: 5,
     description: 'Respostas por página; padrão 5, máximo 100.',
   })
-  @ApiResponse({ status: 403, description: 'Comentários desativados no post.' })
+  @ApiResponse({ status: 403, description: 'Comentários desativados no conto.' })
   @ApiResponse({ status: 200, description: 'Respostas paginadas.', type: PaginatedRepliesResponseDto })
-  @ApiResponse({ status: 404, description: 'Post ou conversa não encontrado.' })
+  @ApiResponse({ status: 404, description: 'Conto ou conversa indisponível.' })
   @Get(':id/replies')
   replies(
     @Param('postId', ParseUUIDPipe) postId: string,
@@ -116,14 +116,14 @@ export class PostCommentsController {
   @ApiOperation({
     summary: 'Criar comentário ou resposta',
     description:
-      'Exige login. Para comentar no post, envie apenas content. Para responder, informe também replyToId com o UUID de um comentário ativo do mesmo post. Não envie replyToId vazio. Respostas ficam agrupadas no comentário principal.',
+      'Exige login. Para comentar no conto, envie apenas content. Para responder, informe também replyToId com o UUID de um comentário ativo do mesmo conto. Não envie replyToId vazio. Respostas ficam agrupadas no comentário principal.',
   })
   @ApiBody({
     schema: { $ref: getSchemaPath(CreateCommentDto) },
     examples: {
       comentario: {
         summary: 'Novo comentário',
-        value: { content: 'Gostei do post!' },
+        value: { content: 'Gostei do conto!' },
       },
       resposta: {
         summary: 'Resposta a um comentário',
@@ -141,7 +141,7 @@ export class PostCommentsController {
   })
   @ApiResponse({ status: 401, description: 'Token ausente ou inválido.' })
   @ApiResponse({ status: 201, description: 'Comentário criado.', type: CommentResponseDto })
-  @ApiResponse({ status: 403, description: 'Comentários desativados no post.' })
+  @ApiResponse({ status: 403, description: 'Comentários desativados no conto.' })
   @ApiResponse({ status: 429, description: 'Limite de 5 comentários por minuto por IP excedido.' })
   @ApiBearerAuth('JWT-auth')
   @UseGuards(JwtAuthGuard)
@@ -169,7 +169,7 @@ export class CommentsController {
   })
   @ApiResponse({
     status: 403,
-    description: 'Sem permissão ou comentários desativados no post.',
+    description: 'Sem permissão ou comentários desativados no conto.',
   })
   @ApiResponse({ status: 200, description: 'Comentário atualizado.', type: CommentResponseDto })
   @Patch(':id')
@@ -183,7 +183,7 @@ export class CommentsController {
   @ApiOperation({
     summary: 'Desativar comentário',
     description:
-      'O autor do comentário, o autor do post ou um administrador pode desativá-lo. O registro e as respostas são mantidos; não é possível reativá-lo nem responder diretamente a ele.',
+      'O autor do comentário, o autor do conto ou um administrador pode desativá-lo. O registro e as respostas são mantidos; não é possível reativá-lo nem responder diretamente a ele.',
   })
   @ApiResponse({ status: 204, description: 'Comentário desativado.' })
   @ApiResponse({

@@ -61,7 +61,8 @@ describe('MailService', () => {
     const service = new MailService({ get: (key: string) => values[key], getOrThrow: (key: string) => values[key] } as ConfigService, { enqueue } as never);
     await service.sendNewsletterConfirmation('reader@example.test', 'token');
     expect(enqueue.mock.calls[0][0].text).toContain('https://api.example.test/api/v1/newsletter/confirm?token=token');
-    await service.sendNewsletterPost('reader@example.test', 'Title', 'article', 'unsubscribe-token');
+    await service.sendNewsletterPost('reader@example.test', 'Title', 'conto', 'unsubscribe-token');
+    expect(sendMail.mock.calls[0][0].subject).toBe('Novo conto: Title');
     expect(sendMail.mock.calls[0][0].text).toContain('https://api.example.test/api/v1/newsletter/unsubscribe?token=unsubscribe-token');
   });
 });

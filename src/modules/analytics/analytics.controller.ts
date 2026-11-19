@@ -18,7 +18,7 @@ class AnalyticsQuery {
 export class AnalyticsController {
   constructor(private readonly service: AnalyticsService) {}
   @Get('overview')
-  @ApiOperation({ summary: 'Consultar indicadores da plataforma', description: 'Apenas administradores. Contagens atuais de usuários não excluídos, artigos não excluídos, comentários e denúncias.' })
+  @ApiOperation({ summary: 'Consultar indicadores da plataforma', description: 'Apenas administradores. Contagens atuais de usuários não excluídos, contos não excluídos, comentários e denúncias.' })
   @ApiResponse({ status: 200, description: 'Indicadores agregados.', schema: { example: { users: { total: 100, active: 95, verified: 90 }, posts: { total: 50, published: 40, drafts: 10 }, comments: { total: 30, active: 29 }, reports: { total: 3, pending: 1 }, generatedAt: '2026-01-01T12:00:00.000Z' } } })
   @ApiResponse({ status: 401, description: 'Autenticação necessária.' })
   @ApiResponse({ status: 403, description: 'Apenas administradores.' })
@@ -29,7 +29,7 @@ export class AnalyticsController {
   @ApiResponse({ status: 401, description: 'Autenticação necessária.' }) @ApiResponse({ status: 403, description: 'Apenas administradores.' })
   newsletter() { return this.service.newsletter(); }
   @Get('activity')
-  @ApiOperation({ summary: 'Consultar atividade administrativa e evolução diária', description: 'Série de cadastros, artigos, denúncias e inscrições de newsletter por dia em intervalo de até 366 dias, além de dez publicações e ações recentes.' })
+  @ApiOperation({ summary: 'Consultar atividade administrativa e evolução diária', description: 'Série de cadastros, contos, denúncias e inscrições de newsletter por dia em intervalo de até 366 dias, além de dez publicações e ações recentes.' })
   @ApiResponse({ status: 200, description: 'Série e atividades recentes.' }) @ApiResponse({ status: 400, description: 'Intervalo inválido ou maior que 366 dias.' }) @ApiResponse({ status: 401, description: 'Autenticação necessária.' }) @ApiResponse({ status: 403, description: 'Apenas administradores.' })
   activity(@Query() query: AnalyticsQuery) { return this.service.activity(query.from, query.to); }
 }

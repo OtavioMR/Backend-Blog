@@ -12,25 +12,25 @@ class DecisionDto {
   @ApiPropertyOptional({ description: 'Obrigatório ao rejeitar.', minLength: 5, maxLength: 1000, example: 'Faltam fontes para as afirmações.' })
   @ValidateIf((dto: DecisionDto) => dto.decision === 'REJECTED' || dto.reason !== undefined) @IsString() @MinLength(5) @MaxLength(1000) reason?: string;
 }
-@ApiTags('Revisão de artigos')
+@ApiTags('Revisão de contos')
 @ApiBearerAuth('JWT-auth')
 @UseGuards(JwtAuthGuard)
 @Controller('post-reviews')
 export class PostReviewController {
   constructor(private readonly service: PostReviewService) {}
   @Post(':id/submit')
-  @ApiOperation({ summary: 'Enviar rascunho para revisão do primeiro artigo' })
+  @ApiOperation({ summary: 'Enviar rascunho para revisão do primeiro conto' })
   @ApiParam({ name: 'id', format: 'uuid', example: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11' })
   @ApiResponse({ status: 201, description: 'Rascunho enviado.', schema: { example: { status: 'PENDING' } } })
   @ApiResponse({ status: 401, description: 'Autenticação necessária.' })
-  @ApiResponse({ status: 403, description: 'Artigo não pertence a autor ativo.' })
-  @ApiResponse({ status: 404, description: 'Artigo não encontrado.' })
-  @ApiResponse({ status: 409, description: 'Artigo ou autoria não elegível.' })
+  @ApiResponse({ status: 403, description: 'Conto não pertence a autor ativo.' })
+  @ApiResponse({ status: 404, description: 'Conto não encontrado.' })
+  @ApiResponse({ status: 409, description: 'Conto ou autoria não elegível.' })
   submit(@Param('id', ParseUUIDPipe) id: string, @Req() req: RequestWithUser) { return this.service.submit(id, req.user.userId); }
   @Get()
   @UseGuards(RolesGuard) @Roles(UserRole.ADMIN)
-  @ApiOperation({ summary: 'Listar artigos pendentes de revisão', description: 'Apenas administradores; retorna até 100 artigos mais antigos.' })
-  @ApiResponse({ status: 200, description: 'Artigos pendentes.', schema: { example: [] } })
+  @ApiOperation({ summary: 'Listar contos pendentes de revisão', description: 'Apenas administradores; retorna até 100 contos mais antigos.' })
+  @ApiResponse({ status: 200, description: 'Contos pendentes.', schema: { example: [] } })
   @ApiResponse({ status: 401, description: 'Autenticação necessária.' })
   @ApiResponse({ status: 403, description: 'Apenas administradores.' })
   list() { return this.service.list(); }
@@ -41,17 +41,17 @@ export class PostReviewController {
   @ApiResponse({ status: 400, description: 'Identificador inválido.' })
   @ApiResponse({ status: 401, description: 'Autenticação necessária.' })
   @ApiResponse({ status: 403, description: 'Acesso restrito ao autor e administradores.' })
-  @ApiResponse({ status: 404, description: 'Artigo não encontrado.' })
+  @ApiResponse({ status: 404, description: 'Conto não encontrado.' })
   result(@Param('id', ParseUUIDPipe) id: string, @Req() req: RequestWithUser) { return this.service.result(id, req.user); }
   @Post(':id/decision')
   @UseGuards(RolesGuard) @Roles(UserRole.ADMIN)
-  @ApiOperation({ summary: 'Aprovar ou rejeitar primeiro artigo', description: 'A aprovação publica o artigo e libera a publicação posterior pelo autor. A rejeição exige justificativa; o próprio autor não pode decidir.' })
+  @ApiOperation({ summary: 'Aprovar ou rejeitar primeiro conto', description: 'A aprovação publica o conto e libera a publicação posterior pelo autor. A rejeição exige justificativa; o próprio autor não pode decidir.' })
   @ApiParam({ name: 'id', format: 'uuid', example: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11' })
   @ApiResponse({ status: 201, description: 'Decisão registrada.', schema: { example: { status: 'APPROVED' } } })
   @ApiResponse({ status: 400, description: 'Dados inválidos.' })
   @ApiResponse({ status: 401, description: 'Autenticação necessária.' })
   @ApiResponse({ status: 403, description: 'Apenas administradores.' })
-  @ApiResponse({ status: 404, description: 'Artigo não encontrado.' })
-  @ApiResponse({ status: 409, description: 'Artigo não está pendente ou autor indisponível.' })
+  @ApiResponse({ status: 404, description: 'Conto não encontrado.' })
+  @ApiResponse({ status: 409, description: 'Conto não está pendente ou autor indisponível.' })
   decide(@Param('id', ParseUUIDPipe) id: string, @Body() dto: DecisionDto, @Req() req: RequestWithUser) { return this.service.decide(id, dto.decision, req.user.userId, dto.reason); }
 }

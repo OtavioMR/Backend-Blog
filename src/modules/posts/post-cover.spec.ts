@@ -7,7 +7,7 @@ import { UserRole } from '../users/enums/user.enum.js';
 vi.mock('node:fs/promises', () => ({ mkdir: vi.fn(), writeFile: vi.fn(), unlink: vi.fn().mockResolvedValue(undefined) }));
 import { writeFile, unlink } from 'node:fs/promises';
 
-describe('capa de artigo', () => {
+describe('capa de conto', () => {
   const owner = { userId: 'author', email: 'author@example.test', role: UserRole.AUTHOR };
   let repo: any;
   let builder: any;
@@ -31,7 +31,7 @@ describe('capa de artigo', () => {
     repo.findOne.mockResolvedValue(null);
     await expect(service.removeCover('id', owner)).rejects.toBeInstanceOf(NotFoundException);
   });
-  it('impede alterar a capa enquanto o artigo aguarda revisão', async () => {
+  it('impede alterar a capa enquanto o conto aguarda revisão', async () => {
     repo.findOne.mockResolvedValue({ authorId: 'author', coverImage: null, reviewStatus: 'PENDING' });
     await expect(service.removeCover('id', owner)).rejects.toBeInstanceOf(ConflictException);
     expect(builder.execute).not.toHaveBeenCalled();

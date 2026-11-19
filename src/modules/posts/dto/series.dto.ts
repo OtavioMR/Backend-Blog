@@ -23,7 +23,7 @@ export class UpdateSeriesDto {
 export class SeriesItemsDto {
   @ApiPropertyOptional({ description: 'Versão lida pelo cliente; divergência retorna 409 sem alterar vínculos.', format: 'date-time' })
   @IsOptional() @IsISO8601() expectedUpdatedAt?: string;
-  @ApiProperty({ description: 'Lista completa e ordenada de IDs dos artigos; lista vazia remove todos.', type: [String], maxItems: 100, example: ['a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11'] })
+  @ApiProperty({ description: 'Lista completa e ordenada de IDs dos contos; lista vazia remove todos.', type: [String], maxItems: 100, example: ['a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11'] })
   @IsArray() @ArrayMaxSize(100) @ArrayUnique() @IsUUID('4', { each: true }) postIds: string[];
 }
 

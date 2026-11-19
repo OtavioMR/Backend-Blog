@@ -69,25 +69,25 @@ describe('PostsService', () => {
   });
 
   it('aceita descrição de 500 caracteres e rejeita 501', async () => {
-    const dto = Object.assign(new CreatePostDto(), { title: 'Artigo', content: 'Conteúdo do artigo', excerpt: 'a'.repeat(200) });
+    const dto = Object.assign(new CreatePostDto(), { title: 'Conto', content: 'Conteúdo do conto', excerpt: 'a'.repeat(200) });
     expect(await validate(dto)).toHaveLength(0);
     dto.excerpt += 'a';
     expect((await validate(dto)).some(error => error.property === 'excerpt')).toBe(true);
   });
 
   it('salva a descrição escolhida e a preserva ao alterar o conteúdo', async () => {
-    const created = await service.create({ title: 'Artigo', content: 'Conteúdo do artigo', excerpt: '<b>Apresentação</b>' }, 'autor');
+    const created = await service.create({ title: 'Conto', content: 'Conteúdo do conto', excerpt: '<b>Apresentação</b>' }, 'autor');
     expect(created.excerpt).toBe('Apresentação');
     mockPostsRepository.findOne.mockResolvedValue(created);
     const user = { userId: 'autor', role: UserRole.AUTHOR } as any;
-    const updated = await service.update(created.id, { content: 'Outro conteúdo do artigo' }, user);
+    const updated = await service.update(created.id, { content: 'Outro conteúdo do conto' }, user);
     expect(updated.excerpt).toBe('Apresentação');
     const changed = await service.update(created.id, { excerpt: 'Nova descrição' }, user);
     expect(changed.excerpt).toBe('Nova descrição');
   });
 
   describe('findAll', () => {
-    it('solicita nova tentativa se o artigo que define o cursor mudar durante a leitura', async () => {
+    it('solicita nova tentativa se o conto que define o cursor mudar durante a leitura', async () => {
       const publishedAt = new Date('2026-01-01T00:00:00Z');
       mockPostsRepository.find.mockResolvedValue([
         { id: 'one', title: 'One', publishedAt, categories: [], tags: [] },
@@ -97,7 +97,7 @@ describe('PostsService', () => {
       await expect(service.findAll({ cursor: 'start', limit: 1 })).rejects.toThrow('A lista mudou durante a consulta');
     });
 
-    it('deve listar todos os artigos mesmo sem categoria associada', async () => {
+    it('deve listar todos os contos mesmo sem categoria associada', async () => {
       const postsFromDb = [
         { id: 'p1', title: 'Post sem categoria', categories: null },
         {
@@ -203,7 +203,7 @@ describe('PostsService', () => {
     });
   });
 
-  it('lista apenas artigos ativos do próprio usuário, incluindo rascunhos', async () => {
+  it('lista apenas contos ativos do próprio usuário, incluindo rascunhos', async () => {
     mockPostsRepository.findAndCount.mockResolvedValue([[{ id: 'p1', published: false }], 1]);
     const result = await service.findMine('author-1', { page: 2, limit: 5 });
     expect(mockPostsRepository.findAndCount).toHaveBeenCalledWith(expect.objectContaining({ where: { authorId: 'author-1', isActive: true }, skip: 5, take: 5 }));
@@ -228,11 +228,11 @@ describe('PostsService', () => {
     }
   });
 
-  it('estima seis minutos para um artigo com 1200 palavras', async () => {
+  it('estima seis minutos para um conto com 1200 palavras', async () => {
     const content = Array(1200).fill('palavra').join(' ');
-    const result = await service.create({ title: 'Artigo longo', content }, 'autor');
+    const result = await service.create({ title: 'Conto longo', content }, 'autor');
     expect(result).toHaveProperty('readingTimeMinutes', 6);
-    mockPostsRepository.findAndCount.mockResolvedValue([[{ title: 'Artigo longo', content }], 1]);
+    mockPostsRepository.findAndCount.mockResolvedValue([[{ title: 'Conto longo', content }], 1]);
     expect((await service.findAll()).data[0]).toHaveProperty('readingTimeMinutes', 6);
   });
 
@@ -268,14 +268,23 @@ describe('PostsService', () => {
   });
 
   describe('create', () => {
-    it('deve criar artigo associando categorias válidas', async () => {
+    it.each([
+      ['猫の話', 'conto'],
+      ['saved', 'conto-saved'],
+      ['b1ffcd88-8b1a-4ce7-aa5c-5cc8ac271b22', 'conto-b1ffcd88-8b1a-4ce7-aa5c-5cc8ac271b22'],
+    ])('gera slug de conto para o título %s', async (title, slug) => {
+      const result = await service.create({ title, content: 'Um conto de teste.' }, 'autor');
+      expect(result.slug).toBe(slug);
+    });
+
+    it('deve criar conto associando categorias válidas', async () => {
       const cat = { id: 'cat-1', name: 'Tech', slug: 'tech', isActive: true };
       mockCategoriesRepository.find.mockResolvedValue([cat]);
 
       const result = await service.create(
         {
-          title: 'Novo Post',
-          content: 'Conteúdo do artigo longo com mais de dez caracteres',
+          title: 'Novo conto',
+          content: 'Conteúdo do conto longo com mais de dez caracteres',
           categoryIds: ['cat-1'],
         },
         'author-1',
@@ -284,11 +293,11 @@ describe('PostsService', () => {
       expect(mockCategoriesRepository.find).toHaveBeenCalled();
       expect(mockPostsRepository.create).toHaveBeenCalledWith(
         expect.objectContaining({
-          title: 'Novo Post',
+          title: 'Novo conto',
           categories: [cat],
         }),
       );
-      expect(result.slug).toBe('novo-post');
+      expect(result.slug).toBe('novo-conto');
     });
 
     it('deve lançar NotFoundException se alguma categoria informada não for encontrada', async () => {
@@ -297,8 +306,8 @@ describe('PostsService', () => {
       await expect(
         service.create(
           {
-            title: 'Novo Post',
-            content: 'Conteúdo do artigo longo com mais de dez caracteres',
+            title: 'Novo conto',
+            content: 'Conteúdo do conto longo com mais de dez caracteres',
             categoryIds: ['cat-inexistente'],
           },
           'author-1',
@@ -312,8 +321,8 @@ describe('PostsService', () => {
 
       await service.create(
         {
-          title: 'Novo Post',
-          content: 'Conteúdo longo do artigo',
+          title: 'Novo conto',
+          content: 'Conteúdo longo do conto',
           tagNames: ['NestJS'],
         },
         'author-1',
@@ -326,7 +335,7 @@ describe('PostsService', () => {
     });
   });
 
-  it('deve substituir as tags ao atualizar o artigo', async () => {
+  it('deve substituir as tags ao atualizar o conto', async () => {
     const post = {
       id: 'post-1',
       authorId: 'author-1',
@@ -347,7 +356,7 @@ describe('PostsService', () => {
   });
 
   describe('Proteção de conteúdo 18+ e Classificação Indicativa', () => {
-    it('entrega corpo, capa e prévia de artigo 18+ para visitante não autenticado', async () => {
+    it('entrega corpo, capa e prévia de conto 18+ para visitante não autenticado', async () => {
       mockPostsRepository.findOne.mockResolvedValue({
         id: 'post-18',
         title: 'Conto Maduro',
@@ -368,7 +377,7 @@ describe('PostsService', () => {
       expect(result.excerpt).toBe('Prévia detalhada de cenas fortes.');
     });
 
-    it('entrega conteúdo integral de artigo 18+ para autor ou adulto verificado', async () => {
+    it('entrega conteúdo integral de conto 18+ para autor ou adulto verificado', async () => {
       const fullPost = {
         id: 'post-18',
         authorId: 'adult-author',
@@ -390,12 +399,12 @@ describe('PostsService', () => {
       expect(result.coverImage).toBe('/uploads/covers/maduro.webp');
     });
 
-    it('exibe capa e prévia de artigos 18+ na listagem pública (findAll)', async () => {
+    it('exibe capa e prévia de contos 18+ na listagem pública (findAll)', async () => {
       mockPostsRepository.findAndCount.mockResolvedValue([
         [
           {
             id: 'post-regular',
-            title: 'Artigo Livre',
+            title: 'Conto Livre',
             content: 'Texto comum',
             excerpt: 'Prévia normal',
             coverImage: '/uploads/covers/livre.webp',
@@ -435,7 +444,7 @@ describe('PostsService', () => {
       expect(adult.excerpt).toBe('Prévia com conteúdo potencialmente sensível');
     });
 
-    it('filtra apenas artigos avulsos quando standalone=true', async () => {
+    it('filtra apenas contos avulsos quando standalone=true', async () => {
       mockPostsRepository.findAndCount.mockResolvedValue([[], 0]);
 
       await service.findAll({

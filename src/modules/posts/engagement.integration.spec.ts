@@ -66,7 +66,7 @@ describe.skipIf(process.env.RUN_DB_TESTS !== '1')('engagement PostgreSQL integra
     expect((await service.feed(follower, {})).data).toEqual([]);
     await expect(service.follow(user, user)).rejects.toThrow();
   });
-  it('keeps collections private and hides articles that are no longer saved', async () => {
+  it('keeps collections private and hides stories that are no longer saved', async () => {
     const service = new SavedCollectionsService(runner.manager.getRepository(Post));
     const collection = await service.create(follower, 'Reading') as { id: string };
     await expect(service.add(collection.id, post, follower)).rejects.toThrow();
@@ -144,7 +144,7 @@ describe.skipIf(process.env.RUN_DB_TESTS !== '1')('engagement PostgreSQL integra
     expect((await runner.query('SELECT confirmed FROM newsletter_subscribers WHERE id = $1', [subscriber.id]))[0].confirmed).toBe(false);
     expect((await runner.query('SELECT post_id FROM newsletter_deliveries WHERE subscriber_id = $1 AND sent_at IS NULL', [subscriber.id])).length).toBe(0);
   });
-  it('captures, protects and restores article revisions', async () => {
+  it('captures, protects and restores story revisions', async () => {
     const repository = runner.manager.getRepository(Post);
     const postService = new PostsService(repository, runner.manager.getRepository(Category), {} as TagsService);
     const service = new PostRevisionsService(repository, postService);

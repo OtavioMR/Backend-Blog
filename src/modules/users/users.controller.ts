@@ -66,9 +66,9 @@ export class UsersController {
   @Get('author-rules')
   @ApiPublicRoute()
   @ApiOperation({ summary: 'Consultar regras para autores' })
-  @ApiResponse({ status: 200, description: 'Versão e regras de publicação.', schema: { example: { version: '1', rules: ['Publique apenas conteúdo que você tenha direito de compartilhar.', 'Respeite as pessoas e não publique conteúdo abusivo.', 'O primeiro artigo será submetido à aprovação administrativa.'] } } })
+  @ApiResponse({ status: 200, description: 'Versão e regras de publicação.', schema: { example: { version: '1', rules: ['Publique apenas conteúdo que você tenha direito de compartilhar.', 'Respeite as pessoas e não publique conteúdo abusivo.', 'O primeiro conto será submetido à aprovação administrativa.'] } } })
   authorRules() {
-    return { version: '1', rules: ['Publique apenas conteúdo que você tenha direito de compartilhar.', 'Respeite as pessoas e não publique conteúdo abusivo.', 'O primeiro artigo será submetido à aprovação administrativa.'] };
+    return { version: '1', rules: ['Publique apenas conteúdo que você tenha direito de compartilhar.', 'Respeite as pessoas e não publique conteúdo abusivo.', 'O primeiro conto será submetido à aprovação administrativa.'] };
   }
 
   @Post('me/author')
@@ -195,7 +195,7 @@ export class UsersController {
 
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth('JWT-auth')
-  @ApiOperation({ summary: 'Encerrar conta definitivamente', description: 'Anonimiza dados pessoais, despublica artigos e gera protocolo GRIF-DEL.' })
+  @ApiOperation({ summary: 'Encerrar conta definitivamente', description: 'Anonimiza dados pessoais, despublica contos e gera protocolo GRIF-DEL.' })
   @HttpCode(HttpStatus.OK)
   @Post('me/close-account')
   closeAccount(

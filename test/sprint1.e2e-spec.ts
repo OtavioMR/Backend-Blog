@@ -41,7 +41,7 @@ describe('Sprint 1 com PostgreSQL', () => {
     token = login.body.access_token;
     const draft = await posts.save(posts.create({ title: 'Rascunho particular', slug: `rascunho-${userId}`, content: 'Conteúdo privado para teste.', authorId: userId, published: false, isActive: true }));
     draftId = draft.id;
-    await posts.save(posts.create({ title: 'NestJS artigo', slug: `nestjs-${userId}`, content: 'Conteúdo publicado', authorId: userId, published: true, isActive: true, publishedAt: new Date() }));
+    await posts.save(posts.create({ title: 'NestJS conto', slug: `nestjs-${userId}`, content: 'Conteúdo publicado', authorId: userId, published: true, isActive: true, publishedAt: new Date() }));
   });
 
   afterAll(async () => {

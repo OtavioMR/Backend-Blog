@@ -76,7 +76,7 @@ export class PostSeriesService {
         this.checkVersion(series, expectedUpdatedAt);
         if (postIds.length > 100 || new Set(postIds).size !== postIds.length) throw new BadRequestException('Lista de capítulos inválida.');
         const posts: { id: string }[] = postIds.length ? await manager.query('SELECT id FROM posts WHERE id = ANY($1::uuid[]) AND author_id = $2 AND is_active = true AND deleted_at IS NULL FOR UPDATE', [postIds, series.authorId]) : [];
-        if (posts.length !== postIds.length) throw new BadRequestException('Todos os artigos devem estar ativos e pertencer ao autor da série.');
+        if (posts.length !== postIds.length) throw new BadRequestException('Todos os contos devem estar ativos e pertencer ao autor da série.');
         await manager.query('DELETE FROM post_series_items WHERE series_id = $1', [id]);
         if (postIds.length) await manager.query('INSERT INTO post_series_items(series_id, post_id, position) SELECT $1, item.id, item.position FROM unnest($2::uuid[]) WITH ORDINALITY AS item(id, position)', [id, postIds]);
         await manager.query('UPDATE post_series SET updated_at = clock_timestamp() WHERE id = $1', [id]);
@@ -84,7 +84,7 @@ export class PostSeriesService {
       });
     } catch (error) {
       const dbError = error as { code?: string; driverError?: { code?: string } };
-      if (dbError.code === '23505' || dbError.driverError?.code === '23505') throw new ConflictException('Um artigo já pertence a outra série.');
+      if (dbError.code === '23505' || dbError.driverError?.code === '23505') throw new ConflictException('Um conto já pertence a outra série.');
       throw error;
     }
   }
@@ -119,7 +119,7 @@ export class PostSeriesService {
   }
   async forPost(postId: string) {
     const rows = await this.db.query(`SELECT si.series_id AS "seriesId" FROM post_series_items si JOIN posts p ON p.id=si.post_id WHERE p.id=$1 AND ${visible}`, [postId]);
-    if (!rows.length) throw new NotFoundException('Série não encontrada para o artigo.');
+    if (!rows.length) throw new NotFoundException('Série não encontrada para o conto.');
     return this.detail(rows[0].seriesId);
   }
   async mine(user: AuthenticatedUser) {

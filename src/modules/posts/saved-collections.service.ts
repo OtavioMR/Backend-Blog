@@ -40,7 +40,7 @@ export class SavedCollectionsService {
     await this.requireCollection(id, userId);
     const rows: unknown[] = await this.posts.query(`SELECT p.id FROM posts p JOIN post_interactions i ON i.post_id = p.id
       WHERE p.id = $1 AND i.user_id = $2 AND i.saved = true AND p.published = true AND p.is_active = true AND p.deleted_at IS NULL`, [postId, userId]);
-    if (!rows.length) throw new NotFoundException('Artigo salvo não encontrado.');
+    if (!rows.length) throw new NotFoundException('Conto salvo não encontrado.');
     await this.posts.query('INSERT INTO saved_collection_posts (collection_id, user_id, post_id) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING', [id, userId, postId]);
   }
   async removePost(id: string, postId: string, userId: string) {

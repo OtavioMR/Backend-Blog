@@ -3,7 +3,7 @@ import { PostsService } from './posts.service.js';
 import { UserRole } from '../users/enums/user.enum.js';
 
 describe('descoberta de conteúdo', () => {
-  it('ordena relacionados por tags e categorias compartilhadas e exclui o pr?prio artigo', async () => {
+  it('ordena relacionados por tags e categorias compartilhadas e exclui o pr?prio conto', async () => {
     const tag = { id: 't' }; const category = { id: 'c', isActive: true };
     const target = { id: 'a', tags: [tag], categories: [category] };
     const one = { id: 'b', tags: [tag], categories: [], publishedAt: new Date() };
@@ -14,7 +14,7 @@ describe('descoberta de conteúdo', () => {
     expect((await service.findRelated('slug')).map(p => p.id)).toEqual(['c', 'b']);
     expect(repo.find.mock.calls[0][0].where).toEqual(expect.arrayContaining([expect.objectContaining({ published: true, isActive: true })]));
   });
-  it('limita recomendações a quatro artigos', async () => {
+  it('limita recomendações a quatro contos', async () => {
     const tag = { id: 't' };
     const target = { id: 'target', tags: [tag], categories: [] };
     const related = Array.from({ length: 6 }, (_, index) => ({ id: `post-${index}`, tags: [tag], categories: [], publishedAt: new Date() }));

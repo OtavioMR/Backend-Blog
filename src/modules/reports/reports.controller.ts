@@ -18,7 +18,7 @@ export class ReportsController {
   constructor(private readonly service: ReportsService) {}
   @Post()
   @Throttle({ default: { limit: 10, ttl: 60_000 } })
-  @ApiOperation({ summary: 'Denunciar artigo, comentário público ou perfil ativo', description: 'Cada pessoa pode manter apenas uma denúncia aberta por recurso. O próprio perfil não pode ser denunciado.' })
+  @ApiOperation({ summary: 'Denunciar conto, comentário público ou perfil ativo', description: 'Cada pessoa pode manter apenas uma denúncia aberta por recurso. O próprio perfil não pode ser denunciado.' })
   @ApiResponse({ status: 201, description: 'Denúncia criada.', schema: { example: { id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', status: 'PENDING', reason: 'Conteúdo ofensivo' } } })
   @ApiResponse({ status: 400, description: 'Dados inválidos.' })
   @ApiResponse({ status: 401, description: 'Autenticação necessária.' })
@@ -69,7 +69,7 @@ export class ReportsController {
   }
   @Post(':id/resolve')
   @UseGuards(RolesGuard) @Roles(UserRole.ADMIN)
-  @ApiOperation({ summary: 'Concluir denúncia com ação vinculada', description: 'Registra decisão e, opcionalmente, oculta o artigo ou comentário denunciado na mesma transação. DISMISSED exige ação NONE.' })
+  @ApiOperation({ summary: 'Concluir denúncia com ação vinculada', description: 'Registra decisão e, opcionalmente, oculta o conto ou comentário denunciado na mesma transação. DISMISSED exige ação NONE.' })
   @ApiParam({ name: 'id', format: 'uuid' }) @ApiResponse({ status: 201, description: 'Denúncia concluída e ação aplicada.' }) @ApiResponse({ status: 400, description: 'Decisão, justificativa ou ação incompatível.' }) @ApiResponse({ status: 401, description: 'Autenticação necessária.' }) @ApiResponse({ status: 403, description: 'Apenas administradores.' }) @ApiResponse({ status: 404, description: 'Denúncia não encontrada.' }) @ApiResponse({ status: 409, description: 'Denúncia concluída ou alvo indisponível.' })
   resolve(@Param('id', ParseUUIDPipe) id: string, @Req() req: RequestWithUser, @Body() dto: ResolveReportDto) { return this.service.resolveWithAction(id, req.user.userId, dto); }
 

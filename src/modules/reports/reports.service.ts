@@ -131,10 +131,10 @@ export class ReportsService {
       if (!report) throw new NotFoundException('Denúncia não encontrada.');
       if (![ReportStatus.PENDING, ReportStatus.IN_REVIEW].includes(report.status)) throw new ConflictException('Denúncia já analisada.');
       if (dto.action === 'HIDE_POST') {
-        if (!report.postId) throw new BadRequestException('A denúncia não é de artigo.');
+        if (!report.postId) throw new BadRequestException('A denúncia não é de conto.');
         const posts = manager.getRepository(Post);
         const post = await posts.findOne({ where: { id: report.postId }, lock: { mode: 'pessimistic_write' } });
-        if (!post?.isActive || !post.published) throw new ConflictException('Artigo indisponível para ocultação.');
+        if (!post?.isActive || !post.published) throw new ConflictException('Conto indisponível para ocultação.');
         await posts.update(post.id, { isActive: false, moderationHidden: true });
         await this.audit.record(manager, actorId, 'post.hide', 'post', post.id, { reason: note, reportId: id });
         if (post.authorId !== actorId) await manager.query("INSERT INTO notifications(recipient_id, actor_id, type, post_id) VALUES ($1, $2, 'post_hidden', $3)", [post.authorId, actorId, post.id]);

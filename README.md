@@ -8,7 +8,7 @@ Para ativar o 2FA, o titular precisa cadastrar e confirmar um e-mail de recupera
 
 > Para as alterações administrativas mais recentes, incluindo SUPER_ADMIN, TOTP para mudanças de função e incompatibilidades do PATCH de usuários, consulte [README-ADMIN.md](README-ADMIN.md). Em caso de divergência com seções anteriores, esse contrato prevalece.
 
-API RESTful em **NestJS 12 + TypeScript**, **TypeORM + PostgreSQL** para plataforma editorial e de blog multiusuário com controle de acesso baseado em papéis (`READER`, `AUTHOR`, `ADMIN`), fluxo de revisão editorial do primeiro artigo, autenticação JWT com rotação de refresh token em cookie `HttpOnly`, autenticação em dois fatores (TOTP), login social OAuth2 (Google e GitHub), agendamento de publicações, revisões de artigos, séries, coleções salvas, comentários aninhados, notificações, newsletter (double opt-in), denúncias, moderação administrativa, métricas e trilha de auditoria.
+API RESTful em **NestJS 12 + TypeScript**, **TypeORM + PostgreSQL** para plataforma editorial e de blog multiusuário com controle de acesso baseado em papéis (`READER`, `AUTHOR`, `ADMIN`), fluxo de revisão editorial do primeiro conto, autenticação JWT com rotação de refresh token em cookie `HttpOnly`, autenticação em dois fatores (TOTP), login social OAuth2 (Google e GitHub), agendamento de publicações, revisões de contos, séries, coleções salvas, comentários aninhados, notificações, newsletter (double opt-in), denúncias, moderação administrativa, métricas e trilha de auditoria.
 
 ---
 
@@ -26,15 +26,15 @@ API RESTful em **NestJS 12 + TypeScript**, **TypeORM + PostgreSQL** para platafo
    - [7.3. Autenticação Social OAuth2 (`auth/social`)](#73-autenticação-social-oauth2-authsocial)
    - [7.4. Autenticação de Dois Fatores — TOTP (`auth/totp`)](#74-autenticação-de-dois-fatores--totp-authtotp)
    - [7.5. Usuários e Promoção de Autor (`users`)](#75-usuários-e-promoção-de-autor-users)
-   - [7.6. Artigos (`posts`)](#76-artigos-posts)
-   - [7.7. Interações em Artigos (`posts` — likes e salvos)](#77-interações-em-artigos-posts--likes-e-salvos)
-   - [7.8. Visualizações e Artigos em Alta (`posts` — views e trending)](#78-visualizações-e-artigos-em-alta-posts--views-e-trending)
+   - [7.6. Contos (`posts`)](#76-contos-posts)
+   - [7.7. Interações em Contos (`posts` — likes e salvos)](#77-interações-em-contos-posts--likes-e-salvos)
+   - [7.8. Visualizações e Contos em Alta (`posts` — views e trending)](#78-visualizações-e-contos-em-alta-posts--views-e-trending)
    - [7.9. Revisão Editorial (`post-reviews`)](#79-revisão-editorial-post-reviews)
    - [7.10. Histórico de Revisões (`posts/:postId/revisions`)](#710-histórico-de-revisões-postspostidrevisions)
-   - [7.11. Séries de Artigos (`series` e `posts/:postId/series`)](#711-séries-de-artigos-series-e-postspostidseries)
+   - [7.11. Séries de Contos (`series` e `posts/:postId/series`)](#711-séries-de-contos-series-e-postspostidseries)
    - [7.12. Autores Públicos e Seguidores (`authors` e `feed`)](#712-autores-públicos-e-seguidores-authors-e-feed)
    - [7.13. Feeds Sindicados e Sitemap (`feed/rss`, `feed.xml`, `feed/atom`, `sitemap.xml`)](#713-feeds-sindicados-e-sitemap-feedrss-feedxml-feedatom-sitemapxml)
-   - [7.14. Coleções de Artigos Salvos (`collections`)](#714-coleções-de-artigos-salvos-collections)
+   - [7.14. Coleções de Contos Salvos (`collections`)](#714-coleções-de-contos-salvos-collections)
    - [7.15. Categorias (`categories`)](#715-categorias-categories)
    - [7.16. Tags (`tags`)](#716-tags-tags)
    - [7.17. Comentários e Curtidas em Comentários (`posts/:postId/comments` e `comments`)](#717-comentários-e-curtidas-em-comentários-postspostidcomments-e-comments)
@@ -67,7 +67,7 @@ Principais características arquiteturais implementadas no código:
 - **Consultas públicas diretas:** listagens, categorias e tags consultam PostgreSQL sem cache distribuído, com as regras atuais de visibilidade.
 - **Rate Limiting global e por rota:** `ThrottlerGuard` global aplica **100 requisições por minuto por IP**, com limites mais restritivos via `@Throttle()` em rotas sensíveis (login, cadastro/verificação, comentários, curtidas, denúncias, recuperação de senha, TOTP, OAuth).
 - **Trabalhadores em background (Cron / Outbox):**
-  - `PostSchedulerService`: executa a cada minuto (`CronExpression.EVERY_MINUTE`) publicando artigos cujo `scheduledAt <= NOW()` (desde que o autor tenha `firstPostApproved = true` ou seja `ADMIN`) e enfileirando notificações para seguidores e assinantes da newsletter.
+  - `PostSchedulerService`: executa a cada minuto (`CronExpression.EVERY_MINUTE`) publicando contos cujo `scheduledAt <= NOW()` (desde que o autor tenha `firstPostApproved = true` ou seja `ADMIN`) e enfileirando notificações para seguidores e assinantes da newsletter.
   - `MailQueueService`: fila persistente em PostgreSQL (`mail_jobs`) com tentativas automáticas e backoff exponencial, enviando e-mails reais via SMTP (`nodemailer`) quando `SMTP_HOST` está configurado ou registrando-os em log estruturado JSON em desenvolvimento.
 
 ---
@@ -82,7 +82,7 @@ Principais características arquiteturais implementadas no código:
 | Coordenação & Rate Limit | PostgreSQL + `@nestjs/throttler` | — | Sessões BFF, fila cifrada, contadores e limites compartilhados |
 | Autenticação & Segurança | `@nestjs/jwt`, `passport-jwt`, `bcrypt`, `helmet`, `cookie-parser` | `^11.0.2` / `^4.0.1` / `^6.0.0` / `^8.1.0` | Access Token JWT, hash de senhas/tokens, headers HTTP seguros e cookies `HttpOnly` |
 | Processamento de Imagens | `multer` + `sharp` | `^2.1.1` / `^0.34.5` | Upload `multipart/form-data`, validação de assinatura binária, redimensionamento e conversão para WebP |
-| Agendamento & Saúde | `@nestjs/schedule`, `@nestjs/terminus` | `^6.1.1` / `^11.1.1` | Publicação agendada de artigos, fila de e-mails e health check do banco |
+| Agendamento & Saúde | `@nestjs/schedule`, `@nestjs/terminus` | `^6.1.1` / `^11.1.1` | Publicação agendada de contos, fila de e-mails e health check do banco |
 | E-mail & Sanitização | `nodemailer`, `sanitize-html` | `^8.0.5` / `^2.17.1` | Envio de e-mails transacionais e sanitização contra XSS |
 | Documentação API | `@nestjs/swagger` | `^11.2.6` | Especificação OpenAPI e interface Swagger UI em `/api/docs` |
 | Frontend de Referência | Next.js (App Router) + React + TypeScript + Tailwind CSS | `16.2.3` / `19.2.4` | Cliente web (`Front-Blog`) integrado via rewrites e rotas BFF |
@@ -221,7 +221,7 @@ npm.cmd run dev -- -p 5173
 | `API_ORIGIN` | `http://localhost:3001` | Origem HTTP do backend NestJS sem barra final e sem `/api/v1` (ex.: `http://localhost:3000`). Usada nos `rewrites` do Next.js e em Server Components/Route Handlers. |
 | `SITE_ORIGIN` | `http://localhost:3000` | Origem canônica do frontend sem barra final (ex.: `http://localhost:5173`). Validada contra o header `Origin` pelo proxy de mutações (`src/proxy.ts`). |
 | `EDITORIAL_WORKFLOW_ENABLED` | `undefined` (desativado) | Quando `"true"`, libera as rotas `/studio/novo` e `/studio/[id]` no frontend para criação e edição de rascunhos. |
-| `ENABLE_ADMIN_BFF` | `undefined` (desativado) | Quando `"true"`, libera a rota `/gestao-editorial` para revisão administrativa de artigos pendentes. |
+| `ENABLE_ADMIN_BFF` | `undefined` (desativado) | Quando `"true"`, libera a rota `/gestao-editorial` para revisão administrativa de contos pendentes. |
 
 ---
 
@@ -240,7 +240,7 @@ npm.cmd run dev -- -p 5173
   3. Se a conta não possuir senha local (`passwordHash === null`, ex.: criada via login social) ou a senha estiver incorreta, incrementa `failedLoginAttempts`. A partir da **5ª tentativa falha**, aplica bloqueio progressivo exponencial: `15 min * 2^(tentativas - 5)`, limitado ao máximo de **60 minutos (1 hora)**.
   4. Se `emailVerified === false`, retorna `401 Unauthorized` (`"Confirme seu e-mail antes de fazer login."`).
   5. Se `moderationSuspended === true`:
-     - Se `moderationSuspensionEndsAt <= NOW()`, restaura automaticamente o usuário e seus artigos que haviam sido ocultados pela suspensão.
+     - Se `moderationSuspensionEndsAt <= NOW()`, restaura automaticamente o usuário e seus contos que haviam sido ocultados pela suspensão.
      - Caso contrário, lança `403 Forbidden` com payload estruturado:
        ```json
        {
@@ -323,11 +323,11 @@ npm.cmd run dev -- -p 5173
 
 ### 5.9. Proteção das Rotas e Comportamento de Requisições Não Autenticadas
 - **Rotas públicas:** Não exigem header `Authorization`.
-- **Rotas com `OptionalJwtAuthGuard` (`GET /api/v1/posts/:id`):** Se não houver header `Authorization`, a requisição prossegue como anônima (`req.user = null`) e retorna apenas artigos publicados. Se um header `Authorization: Bearer <token>` for enviado com token inválido ou expirado, retorna `401 Unauthorized`. Se o token for válido, popula `req.user`, permitindo que o autor ou `ADMIN` visualize rascunhos.
+- **Rotas com `OptionalJwtAuthGuard` (`GET /api/v1/posts/:id`):** Se não houver header `Authorization`, a requisição prossegue como anônima (`req.user = null`) e retorna apenas contos publicados. Se um header `Authorization: Bearer <token>` for enviado com token inválido ou expirado, retorna `401 Unauthorized`. Se o token for válido, popula `req.user`, permitindo que o autor ou `ADMIN` visualize rascunhos.
 - **Rotas com `JwtAuthGuard`:** Sem token, com token malformado/expirado ou com sessão revogada, retornam `401 Unauthorized` (`{ "statusCode": 401, "message": "Unauthorized" }`).
 - **Rotas com `JwtAuthGuard` + `RolesGuard` (`@Roles(...)`):** Se o usuário estiver autenticado mas seu `req.user.role` não estiver na lista de roles permitidas, retornam `403 Forbidden` (`{ "statusCode": 403, "message": "Forbidden resource", "error": "Forbidden" }`).
 
-### 5.10. Promoção de `READER` para `AUTHOR` e Fluxo do Primeiro Artigo
+### 5.10. Promoção de `READER` para `AUTHOR` e Fluxo do Primeiro Conto
 1. Qualquer visitante ou leitor consulta os termos editoriais em `GET /api/v1/users/author-rules` (versão atual: `'1'`).
 2. O usuário autenticado com papel `READER` envia `POST /api/v1/users/me/author` com `{ "version": "1", "accepted": true }`.
 3. O backend valida:
@@ -335,29 +335,29 @@ npm.cmd run dev -- -p 5173
    - Usuário não possui bloqueio administrativo de promoção (`authorPromotionBlocked === false`; esse bloqueio é ativado quando um `ADMIN` rebaixa um `AUTHOR` para `READER` via `PATCH /api/v1/users/:id`).
    - `version === '1'` e `accepted === true`.
 4. O usuário recebe `role = 'AUTHOR'`, `authorRulesAcceptedVersion = '1'` e `authorRulesAcceptedAt = NOW()`, mantendo `firstPostApproved = false`.
-5. **Regra do Primeiro Artigo (garantida no código e por constraint `CHECK` no PostgreSQL):**
-   - Enquanto `firstPostApproved === false`, o `AUTHOR` **só pode criar rascunhos** (`published: false`, `scheduledAt: null`). Tentar criar ou atualizar com `published: true` ou `scheduledAt` preenchido dispara erro `409 Conflict` (`"O primeiro artigo exige aprovação."`).
+5. **Regra do Primeiro Conto (garantida no código e por constraint `CHECK` no PostgreSQL):**
+   - Enquanto `firstPostApproved === false`, o `AUTHOR` **só pode criar rascunhos** (`published: false`, `scheduledAt: null`). Tentar criar ou atualizar com `published: true` ou `scheduledAt` preenchido dispara erro `409 Conflict` (`"O primeiro conto exige aprovação."`).
    - O autor cria o rascunho (`POST /api/v1/posts`) e o submete para revisão editorial (`POST /api/v1/post-reviews/:id/submit`), mudando `reviewStatus` de `'NONE'` (ou `'REJECTED'`) para `'PENDING'`.
-   - Enquanto `reviewStatus === 'PENDING'`, o artigo **não pode ser editado** (`409 O artigo em revisão não pode ser editado.`).
+   - Enquanto `reviewStatus === 'PENDING'`, o conto **não pode ser editado** (`409 O conto em revisão não pode ser editado.`).
    - Um `ADMIN` avalia a fila em `GET /api/v1/post-reviews` e decide em `POST /api/v1/post-reviews/:id/decision`:
-     - `'APPROVED'`: publica o artigo (`published = true`, `publishedAt = NOW()`, `reviewStatus = 'APPROVED'`) e marca `author.firstPostApproved = true`. A partir desse momento, o autor pode publicar e agendar novos artigos diretamente sem revisão prévia.
+     - `'APPROVED'`: publica o conto (`published = true`, `publishedAt = NOW()`, `reviewStatus = 'APPROVED'`) e marca `author.firstPostApproved = true`. A partir desse momento, o autor pode publicar e agendar novos contos diretamente sem revisão prévia.
      - `'REJECTED'`: marca `reviewStatus = 'REJECTED'` e mantém como rascunho para que o autor possa editar e reenviar.
 
 ### 5.11. Tabela de Permissões por Role (`READER`, `AUTHOR`, `ADMIN`)
 
 | Funcionalidade / Operação | Anônimo | `READER` | `AUTHOR` | `ADMIN` |
 |---|:---:|:---:|:---:|:---:|
-| Ler artigos publicados, categorias, tags, séries públicas, autores, comentários, RSS/Atom/Sitemap e registrar views | Sim | Sim | Sim | Sim |
+| Ler contos publicados, categorias, tags, séries públicas, autores, comentários, RSS/Atom/Sitemap e registrar views | Sim | Sim | Sim | Sim |
 | Criar conta, confirmar e-mail, recuperar senha, assinar/cancelar newsletter | Sim | Sim | Sim | Sim |
 | Gerenciar próprio perfil, foto, senha, e-mail, TOTP (2FA), sessões e excluir própria conta | Não | Sim | Sim | Sim |
-| Curtir/salvar artigos, criar coleções, seguir autores, ver `/api/v1/feed`, curtir/criar comentários, denunciar conteúdo e ler notificações | Não | Sim | Sim | Sim |
+| Curtir/salvar contos, criar coleções, seguir autores, ver `/api/v1/feed`, curtir/criar comentários, denunciar conteúdo e ler notificações | Não | Sim | Sim | Sim |
 | Editar o próprio comentário (`PATCH /api/v1/comments/:id`) | Não | Sim (próprio) | Sim (próprio) | Sim (qualquer) |
-| Excluir comentário (`DELETE /api/v1/comments/:id`) | Não | Sim (próprio) | Sim (próprio ou em artigo de sua autoria) | Sim (qualquer) |
+| Excluir comentário (`DELETE /api/v1/comments/:id`) | Não | Sim (próprio) | Sim (próprio ou em conto de sua autoria) | Sim (qualquer) |
 | Solicitar promoção para autor (`POST /api/v1/users/me/author`) | Não | Sim (se e-mail verificado e não bloqueado) | Já é `AUTHOR` (idempotente) | Retorna `400` |
-| Criar artigos (`POST /api/v1/posts`) | Não | Não (`403`) | Sim (1º artigo restrito a rascunho) | Sim (publicação direta livre) |
-| Editar/excluir artigos, enviar/remover capa, ver/restaurar revisões | Não | Não (`403`) | Sim (apenas artigos próprios e fora de revisão `PENDING`) | Sim (qualquer artigo) |
-| Submeter 1º artigo à revisão (`POST /api/v1/post-reviews/:id/submit`) | Não | Não (`403`) | Sim (quando `firstPostApproved = false`) | Não aplicável |
-| Criar, editar, ordenar e excluir séries (`POST/PATCH/PUT/DELETE /api/v1/series`) | Não | Não (`403`) | Sim (apenas séries e artigos próprios) | Sim (séries próprias / gerenciar qualquer) |
+| Criar contos (`POST /api/v1/posts`) | Não | Não (`403`) | Sim (1º conto restrito a rascunho) | Sim (publicação direta livre) |
+| Editar/excluir contos, enviar/remover capa, ver/restaurar revisões | Não | Não (`403`) | Sim (apenas contos próprios e fora de revisão `PENDING`) | Sim (qualquer conto) |
+| Submeter 1º conto à revisão (`POST /api/v1/post-reviews/:id/submit`) | Não | Não (`403`) | Sim (quando `firstPostApproved = false`) | Não aplicável |
+| Criar, editar, ordenar e excluir séries (`POST/PATCH/PUT/DELETE /api/v1/series`) | Não | Não (`403`) | Sim (apenas séries e contos próprios) | Sim (séries próprias / gerenciar qualquer) |
 | Criar, editar e excluir categorias (`POST/PATCH/DELETE /api/v1/categories`) | Não | Não (`403`) | Não (`403`) | Sim |
 | Listar todos os usuários (`GET /api/v1/users`), alterar `role`/`isActive` de terceiros | Não | Não (`403`) | Não (`403`) | Sim |
 | Aprovar/rejeitar revisões (`GET/POST /api/v1/post-reviews`) | Não | Não (`403`) | Não (`403`) | Sim |
@@ -399,64 +399,64 @@ A API possui **104 endpoints HTTP** distribuídos em **23 controllers** dentro d
 | 24 | Users | `GET` | `/api/v1/users/:id` | JWT | Autenticado | `200` | Obtém perfil completo (próprio/Admin) ou resumido (outro usuário) |
 | 25 | Users | `PATCH` | `/api/v1/users/:id` | JWT | Próprio usuário ou `ADMIN` | `200` | Atualiza dados de perfil, senha, e-mail ou (via Admin) `role`/`isActive` |
 | 26 | Users | `DELETE` | `/api/v1/users/:id` | JWT | Próprio usuário ou `ADMIN` | `204` | Desativa (soft delete) a conta do usuário e revoga sessões |
-| 27 | Posts | `GET` | `/api/v1/posts` | Pública | Qualquer | `200` | Lista artigos publicados com busca, filtros e paginação offset ou cursor |
-| 28 | Posts | `GET` | `/api/v1/posts/me` | JWT | Autenticado | `200` | Lista todos os artigos ativos (incluindo rascunhos) do próprio usuário |
-| 29 | Posts | `GET` | `/api/v1/posts/:id/related` | Pública | Qualquer | `200` | Retorna até 4 artigos publicados relacionados por tags/categorias |
-| 30 | Posts | `GET` | `/api/v1/posts/:id` | JWT Opcional | Público (ou dono/`ADMIN` p/ rascunho) | `200` | Busca artigo por UUID, `slug` ou `legacySlug` (inclui `content` e `series`) |
-| 31 | Posts | `POST` | `/api/v1/posts` | JWT | `AUTHOR`, `ADMIN` | `201` | Cria novo artigo (rascunho, publicado ou agendado) |
-| 32 | Posts | `PATCH` | `/api/v1/posts/:id` | JWT | Dono (`AUTHOR`) ou `ADMIN` | `200` | Atualiza artigo existente e grava snapshot de revisão |
-| 33 | Posts | `POST` | `/api/v1/posts/:id/cover-image` | JWT | Dono (`AUTHOR`) ou `ADMIN` | `201` | Faz upload de imagem de capa do artigo (`multipart/form-data`, WebP 1920x1080) |
-| 34 | Posts | `DELETE` | `/api/v1/posts/:id/cover-image` | JWT | Dono (`AUTHOR`) ou `ADMIN` | `200` | Remove a imagem de capa do artigo |
-| 35 | Posts | `DELETE` | `/api/v1/posts/:id` | JWT | Dono (`AUTHOR`) ou `ADMIN` | `204` | Desativa (soft delete) um artigo |
-| 36 | Post Interactions | `GET` | `/api/v1/posts/saved` | JWT | Autenticado | `200` | Lista artigos salvos (favoritados) pelo usuário autenticado |
-| 37 | Post Interactions | `GET` | `/api/v1/posts/:id/interaction` | JWT | Autenticado | `200` | Retorna estado `{ liked, saved, likes }` do usuário para o artigo |
-| 38 | Post Interactions | `PUT` | `/api/v1/posts/:id/like` | JWT | Autenticado | `204` | Curte um artigo publicado (idempotente) e notifica o autor |
-| 39 | Post Interactions | `DELETE` | `/api/v1/posts/:id/like` | JWT | Autenticado | `204` | Remove a curtida de um artigo publicado |
-| 40 | Post Interactions | `PUT` | `/api/v1/posts/:id/save` | JWT | Autenticado | `204` | Salva (favorita) um artigo publicado (idempotente) |
-| 41 | Post Interactions | `DELETE` | `/api/v1/posts/:id/save` | JWT | Autenticado | `204` | Remove um artigo dos salvos |
-| 42 | Post Views | `GET` | `/api/v1/posts/trending` | Pública | Qualquer | `200` | Lista artigos em alta nos últimos 7 dias UTC ordenados por visualizações |
-| 43 | Post Views | `POST` | `/api/v1/posts/:id/views` | Pública | Qualquer | `200` | Registra visualização deduplicada por IP + artigo + dia UTC |
-| 44 | Post Reviews | `POST` | `/api/v1/post-reviews/:id/submit` | JWT | Dono (`AUTHOR` s/ 1º post aprovado) | `201` | Envia o primeiro artigo em rascunho para fila de revisão editorial |
-| 45 | Post Reviews | `GET` | `/api/v1/post-reviews` | JWT | `ADMIN` | `200` | Lista até 100 artigos com `reviewStatus = 'PENDING'` |
-| 46 | Post Reviews | `POST` | `/api/v1/post-reviews/:id/decision` | JWT | `ADMIN` | `201` | Aprova (publicando e liberando o autor) ou rejeita artigo em revisão |
-| 47 | Post Revisions | `GET` | `/api/v1/posts/:postId/revisions` | JWT | Dono (`AUTHOR`) ou `ADMIN` | `200` | Lista histórico paginado de revisões de um artigo |
+| 27 | Posts | `GET` | `/api/v1/posts` | Pública | Qualquer | `200` | Lista contos publicados com busca, filtros e paginação offset ou cursor |
+| 28 | Posts | `GET` | `/api/v1/posts/me` | JWT | Autenticado | `200` | Lista todos os contos ativos (incluindo rascunhos) do próprio usuário |
+| 29 | Posts | `GET` | `/api/v1/posts/:id/related` | Pública | Qualquer | `200` | Retorna até 4 contos publicados relacionados por tags/categorias |
+| 30 | Posts | `GET` | `/api/v1/posts/:id` | JWT Opcional | Público (ou dono/`ADMIN` p/ rascunho) | `200` | Busca conto por UUID, `slug` ou `legacySlug` (inclui `content` e `series`) |
+| 31 | Posts | `POST` | `/api/v1/posts` | JWT | `AUTHOR`, `ADMIN` | `201` | Cria novo conto (rascunho, publicado ou agendado) |
+| 32 | Posts | `PATCH` | `/api/v1/posts/:id` | JWT | Dono (`AUTHOR`) ou `ADMIN` | `200` | Atualiza conto existente e grava snapshot de revisão |
+| 33 | Posts | `POST` | `/api/v1/posts/:id/cover-image` | JWT | Dono (`AUTHOR`) ou `ADMIN` | `201` | Faz upload de imagem de capa do conto (`multipart/form-data`, WebP 1920x1080) |
+| 34 | Posts | `DELETE` | `/api/v1/posts/:id/cover-image` | JWT | Dono (`AUTHOR`) ou `ADMIN` | `200` | Remove a imagem de capa do conto |
+| 35 | Posts | `DELETE` | `/api/v1/posts/:id` | JWT | Dono (`AUTHOR`) ou `ADMIN` | `204` | Desativa (soft delete) um conto |
+| 36 | Post Interactions | `GET` | `/api/v1/posts/saved` | JWT | Autenticado | `200` | Lista contos salvos (favoritados) pelo usuário autenticado |
+| 37 | Post Interactions | `GET` | `/api/v1/posts/:id/interaction` | JWT | Autenticado | `200` | Retorna estado `{ liked, saved, likes }` do usuário para o conto |
+| 38 | Post Interactions | `PUT` | `/api/v1/posts/:id/like` | JWT | Autenticado | `204` | Curte um conto publicado (idempotente) e notifica o autor |
+| 39 | Post Interactions | `DELETE` | `/api/v1/posts/:id/like` | JWT | Autenticado | `204` | Remove a curtida de um conto publicado |
+| 40 | Post Interactions | `PUT` | `/api/v1/posts/:id/save` | JWT | Autenticado | `204` | Salva (favorita) um conto publicado (idempotente) |
+| 41 | Post Interactions | `DELETE` | `/api/v1/posts/:id/save` | JWT | Autenticado | `204` | Remove um conto dos salvos |
+| 42 | Post Views | `GET` | `/api/v1/posts/trending` | Pública | Qualquer | `200` | Lista contos em alta nos últimos 7 dias UTC ordenados por visualizações |
+| 43 | Post Views | `POST` | `/api/v1/posts/:id/views` | Pública | Qualquer | `200` | Registra visualização deduplicada por IP + conto + dia UTC |
+| 44 | Post Reviews | `POST` | `/api/v1/post-reviews/:id/submit` | JWT | Dono (`AUTHOR` s/ 1º post aprovado) | `201` | Envia o primeiro conto em rascunho para fila de revisão editorial |
+| 45 | Post Reviews | `GET` | `/api/v1/post-reviews` | JWT | `ADMIN` | `200` | Lista até 100 contos com `reviewStatus = 'PENDING'` |
+| 46 | Post Reviews | `POST` | `/api/v1/post-reviews/:id/decision` | JWT | `ADMIN` | `201` | Aprova (publicando e liberando o autor) ou rejeita conto em revisão |
+| 47 | Post Revisions | `GET` | `/api/v1/posts/:postId/revisions` | JWT | Dono (`AUTHOR`) ou `ADMIN` | `200` | Lista histórico paginado de revisões de um conto |
 | 48 | Post Revisions | `GET` | `/api/v1/posts/:postId/revisions/:revisionId` | JWT | Dono (`AUTHOR`) ou `ADMIN` | `200` | Obtém o conteúdo completo de uma revisão específica |
-| 49 | Post Revisions | `POST` | `/api/v1/posts/:postId/revisions/:revisionId/restore` | JWT | Dono (`AUTHOR`) ou `ADMIN` | `201` | Restaura título e conteúdo de uma revisão no artigo |
+| 49 | Post Revisions | `POST` | `/api/v1/posts/:postId/revisions/:revisionId/restore` | JWT | Dono (`AUTHOR`) ou `ADMIN` | `201` | Restaura título e conteúdo de uma revisão no conto |
 | 50 | Series | `GET` | `/api/v1/series/me` | JWT | `AUTHOR`, `ADMIN` | `200` | Lista séries pertencentes ao autor autenticado |
-| 51 | Series | `GET` | `/api/v1/series/:id/manage` | JWT | Dono (`AUTHOR`) ou `ADMIN` | `200` | Detalha série para gestão (inclui artigos em rascunho) |
-| 52 | Series | `GET` | `/api/v1/series/:id` | Pública | Qualquer | `200` | Detalha série pública por UUID ou slug (apenas artigos publicados) |
-| 53 | Series | `POST` | `/api/v1/series` | JWT | `AUTHOR`, `ADMIN` | `201` | Cria uma nova série de artigos |
+| 51 | Series | `GET` | `/api/v1/series/:id/manage` | JWT | Dono (`AUTHOR`) ou `ADMIN` | `200` | Detalha série para gestão (inclui contos em rascunho) |
+| 52 | Series | `GET` | `/api/v1/series/:id` | Pública | Qualquer | `200` | Detalha série pública por UUID ou slug (apenas contos publicados) |
+| 53 | Series | `POST` | `/api/v1/series` | JWT | `AUTHOR`, `ADMIN` | `201` | Cria uma nova série de contos |
 | 54 | Series | `PATCH` | `/api/v1/series/:id` | JWT | Dono (`AUTHOR`) ou `ADMIN` | `200` | Atualiza título e/ou descrição de uma série |
-| 55 | Series | `PUT` | `/api/v1/series/:id/items` | JWT | Dono (`AUTHOR`) ou `ADMIN` | `200` | Define/reordena a lista de artigos (`postIds`) de uma série |
+| 55 | Series | `PUT` | `/api/v1/series/:id/items` | JWT | Dono (`AUTHOR`) ou `ADMIN` | `200` | Define/reordena a lista de contos (`postIds`) de uma série |
 | 56 | Series | `DELETE` | `/api/v1/series/:id` | JWT | Dono (`AUTHOR`) ou `ADMIN` | `204` | Remove uma série e desvincula seus itens |
-| 57 | Series Nav | `GET` | `/api/v1/posts/:postId/series` | Pública | Qualquer | `200` | Obtém dados da série à qual um artigo publicado pertence |
+| 57 | Series Nav | `GET` | `/api/v1/posts/:postId/series` | Pública | Qualquer | `200` | Obtém dados da série à qual um conto publicado pertence |
 | 58 | Authors | `GET` | `/api/v1/authors/:id` | Pública | Qualquer | `200` | Retorna perfil público do autor e contagem de publicações |
-| 59 | Author Follows | `GET` | `/api/v1/feed` | JWT | Autenticado | `200` | Lista feed paginado de artigos publicados pelos autores seguidos |
+| 59 | Author Follows | `GET` | `/api/v1/feed` | JWT | Autenticado | `200` | Lista feed paginado de contos publicados pelos autores seguidos |
 | 60 | Author Follows | `GET` | `/api/v1/authors/:id/follow` | JWT | Autenticado | `200` | Verifica se o usuário autenticado segue o autor (`{ following }`) |
 | 61 | Author Follows | `PUT` | `/api/v1/authors/:id/follow` | JWT | Autenticado | `204` | Passa a seguir um autor ativo (`AUTHOR` ou `ADMIN`) |
 | 62 | Author Follows | `DELETE` | `/api/v1/authors/:id/follow` | JWT | Autenticado | `204` | Deixa de seguir um autor |
-| 63 | Feeds & Sitemap | `GET` | `/api/v1/feed/rss` | Pública | Qualquer | `200` | Feed RSS 2.0 dos 50 artigos publicados mais recentes (`application/rss+xml`) |
+| 63 | Feeds & Sitemap | `GET` | `/api/v1/feed/rss` | Pública | Qualquer | `200` | Feed RSS 2.0 dos 50 contos publicados mais recentes (`application/rss+xml`) |
 | 64 | Feeds & Sitemap | `GET` | `/api/v1/feed.xml` | Pública | Qualquer | `200` | Alias do Feed RSS 2.0 (`application/rss+xml`) |
-| 65 | Feeds & Sitemap | `GET` | `/api/v1/feed/atom` | Pública | Qualquer | `200` | Feed Atom 1.0 dos 50 artigos publicados mais recentes (`application/atom+xml`) |
-| 66 | Feeds & Sitemap | `GET` | `/api/v1/sitemap.xml` | Pública | Qualquer | `200` | Sitemap XML com home, artigos publicados e categorias (`application/xml`) |
-| 67 | Collections | `POST` | `/api/v1/collections` | JWT | Autenticado | `201` | Cria uma coleção privada de artigos salvos |
+| 65 | Feeds & Sitemap | `GET` | `/api/v1/feed/atom` | Pública | Qualquer | `200` | Feed Atom 1.0 dos 50 contos publicados mais recentes (`application/atom+xml`) |
+| 66 | Feeds & Sitemap | `GET` | `/api/v1/sitemap.xml` | Pública | Qualquer | `200` | Sitemap XML com home, contos publicados e categorias (`application/xml`) |
+| 67 | Collections | `POST` | `/api/v1/collections` | JWT | Autenticado | `201` | Cria uma coleção privada de contos salvos |
 | 68 | Collections | `GET` | `/api/v1/collections` | JWT | Autenticado | `200` | Lista todas as coleções privadas do usuário autenticado |
 | 69 | Collections | `PATCH` | `/api/v1/collections/:id` | JWT | Autenticado (dono) | `200` | Renomeia uma coleção privada |
 | 70 | Collections | `DELETE` | `/api/v1/collections/:id` | JWT | Autenticado (dono) | `204` | Exclui uma coleção privada |
-| 71 | Collections | `GET` | `/api/v1/collections/:id/posts` | JWT | Autenticado (dono) | `200` | Lista artigos publicados contidos em uma coleção privada |
-| 72 | Collections | `PUT` | `/api/v1/collections/:id/posts/:postId` | JWT | Autenticado (dono) | `204` | Adiciona um artigo publicado à coleção privada |
-| 73 | Collections | `DELETE` | `/api/v1/collections/:id/posts/:postId` | JWT | Autenticado (dono) | `204` | Remove um artigo da coleção privada |
+| 71 | Collections | `GET` | `/api/v1/collections/:id/posts` | JWT | Autenticado (dono) | `200` | Lista contos publicados contidos em uma coleção privada |
+| 72 | Collections | `PUT` | `/api/v1/collections/:id/posts/:postId` | JWT | Autenticado (dono) | `204` | Adiciona um conto publicado à coleção privada |
+| 73 | Collections | `DELETE` | `/api/v1/collections/:id/posts/:postId` | JWT | Autenticado (dono) | `204` | Remove um conto da coleção privada |
 | 74 | Categories | `GET` | `/api/v1/categories` | Pública | Qualquer | `200` | Lista categorias ativas com paginação e filtro `search` |
 | 75 | Categories | `GET` | `/api/v1/categories/:idOrSlug` | Pública | Qualquer | `200` | Busca categoria ativa por UUID ou `slug` |
-| 76 | Categories | `GET` | `/api/v1/categories/:idOrSlug/posts` | Pública | Qualquer | `200` | Lista artigos publicados de uma categoria (por UUID ou `slug`) |
+| 76 | Categories | `GET` | `/api/v1/categories/:idOrSlug/posts` | Pública | Qualquer | `200` | Lista contos publicados de uma categoria (por UUID ou `slug`) |
 | 77 | Categories | `POST` | `/api/v1/categories` | JWT | `ADMIN` | `201` | Cria categoria (ou reativa categoria inativa de mesmo nome/slug) |
 | 78 | Categories | `PATCH` | `/api/v1/categories/:id` | JWT | `ADMIN` | `200` | Atualiza nome, descrição ou slug de uma categoria |
 | 79 | Categories | `DELETE` | `/api/v1/categories/:id` | JWT | `ADMIN` | `204` | Desativa (soft delete) uma categoria |
 | 80 | Tags | `GET` | `/api/v1/tags` | Pública | Qualquer | `200` | Lista tags com paginação e filtro `search` |
 | 81 | Tags | `GET` | `/api/v1/tags/:slug` | Pública | Qualquer | `200` | Busca detalhes de uma tag pelo `slug` |
-| 82 | Comments | `GET` | `/api/v1/posts/:postId/comments` | Pública | Qualquer | `200` | Lista comentários raiz de um artigo (inclui até 5 respostas iniciais cada) |
+| 82 | Comments | `GET` | `/api/v1/posts/:postId/comments` | Pública | Qualquer | `200` | Lista comentários raiz de um conto (inclui até 5 respostas iniciais cada) |
 | 83 | Comments | `GET` | `/api/v1/posts/:postId/comments/:id/replies` | Pública | Qualquer | `200` | Lista respostas paginadas de um comentário raiz |
-| 84 | Comments | `POST` | `/api/v1/posts/:postId/comments` | JWT | Autenticado | `201` | Cria comentário raiz ou resposta (`replyToId`) em artigo com comentários ativos |
+| 84 | Comments | `POST` | `/api/v1/posts/:postId/comments` | JWT | Autenticado | `201` | Cria comentário raiz ou resposta (`replyToId`) em conto com comentários ativos |
 | 85 | Comments | `PATCH` | `/api/v1/comments/:id` | JWT | Autor do comentário ou `ADMIN` | `200` | Edita o texto de um comentário ativo |
 | 86 | Comments | `DELETE` | `/api/v1/comments/:id` | JWT | Autor do comentário, autor do post ou `ADMIN` | `204` | Desativa comentário (substitui texto por `'Comentário excluído'`) |
 | 87 | Comment Likes | `GET` | `/api/v1/comments/:id/like` | JWT | Autenticado | `200` | Obtém estado de curtida e total de likes de um comentário (`{ liked, likes }`) |
@@ -470,12 +470,12 @@ A API possui **104 endpoints HTTP** distribuídos em **23 controllers** dentro d
 | 95 | Newsletter | `POST` | `/api/v1/newsletter/subscribe` | Pública | Qualquer | `200` | Solicita inscrição na newsletter (envia e-mail de double opt-in) |
 | 96 | Newsletter | `POST` | `/api/v1/newsletter/confirm` | Pública | Qualquer | `200` | Confirma inscrição na newsletter via JSON (`{ token }`) |
 | 97 | Newsletter | `POST` | `/api/v1/newsletter/unsubscribe` | Pública | Qualquer | `200` | Cancela inscrição na newsletter via JSON (`{ token }`) |
-| 98 | Reports | `POST` | `/api/v1/reports` | JWT | Autenticado | `201` | Registra denúncia contra artigo (`POST`) ou comentário (`COMMENT`) |
+| 98 | Reports | `POST` | `/api/v1/reports` | JWT | Autenticado | `201` | Registra denúncia contra conto (`POST`) ou comentário (`COMMENT`) |
 | 99 | Reports | `GET` | `/api/v1/reports` | JWT | `ADMIN` | `200` | Lista denúncias com paginação e filtro por `status` |
 | 100 | Reports | `PATCH` | `/api/v1/reports/:id` | JWT | `ADMIN` | `200` | Resolve (`RESOLVED`) ou arquiva (`DISMISSED`) uma denúncia |
-| 101 | Moderation | `POST` | `/api/v1/admin/users/:id/suspension` | JWT | `ADMIN` | `201` | Suspende usuário, revoga sessões e opcionalmente oculta artigos |
-| 102 | Moderation | `POST` | `/api/v1/admin/users/:id/restore` | JWT | `ADMIN` | `201` | Restaura usuário suspenso e reativa artigos ocultados na suspensão |
-| 103 | Analytics | `GET` | `/api/v1/admin/analytics/overview` | JWT | `ADMIN` | `200` | Retorna contadores consolidados de usuários, artigos, comentários e denúncias |
+| 101 | Moderation | `POST` | `/api/v1/admin/users/:id/suspension` | JWT | `ADMIN` | `201` | Suspende usuário, revoga sessões e opcionalmente oculta contos |
+| 102 | Moderation | `POST` | `/api/v1/admin/users/:id/restore` | JWT | `ADMIN` | `201` | Restaura usuário suspenso e reativa contos ocultados na suspensão |
+| 103 | Analytics | `GET` | `/api/v1/admin/analytics/overview` | JWT | `ADMIN` | `200` | Retorna contadores consolidados de usuários, contos, comentários e denúncias |
 | 104 | Audit Logs | `GET` | `/api/v1/admin/audit-logs` | JWT | `ADMIN` | `200` | Lista trilha de auditoria administrativa paginada |
 
 *(Total exato: **104 rotas HTTP registradas** em **23 controllers** distribuídos nos **13 módulos HTTP** da aplicação).*
@@ -683,8 +683,8 @@ Controller: `src/modules/users/users.controller.ts`
     "rules": [
       "Publicar apenas conteúdo autoral ou com direito de uso.",
       "Não publicar spam, discurso de ódio, assédio ou conteúdo ilegal.",
-      "O primeiro artigo exige aprovação de um administrador antes de ser publicado.",
-      "Artigos seguintes serão publicados diretamente e continuam sujeitos à moderação."
+      "O primeiro conto exige aprovação de um administrador antes de ser publicado.",
+      "Contos seguintes serão publicados diretamente e continuam sujeitos à moderação."
     ]
   }
   ```
@@ -788,11 +788,11 @@ Controller: `src/modules/users/users.controller.ts`
 
 ---
 
-### 7.6. Artigos (`posts`)
+### 7.6. Contos (`posts`)
 Controller: `src/modules/posts/posts.controller.ts`
 
 #### `GET /api/v1/posts`
-- **Descrição:** Lista artigos públicos (`published: true`, `isActive: true`). Não retorna o campo `content` para economizar banda, mas calcula e retorna `readingTimeMinutes` (estimado a 200 palavras/minuto, mínimo 1). Consulta PostgreSQL em toda requisição, respeitando a visibilidade atual.
+- **Descrição:** Lista contos públicos (`published: true`, `isActive: true`). Não retorna o campo `content` para economizar banda, mas calcula e retorna `readingTimeMinutes` (estimado a 200 palavras/minuto, mínimo 1). Consulta PostgreSQL em toda requisição, respeitando a visibilidade atual.
 - **Autenticação / Roles:** Pública.
 - **Query Parameters (`FindPostsQueryDto`):**
   | Parâmetro | Tipo | Padrão | Descrição / Validação |
@@ -814,27 +814,27 @@ Controller: `src/modules/posts/posts.controller.ts`
 - **Erros:** `400 Bad Request` (cursor inválido ou parâmetros fora do formato).
 
 #### `GET /api/v1/posts/me`
-- **Descrição:** Lista todos os artigos ativos (`isActive: true`) cujo `authorId` é o usuário autenticado, incluindo rascunhos, agendados e artigos em revisão (`reviewStatus`).
+- **Descrição:** Lista todos os contos ativos (`isActive: true`) cujo `authorId` é o usuário autenticado, incluindo rascunhos, agendados e contos em revisão (`reviewStatus`).
 - **Autenticação / Roles:** JWT (`JwtAuthGuard`). Qualquer role autenticado.
 - **Query Parameters:** `page` (padrão `1`), `limit` (padrão `10`, máx `100`).
 - **Status de Sucesso:** `200 OK` -> `PaginatedResult<PostSummary>` (inclui `scheduledAt` e `reviewStatus`).
 
 #### `GET /api/v1/posts/:id/related`
-- **Descrição:** Retorna até **4 artigos publicados** relacionados ao artigo `:id` (aceita UUID, `slug` ou `legacySlug`), priorizando artigos que compartilham tags ou categorias com o artigo original e completando com os publicados mais recentes se necessário.
+- **Descrição:** Retorna até **4 contos publicados** relacionados ao conto `:id` (aceita UUID, `slug` ou `legacySlug`), priorizando contos que compartilham tags ou categorias com o conto original e completando com os publicados mais recentes se necessário.
 - **Autenticação / Roles:** Pública.
 - **Parâmetros de Rota:** `id` (`UUID`, `slug` ou `legacySlug`).
-- **Status de Sucesso:** `200 OK` -> Array de até 4 objetos de artigo (`id`, `slug`, `title`, `excerpt`, `coverImage`, `publishedAt`, `author`, `categories`, `tags`).
-- **Erros:** `404 Not Found` (se o artigo base não existir ou não estiver publicado).
+- **Status de Sucesso:** `200 OK` -> Array de até 4 objetos de conto (`id`, `slug`, `title`, `excerpt`, `coverImage`, `publishedAt`, `author`, `categories`, `tags`).
+- **Erros:** `404 Not Found` (se o conto base não existir ou não estiver publicado).
 
 #### `GET /api/v1/posts/:id`
-- **Descrição:** Retorna os detalhes completos de um artigo (incluindo `content`, `readingTimeMinutes` e, se pertencer a uma série e estiver publicado, o objeto de navegação `series`). Aceita busca por UUID, `slug` atual ou `legacySlug` (mantido quando o título de um artigo é alterado).
-- **Autenticação / Roles:** `OptionalJwtAuthGuard`. Artigos publicados são públicos; rascunhos (`published: false`) exigem JWT do próprio autor ou `ADMIN` (caso contrário retorna `404`).
+- **Descrição:** Retorna os detalhes completos de um conto (incluindo `content`, `readingTimeMinutes` e, se pertencer a uma série e estiver publicado, o objeto de navegação `series`). Aceita busca por UUID, `slug` atual ou `legacySlug` (mantido quando o título de um conto é alterado).
+- **Autenticação / Roles:** `OptionalJwtAuthGuard`. Contos publicados são públicos; rascunhos (`published: false`) exigem JWT do próprio autor ou `ADMIN` (caso contrário retorna `404`).
 - **Parâmetros de Rota:** `id` (`UUID`, `slug` ou `legacySlug`).
 - **Status de Sucesso:** `200 OK`
 - **Erros:** `401` (se enviar JWT inválido), `404` (`"Post com identificador ... não encontrado"`).
 
 #### `POST /api/v1/posts`
-- **Descrição:** Cria um novo artigo, gera `slug` único a partir do título, aceita `excerpt` opcional (descrição de até 500 caracteres; quando omitido, usa os primeiros 200 caracteres do conteúdo limpo), vincula categorias existentes e cria/reutiliza tags automaticamente.
+- **Descrição:** Cria um novo conto, gera `slug` único a partir do título, aceita `excerpt` opcional (descrição de até 500 caracteres; quando omitido, usa os primeiros 200 caracteres do conteúdo limpo), vincula categorias existentes e cria/reutiliza tags automaticamente.
 - **Autenticação / Roles:** JWT + `RolesGuard` (`@Roles(UserRole.AUTHOR, UserRole.ADMIN)`). Rate limit: **10 req/min**.
 - **Request Body (`CreatePostDto`):**
   | Campo | Tipo | Obrigatório | Validação e Regras de Negócio |
@@ -849,52 +849,52 @@ Controller: `src/modules/posts/posts.controller.ts`
 - **Erros:**
   - `400`: Validação, data de agendamento no passado ou categorias inexistentes.
   - `403`: Usuário é `READER`.
-  - `409 Conflict`: `"O primeiro artigo exige aprovação."` (quando autor com `firstPostApproved = false` envia `published: true` ou `scheduledAt`).
+  - `409 Conflict`: `"O primeiro conto exige aprovação."` (quando autor com `firstPostApproved = false` envia `published: true` ou `scheduledAt`).
 
 #### `PATCH /api/v1/posts/:id`
-- **Descrição:** Atualiza um artigo existente. Quando `title` ou `content` são alterados, salva um snapshot do estado anterior em `post_revisions`. Se o `title` mudar, o `slug` antigo é preservado em `legacySlug` (caso ainda esteja vazio) e um novo `slug` é gerado.
-- **Autenticação / Roles:** JWT (`JwtAuthGuard`). Apenas o autor dono do artigo ou `ADMIN`. Rate limit: **20 req/min**.
+- **Descrição:** Atualiza um conto existente. Quando `title` ou `content` são alterados, salva um snapshot do estado anterior em `post_revisions`. Se o `title` mudar, o `slug` antigo é preservado em `legacySlug` (caso ainda esteja vazio) e um novo `slug` é gerado.
+- **Autenticação / Roles:** JWT (`JwtAuthGuard`). Apenas o autor dono do conto ou `ADMIN`. Rate limit: **20 req/min**.
 - **Parâmetros de Rota:** `id` (`UUID`).
 - **Request Body (`UpdatePostDto` — todos opcionais):**
   - `title` (`string`, 3..255), `content` (`string`, mín 10), `published` (`boolean`), `scheduledAt` (`string ISO | null`), `commentsEnabled` (`boolean`), `categoryIds` (`UUID[]`, máx 10), `tagNames` (`string[]`, máx 10).
 - **Status de Sucesso:** `200 OK` -> Objeto `Post` atualizado.
-- **Erros:** `400`, `403`, `404`, `409` (`"O artigo em revisão não pode ser editado."` ou `"O primeiro artigo exige aprovação."`).
+- **Erros:** `400`, `403`, `404`, `409` (`"O conto em revisão não pode ser editado."` ou `"O primeiro conto exige aprovação."`).
 
 #### `POST /api/v1/posts/:id/cover-image`
-- **Descrição:** Faz upload da imagem de capa do artigo (convertida para WebP até 1920x1080). Veja [Seção 11](#11-upload-de-arquivos).
-- **Autenticação / Roles:** JWT (`JwtAuthGuard`). Dono do artigo ou `ADMIN`.
+- **Descrição:** Faz upload da imagem de capa do conto (convertida para WebP até 1920x1080). Veja [Seção 11](#11-upload-de-arquivos).
+- **Autenticação / Roles:** JWT (`JwtAuthGuard`). Dono do conto ou `ADMIN`.
 - **Parâmetros de Rota:** `id` (`UUID`).
 - **Request Body:** `multipart/form-data` com campo `file` (JPEG, PNG ou WebP, máx 5 MB).
 - **Status de Sucesso:** `201 Created` -> `{ "coverImage": "/uploads/post-covers/<uuid>.webp" }`.
-- **Erros:** `400`, `403`, `404`, `409` (atualização concorrente ou artigo em revisão), `413`.
+- **Erros:** `400`, `403`, `404`, `409` (atualização concorrente ou conto em revisão), `413`.
 
 #### `DELETE /api/v1/posts/:id/cover-image`
-- **Descrição:** Remove a imagem de capa do artigo e apaga o arquivo físico em `uploads/post-covers/`.
-- **Autenticação / Roles:** JWT (`JwtAuthGuard`). Dono do artigo ou `ADMIN`.
+- **Descrição:** Remove a imagem de capa do conto e apaga o arquivo físico em `uploads/post-covers/`.
+- **Autenticação / Roles:** JWT (`JwtAuthGuard`). Dono do conto ou `ADMIN`.
 - **Status de Sucesso:** `200 OK` -> `{ "coverImage": null }`.
 
 #### `DELETE /api/v1/posts/:id`
-- **Descrição:** Desativa (soft delete, `isActive = false`) um artigo.
-- **Autenticação / Roles:** JWT (`JwtAuthGuard`). Dono do artigo ou `ADMIN`.
+- **Descrição:** Desativa (soft delete, `isActive = false`) um conto.
+- **Autenticação / Roles:** JWT (`JwtAuthGuard`). Dono do conto ou `ADMIN`.
 - **Status de Sucesso:** `204 No Content`.
 
 ---
 
-### 7.7. Interações em Artigos (`posts` — likes e salvos)
+### 7.7. Interações em Contos (`posts` — likes e salvos)
 Controller: `src/modules/posts/post-interactions.controller.ts`
 
 #### `GET /api/v1/posts/saved`
-- **Descrição:** Lista os artigos publicados e ativos salvos pelo usuário autenticado, ordenados pela data em que foram salvos (`saved.createdAt DESC`).
+- **Descrição:** Lista os contos publicados e ativos salvos pelo usuário autenticado, ordenados pela data em que foram salvos (`saved.createdAt DESC`).
 - **Autenticação / Roles:** JWT (`JwtAuthGuard`).
 - **Query Parameters:** `page` (padrão `1`), `limit` (padrão `10`, máx `100`).
-- **Status de Sucesso:** `200 OK` -> `PaginatedResult` de artigos salvos. *(Nota de implementação: o `select` de `PostInteractionsService.saved` retorna `id`, `title`, `excerpt`, `publishedAt`, `published`, `commentsEnabled`, `isActive`, `createdAt`, `updatedAt`, `author`, `categories` e `tags`, mas não projeta `slug`).*
+- **Status de Sucesso:** `200 OK` -> `PaginatedResult` de contos salvos. *(Nota de implementação: o `select` de `PostInteractionsService.saved` retorna `id`, `title`, `excerpt`, `publishedAt`, `published`, `commentsEnabled`, `isActive`, `createdAt`, `updatedAt`, `author`, `categories` e `tags`, mas não projeta `slug`).*
 
 #### `GET /api/v1/posts/:id/interaction`
-- **Descrição:** Retorna se o usuário autenticado curtiu e/ou salvou o artigo `:id` e o total de curtidas do artigo.
+- **Descrição:** Retorna se o usuário autenticado curtiu e/ou salvou o conto `:id` e o total de curtidas do conto.
 - **Autenticação / Roles:** JWT (`JwtAuthGuard`).
-- **Parâmetros de Rota:** `id` (`UUID` do artigo).
+- **Parâmetros de Rota:** `id` (`UUID` do conto).
 - **Status de Sucesso:** `200 OK` -> `{ "liked": true, "saved": false, "likes": 12 }`.
-- **Erros:** `404` (artigo inexistente ou não publicado).
+- **Erros:** `404` (conto inexistente ou não publicado).
 
 #### `PUT /api/v1/posts/:id/like` e `DELETE /api/v1/posts/:id/like`
 - **Descrição:** `PUT` adiciona curtida de forma idempotente (`ON CONFLICT DO NOTHING`) e cria notificação `POST_LIKED` para o autor (se não for auto-curtida); `DELETE` remove a curtida.
@@ -903,18 +903,18 @@ Controller: `src/modules/posts/post-interactions.controller.ts`
 - **Status de Sucesso:** `204 No Content`.
 
 #### `PUT /api/v1/posts/:id/save` e `DELETE /api/v1/posts/:id/save`
-- **Descrição:** `PUT` salva o artigo publicado nos favoritos do usuário (idempotente); `DELETE` remove dos salvos.
+- **Descrição:** `PUT` salva o conto publicado nos favoritos do usuário (idempotente); `DELETE` remove dos salvos.
 - **Autenticação / Roles:** JWT (`JwtAuthGuard`).
 - **Parâmetros de Rota:** `id` (`UUID`).
 - **Status de Sucesso:** `204 No Content`.
 
 ---
 
-### 7.8. Visualizações e Artigos em Alta (`posts` — views e trending)
+### 7.8. Visualizações e Contos em Alta (`posts` — views e trending)
 Controller: `src/modules/posts/post-views.controller.ts`
 
 #### `GET /api/v1/posts/trending`
-- **Descrição:** Lista artigos publicados com mais visualizações registradas nos últimos **7 dias UTC**.
+- **Descrição:** Lista contos publicados com mais visualizações registradas nos últimos **7 dias UTC**.
 - **Autenticação / Roles:** Pública.
 - **Query Parameters:** `page` (padrão `1`), `limit` (padrão `10`, máx `100`).
 - **Status de Sucesso:** `200 OK`
@@ -926,7 +926,7 @@ Controller: `src/modules/posts/post-views.controller.ts`
         "id": "8e8c3386-3d64-4803-b811-9c9a279a74c5",
         "slug": "arquitetura-nestjs-em-producao",
         "title": "Arquitetura NestJS em Produção",
-        "excerpt": "Resumo do artigo...",
+        "excerpt": "Resumo do conto...",
         "views": 48
       }
     ],
@@ -935,11 +935,11 @@ Controller: `src/modules/posts/post-views.controller.ts`
   ```
 
 #### `POST /api/v1/posts/:id/views`
-- **Descrição:** Contabiliza uma visualização para o artigo publicado `:id` (aceita UUID ou `slug`). Deduplica visualizações calculando `HMAC-SHA256(JWT_SECRET, "view:<postId>:<ip>:<YYYY-MM-DD>")`, garantindo no máximo 1 view por IP por artigo a cada dia UTC.
+- **Descrição:** Contabiliza uma visualização para o conto publicado `:id` (aceita UUID ou `slug`). Deduplica visualizações calculando `HMAC-SHA256(JWT_SECRET, "view:<postId>:<ip>:<YYYY-MM-DD>")`, garantindo no máximo 1 view por IP por conto a cada dia UTC.
 - **Autenticação / Roles:** Pública.
 - **Parâmetros de Rota:** `id` (`UUID` ou `slug`).
 - **Status de Sucesso:** `200 OK` -> `{ "counted": true, "total": 15 }` (`counted: false` se o mesmo IP já visualizou hoje).
-- **Erros:** `404` (artigo não encontrado ou não publicado).
+- **Erros:** `404` (conto não encontrado ou não publicado).
 
 ---
 
@@ -947,30 +947,30 @@ Controller: `src/modules/posts/post-views.controller.ts`
 Controller: `src/modules/posts/post-review.controller.ts`
 
 #### `POST /api/v1/post-reviews/:id/submit`
-- **Descrição:** Submete o primeiro artigo de um `AUTHOR` (`firstPostApproved === false`) para revisão de um administrador, mudando `reviewStatus` para `'PENDING'`.
-- **Autenticação / Roles:** JWT (`JwtAuthGuard`). Apenas o autor dono do artigo.
-- **Parâmetros de Rota:** `id` (`UUID` do artigo).
+- **Descrição:** Submete o primeiro conto de um `AUTHOR` (`firstPostApproved === false`) para revisão de um administrador, mudando `reviewStatus` para `'PENDING'`.
+- **Autenticação / Roles:** JWT (`JwtAuthGuard`). Apenas o autor dono do conto.
+- **Parâmetros de Rota:** `id` (`UUID` do conto).
 - **Status de Sucesso:** `201 Created` -> `{ "status": "PENDING" }`.
 - **Erros:**
-  - `400`: `"Autor já possui aprovação para publicar diretamente"` ou `"Artigo já está publicado"`.
-  - `403`: Não é o autor do artigo ou não possui papel `AUTHOR`.
-  - `404`: Artigo não encontrado.
-  - `409`: `"Artigo já está em revisão"`.
+  - `400`: `"Autor já possui aprovação para publicar diretamente"` ou `"Conto já está publicado"`.
+  - `403`: Não é o autor do conto ou não possui papel `AUTHOR`.
+  - `404`: Conto não encontrado.
+  - `409`: `"Conto já está em revisão"`.
 
 #### `GET /api/v1/post-reviews`
-- **Descrição:** Lista até 100 artigos ativos que estão aguardando revisão (`reviewStatus: 'PENDING'`), ordenados dos mais antigos para os mais novos (`createdAt ASC`), incluindo dados do `author`.
+- **Descrição:** Lista até 100 contos ativos que estão aguardando revisão (`reviewStatus: 'PENDING'`), ordenados dos mais antigos para os mais novos (`createdAt ASC`), incluindo dados do `author`.
 - **Autenticação / Roles:** JWT + `RolesGuard` (`@Roles(UserRole.ADMIN)`).
 - **Status de Sucesso:** `200 OK` -> `Post[]`.
 
 #### `POST /api/v1/post-reviews/:id/decision`
-- **Descrição:** Aprova ou rejeita um artigo com `reviewStatus === 'PENDING'`.
-  - Se `decision === 'APPROVED'`: publica o artigo (`published = true`, `publishedAt = NOW()`), atualiza `author.firstPostApproved = true`, registra `AuditLog` (`POST_REVIEW_APPROVED`), enfileira e-mail para o autor e dispara notificações aos seguidores/newsletter.
+- **Descrição:** Aprova ou rejeita um conto com `reviewStatus === 'PENDING'`.
+  - Se `decision === 'APPROVED'`: publica o conto (`published = true`, `publishedAt = NOW()`), atualiza `author.firstPostApproved = true`, registra `AuditLog` (`POST_REVIEW_APPROVED`), enfileira e-mail para o autor e dispara notificações aos seguidores/newsletter.
   - Se `decision === 'REJECTED'`: define `reviewStatus = 'REJECTED'`, registra `AuditLog` (`POST_REVIEW_REJECTED`) e enfileira e-mail informando o autor.
 - **Autenticação / Roles:** JWT + `RolesGuard` (`@Roles(UserRole.ADMIN)`).
-- **Parâmetros de Rota:** `id` (`UUID` do artigo).
+- **Parâmetros de Rota:** `id` (`UUID` do conto).
 - **Request Body (`ReviewDecisionDto`):** `{ "decision": "APPROVED" }` ou `{ "decision": "REJECTED" }`.
 - **Status de Sucesso:** `201 Created` -> `{ "status": "APPROVED" | "REJECTED" }`.
-- **Erros:** `400` (`"Artigo não está pendente de revisão"`), `401`, `403`, `404`.
+- **Erros:** `400` (`"Conto não está pendente de revisão"`), `401`, `403`, `404`.
 
 ---
 
@@ -978,37 +978,37 @@ Controller: `src/modules/posts/post-review.controller.ts`
 Controller: `src/modules/posts/post-revisions.controller.ts`
 
 #### `GET /api/v1/posts/:postId/revisions`
-- **Descrição:** Lista o histórico paginado de revisões salvas de um artigo (`id`, `title`, `createdAt`).
-- **Autenticação / Roles:** JWT (`JwtAuthGuard`). Dono do artigo ou `ADMIN`.
+- **Descrição:** Lista o histórico paginado de revisões salvas de um conto (`id`, `title`, `createdAt`).
+- **Autenticação / Roles:** JWT (`JwtAuthGuard`). Dono do conto ou `ADMIN`.
 - **Parâmetros de Rota:** `postId` (`UUID`).
 - **Query Parameters:** `page` (padrão `1`), `limit` (padrão `10`, máx `100`).
 - **Status de Sucesso:** `200 OK` -> `PaginatedResult<{ id, title, createdAt }>`.
 
 #### `GET /api/v1/posts/:postId/revisions/:revisionId`
 - **Descrição:** Retorna os detalhes completos de uma revisão específica (`id`, `title`, `content`, `createdAt`).
-- **Autenticação / Roles:** JWT (`JwtAuthGuard`). Dono do artigo ou `ADMIN`.
+- **Autenticação / Roles:** JWT (`JwtAuthGuard`). Dono do conto ou `ADMIN`.
 - **Parâmetros de Rota:** `postId` (`UUID`), `revisionId` (`UUID`).
 - **Status de Sucesso:** `200 OK`.
 
 #### `POST /api/v1/posts/:postId/revisions/:revisionId/restore`
-- **Descrição:** Restaura o `title` e o `content` da revisão selecionada no artigo atual (salvando antes o estado atual como uma nova revisão). Não permitido se o artigo estiver `PENDING` em revisão editorial (`409`).
-- **Autenticação / Roles:** JWT (`JwtAuthGuard`). Dono do artigo ou `ADMIN`.
+- **Descrição:** Restaura o `title` e o `content` da revisão selecionada no conto atual (salvando antes o estado atual como uma nova revisão). Não permitido se o conto estiver `PENDING` em revisão editorial (`409`).
+- **Autenticação / Roles:** JWT (`JwtAuthGuard`). Dono do conto ou `ADMIN`.
 - **Parâmetros de Rota:** `postId` (`UUID`), `revisionId` (`UUID`).
 - **Status de Sucesso:** `201 Created` -> Objeto `Post` restaurado.
 
 ---
 
-### 7.11. Séries de Artigos (`series` e `posts/:postId/series`)
+### 7.11. Séries de Contos (`series` e `posts/:postId/series`)
 Controllers: `src/modules/posts/post-series.controller.ts` e `src/modules/posts/post-series-navigation.controller.ts`
 
 - **`GET /api/v1/series/me`** (JWT + `@Roles(AUTHOR, ADMIN)`): Lista todas as séries criadas pelo usuário autenticado (`[{ id, slug, title, description, authorId, createdAt }]`).
-- **`GET /api/v1/series/:id/manage`** (JWT + `@Roles(AUTHOR, ADMIN)`, dono ou Admin): Retorna `{ id, slug, title, description, authorId, posts: [{ id, slug, title, excerpt, position }] }` incluindo artigos ainda em rascunho.
-- **`GET /api/v1/series/:id`** (Pública, aceita UUID ou `slug`): Retorna a série contendo apenas seus artigos publicados e ativos ordenados por `position ASC`.
+- **`GET /api/v1/series/:id/manage`** (JWT + `@Roles(AUTHOR, ADMIN)`, dono ou Admin): Retorna `{ id, slug, title, description, authorId, posts: [{ id, slug, title, excerpt, position }] }` incluindo contos ainda em rascunho.
+- **`GET /api/v1/series/:id`** (Pública, aceita UUID ou `slug`): Retorna a série contendo apenas seus contos publicados e ativos ordenados por `position ASC`.
 - **`POST /api/v1/series`** (JWT + `@Roles(AUTHOR, ADMIN)`): Cria série. Body (`CreateSeriesDto`): `{ "title": "...", "description": "..." }` (`title` 3..200 chars; `description` opcional até 1000 chars). Retorna `201 Created`.
 - **`PATCH /api/v1/series/:id`** (JWT + `@Roles(AUTHOR, ADMIN)`, dono ou Admin): Atualiza `title` e/ou `description` da série. Retorna `200 OK`.
-- **`PUT /api/v1/series/:id/items`** (JWT + `@Roles(AUTHOR, ADMIN)`, dono ou Admin): Substitui e ordena os artigos da série. Body (`SeriesItemsDto`): `{ "postIds": ["<uuid-1>", "<uuid-2>"] }` (máx 100 UUIDs únicos de artigos pertencentes ao autor da série). Nota: um artigo só pode pertencer a uma única série por vez (`UNIQUE (post_id)`). Retorna `200 OK` -> `{ "postIds": [...] }`.
+- **`PUT /api/v1/series/:id/items`** (JWT + `@Roles(AUTHOR, ADMIN)`, dono ou Admin): Substitui e ordena os contos da série. Body (`SeriesItemsDto`): `{ "postIds": ["<uuid-1>", "<uuid-2>"] }` (máx 100 UUIDs únicos de contos pertencentes ao autor da série). Nota: um conto só pode pertencer a uma única série por vez (`UNIQUE (post_id)`). Retorna `200 OK` -> `{ "postIds": [...] }`.
 - **`DELETE /api/v1/series/:id`** (JWT + `@Roles(AUTHOR, ADMIN)`, dono ou Admin): Remove a série e seus vínculos. Retorna `204 No Content`.
-- **`GET /api/v1/posts/:postId/series`** (Pública, `:postId` aceita UUID ou `slug`): Retorna a série à qual o artigo publicado pertence (ou `404` se não pertencer a nenhuma série).
+- **`GET /api/v1/posts/:postId/series`** (Pública, `:postId` aceita UUID ou `slug`): Retorna a série à qual o conto publicado pertence (ou `404` se não pertencer a nenhuma série).
 
 ---
 
@@ -1016,7 +1016,7 @@ Controllers: `src/modules/posts/post-series.controller.ts` e `src/modules/posts/
 Controllers: `src/modules/posts/authors.controller.ts` e `src/modules/posts/author-follows.controller.ts`
 
 #### `GET /api/v1/authors/:id`
-- **Descrição:** Retorna perfil público de um autor (`AUTHOR` ou `ADMIN` ativo) e o total de artigos publicados por ele.
+- **Descrição:** Retorna perfil público de um autor (`AUTHOR` ou `ADMIN` ativo) e o total de contos publicados por ele.
 - **Autenticação / Roles:** Pública.
 - **Parâmetros de Rota:** `id` (`UUID`).
 - **Status de Sucesso:** `200 OK`
@@ -1035,10 +1035,10 @@ Controllers: `src/modules/posts/authors.controller.ts` e `src/modules/posts/auth
 - **Erros:** `404` (se o usuário não existir, estiver inativo ou for apenas `READER`).
 
 #### `GET /api/v1/feed`
-- **Descrição:** Retorna o feed personalizado de artigos publicados pelos autores que o usuário autenticado segue, ordenados por `publishedAt DESC`.
+- **Descrição:** Retorna o feed personalizado de contos publicados pelos autores que o usuário autenticado segue, ordenados por `publishedAt DESC`.
 - **Autenticação / Roles:** JWT (`JwtAuthGuard`).
 - **Query Parameters:** `page` (padrão `1`), `limit` (padrão `10`, máx `100`).
-- **Status de Sucesso:** `200 OK` -> `PaginatedResult` de artigos (`id`, `slug`, `title`, `excerpt`, `coverImage`, `publishedAt`, `authorId`).
+- **Status de Sucesso:** `200 OK` -> `PaginatedResult` de contos (`id`, `slug`, `title`, `excerpt`, `coverImage`, `publishedAt`, `authorId`).
 
 #### `GET /api/v1/authors/:id/follow`, `PUT /api/v1/authors/:id/follow` e `DELETE /api/v1/authors/:id/follow`
 - **Descrição:**
@@ -1054,14 +1054,14 @@ Controller: `src/modules/posts/feed.controller.ts`
 
 | Método e Rota | Content-Type | Cache-Control | Descrição |
 |---|---|---|---|
-| `GET /api/v1/feed/rss` | `application/rss+xml; charset=utf-8` | `public, max-age=300` | RSS 2.0 com os 50 artigos publicados mais recentes |
+| `GET /api/v1/feed/rss` | `application/rss+xml; charset=utf-8` | `public, max-age=300` | RSS 2.0 com os 50 contos publicados mais recentes |
 | `GET /api/v1/feed.xml` | `application/rss+xml; charset=utf-8` | `public, max-age=300` | Mesmo conteúdo de `/api/v1/feed/rss` |
-| `GET /api/v1/feed/atom` | `application/atom+xml; charset=utf-8` | `public, max-age=300` | Atom 1.0 com os 50 artigos publicados mais recentes |
-| `GET /api/v1/sitemap.xml` | `application/xml; charset=utf-8` | `public, max-age=300` | Sitemap XML com home (`/`), artigos (`/posts/:slug`, até 1000) e categorias (`/categories/:slug`, até 200) usando `FRONTEND_URL` |
+| `GET /api/v1/feed/atom` | `application/atom+xml; charset=utf-8` | `public, max-age=300` | Atom 1.0 com os 50 contos publicados mais recentes |
+| `GET /api/v1/sitemap.xml` | `application/xml; charset=utf-8` | `public, max-age=300` | Sitemap XML com home (`/`), contos (`/posts/:slug`, até 1000) e categorias (`/categories/:slug`, até 200) usando `FRONTEND_URL` |
 
 ---
 
-### 7.14. Coleções de Artigos Salvos (`collections`)
+### 7.14. Coleções de Contos Salvos (`collections`)
 Controller: `src/modules/posts/saved-collections.controller.ts`
 
 Todas as rotas de `/api/v1/collections` são privadas e exigem **JWT (`JwtAuthGuard`)**:
@@ -1069,9 +1069,9 @@ Todas as rotas de `/api/v1/collections` são privadas e exigem **JWT (`JwtAuthGu
 - **`GET /api/v1/collections`**: Lista coleções do usuário autenticado (`[{ id, name, createdAt }]`). Retorna `200 OK`.
 - **`PATCH /api/v1/collections/:id`**: Renomeia coleção do usuário. Body: `{ "name": "Arquitetura" }`. Retorna `200 OK`.
 - **`DELETE /api/v1/collections/:id`**: Exclui coleção do usuário. Retorna `204 No Content`.
-- **`GET /api/v1/collections/:id/posts`**: Lista artigos publicados dentro da coleção (`page`, `limit`). Retorna `200 OK` -> `PaginatedResult<{ id, slug, title, excerpt }>`.
-- **`PUT /api/v1/collections/:id/posts/:postId`**: Adiciona artigo publicado à coleção (idempotente). Retorna `204 No Content`.
-- **`DELETE /api/v1/collections/:id/posts/:postId`**: Remove artigo da coleção. Retorna `204 No Content`.
+- **`GET /api/v1/collections/:id/posts`**: Lista contos publicados dentro da coleção (`page`, `limit`). Retorna `200 OK` -> `PaginatedResult<{ id, slug, title, excerpt }>`.
+- **`PUT /api/v1/collections/:id/posts/:postId`**: Adiciona conto publicado à coleção (idempotente). Retorna `204 No Content`.
+- **`DELETE /api/v1/collections/:id/posts/:postId`**: Remove conto da coleção. Retorna `204 No Content`.
 
 ---
 
@@ -1080,7 +1080,7 @@ Controller: `src/modules/categories/categories.controller.ts`
 
 - **`GET /api/v1/categories`** (Pública): Lista categorias ativas ordenadas por `name ASC`. Query (`FindCategoriesQueryDto`): `page` (1), `limit` (10, máx 100), `search` (opcional, máx 100 chars, busca por `name` ou `description`). Retorna `200 OK` -> `PaginatedResult<Category>`.
 - **`GET /api/v1/categories/:idOrSlug`** (Pública): Busca categoria ativa por UUID ou `slug`. Retorna `200 OK` -> `{ id, name, slug, description, isActive, createdAt, updatedAt }`.
-- **`GET /api/v1/categories/:idOrSlug/posts`** (Pública): Lista artigos publicados dessa categoria (`page`, `limit`). Retorna `200 OK` -> `PaginatedResult<PostSummary>`.
+- **`GET /api/v1/categories/:idOrSlug/posts`** (Pública): Lista contos publicados dessa categoria (`page`, `limit`). Retorna `200 OK` -> `PaginatedResult<PostSummary>`.
 - **`POST /api/v1/categories`** (JWT + `@Roles(ADMIN)`): Cria categoria (ou reativa automaticamente se já existir uma categoria inativa com mesmo nome ou slug). Body (`CreateCategoryDto`): `{ "name": "Tecnologia", "description": "Opcional até 255 chars", "slug": "opcional-slug" }`. Retorna `201 Created`. Erros: `409 Conflict` se já existir ativa.
 - **`PATCH /api/v1/categories/:id`** (JWT + `@Roles(ADMIN)`): Atualiza `name`, `description` ou `slug`. Retorna `200 OK`.
 - **`DELETE /api/v1/categories/:id`** (JWT + `@Roles(ADMIN)`): Soft delete (`isActive = false`). Retorna `204 No Content`.
@@ -1100,7 +1100,7 @@ Controller: `src/modules/tags/tags.controller.ts`
 Controllers: `src/modules/comments/post-comments.controller.ts`, `src/modules/comments/comments.controller.ts` e `src/modules/comments/comment-likes.controller.ts`
 
 #### `GET /api/v1/posts/:postId/comments`
-- **Descrição:** Lista os comentários raiz (`rootId IS NULL`) de um artigo publicado, ordenados por `createdAt ASC`. Cada comentário raiz traz embutido um objeto `replies` com as **5 primeiras respostas** e seus próprios metadados de paginação (`meta`). Comentários excluídos mas que possuem respostas permanecem visíveis com `content: "Comentário excluído"` e `isActive: false`.
+- **Descrição:** Lista os comentários raiz (`rootId IS NULL`) de um conto publicado, ordenados por `createdAt ASC`. Cada comentário raiz traz embutido um objeto `replies` com as **5 primeiras respostas** e seus próprios metadados de paginação (`meta`). Comentários excluídos mas que possuem respostas permanecem visíveis com `content: "Comentário excluído"` e `isActive: false`.
 - **Autenticação / Roles:** Pública.
 - **Parâmetros de Rota:** `postId` (`UUID`).
 - **Query Parameters (`FindCommentsQueryDto`):** `page` (padrão `1`), `limit` (padrão `20`, máx `100`), `cursor` (opcional: `'start'` ou token `nextCursor`).
@@ -1114,14 +1114,14 @@ Controllers: `src/modules/comments/post-comments.controller.ts`, `src/modules/co
 - **Status de Sucesso:** `200 OK` -> `PaginatedResult<CommentReply>`.
 
 #### `POST /api/v1/posts/:postId/comments`
-- **Descrição:** Cria um comentário raiz ou uma resposta (`replyToId`) em um artigo publicado e ativo que esteja com `commentsEnabled: true`. Se for resposta a uma resposta, o backend resolve automaticamente `rootId = target.rootId ?? target.id` (mantendo a árvore em 2 níveis de agrupamento visual). Dispara notificações `POST_COMMENTED` (para o autor do post) e `COMMENT_REPLIED` (para o autor do comentário respondido).
+- **Descrição:** Cria um comentário raiz ou uma resposta (`replyToId`) em um conto publicado e ativo que esteja com `commentsEnabled: true`. Se for resposta a uma resposta, o backend resolve automaticamente `rootId = target.rootId ?? target.id` (mantendo a árvore em 2 níveis de agrupamento visual). Dispara notificações `POST_COMMENTED` (para o autor do post) e `COMMENT_REPLIED` (para o autor do comentário respondido).
 - **Autenticação / Roles:** JWT (`JwtAuthGuard`). Rate limit: **5 req/min**.
 - **Parâmetros de Rota:** `postId` (`UUID`).
 - **Request Body (`CreateCommentDto`):**
   | Campo | Tipo | Obrigatório | Validação |
   |---|---|---|---|
   | `content` | `string` | Sim | 1 a 2000 caracteres após sanitização de texto plano |
-  | `replyToId` | `UUID` | Não | UUID v4 de um comentário ativo pertencente ao mesmo artigo |
+  | `replyToId` | `UUID` | Não | UUID v4 de um comentário ativo pertencente ao mesmo conto |
 - **Status de Sucesso:** `201 Created` -> Objeto `Comment` criado com `author: { id, name, profilePhoto }`.
 - **Erros:** `400` (`replyToId` de outro post ou texto vazio), `403` (`"Comentários estão desabilitados neste post"`), `404`, `429`.
 
@@ -1134,7 +1134,7 @@ Controllers: `src/modules/comments/post-comments.controller.ts`, `src/modules/co
 
 #### `DELETE /api/v1/comments/:id`
 - **Descrição:** Desativa um comentário (`isActive = false`, `content = 'Comentário excluído'`).
-- **Autenticação / Roles:** JWT (`JwtAuthGuard`). Autor do comentário, **autor do artigo onde o comentário foi feito** ou `ADMIN`.
+- **Autenticação / Roles:** JWT (`JwtAuthGuard`). Autor do comentário, **autor do conto onde o comentário foi feito** ou `ADMIN`.
 - **Parâmetros de Rota:** `id` (`UUID`).
 - **Status de Sucesso:** `204 No Content`.
 
@@ -1170,7 +1170,7 @@ Controller: `src/modules/newsletter/newsletter.controller.ts`
 ### 7.20. Denúncias (`reports`)
 Controller: `src/modules/reports/reports.controller.ts`
 
-- **`POST /api/v1/reports`** (JWT, Throttle **10 req/min**): Cria denúncia contra um artigo publicado (`target: 'POST'`) ou comentário ativo (`target: 'COMMENT'`). Body (`CreateReportDto`):
+- **`POST /api/v1/reports`** (JWT, Throttle **10 req/min**): Cria denúncia contra um conto publicado (`target: 'POST'`) ou comentário ativo (`target: 'COMMENT'`). Body (`CreateReportDto`):
   ```json
   {
     "target": "POST",
@@ -1187,10 +1187,10 @@ Controller: `src/modules/reports/reports.controller.ts`
 ### 7.21. Moderação Administrativa (`admin/users`)
 Controller: `src/modules/moderation/moderation.controller.ts`
 
-- **`POST /api/v1/admin/users/:id/suspension`** (JWT + `@Roles(ADMIN)`): Suspende um usuário (não pode suspender outro `ADMIN`), incrementa `authVersion`, apaga todas as sessões ativas, oculta opcionalmente uma lista de artigos (`hidePostIds`) marcando `hiddenByModeration = true` e `isActive = false`, e grava `AuditLog` (`USER_SUSPENDED`).
+- **`POST /api/v1/admin/users/:id/suspension`** (JWT + `@Roles(ADMIN)`): Suspende um usuário (não pode suspender outro `ADMIN`), incrementa `authVersion`, apaga todas as sessões ativas, oculta opcionalmente uma lista de contos (`hidePostIds`) marcando `hiddenByModeration = true` e `isActive = false`, e grava `AuditLog` (`USER_SUSPENDED`).
   - Body (`SuspendDto`): `{ "reason": "Violação reiterada", "endsAt": "2026-05-01T00:00:00.000-03:00", "hidePostIds": ["<uuid>"] }` (`endsAt` e `hidePostIds` opcionais).
   - Status: `201 Created` -> `{ "suspended": true, "endsAt": "..." }`.
-- **`POST /api/v1/admin/users/:id/restore`** (JWT + `@Roles(ADMIN)`): Remove suspensão de um usuário, restaura automaticamente todos os seus artigos que estavam marcados com `hiddenByModeration = true` e grava `AuditLog` (`USER_RESTORED`).
+- **`POST /api/v1/admin/users/:id/restore`** (JWT + `@Roles(ADMIN)`): Remove suspensão de um usuário, restaura automaticamente todos os seus contos que estavam marcados com `hiddenByModeration = true` e grava `AuditLog` (`USER_RESTORED`).
   - Status: `201 Created` -> `{ "suspended": false }`.
 
 ---
@@ -1339,7 +1339,7 @@ Content-Type: application/json
 
 ---
 
-### 8.4. Criação e Leitura de Artigo (`POST /api/v1/posts` e `GET /api/v1/posts/:id`)
+### 8.4. Criação e Leitura de Conto (`POST /api/v1/posts` e `GET /api/v1/posts/:id`)
 
 **Requisição (`POST /api/v1/posts`):**
 ```http
@@ -1350,7 +1350,7 @@ Content-Type: application/json
 
 {
   "title": "Guia Prático de NestJS com TypeORM",
-  "content": "<p>Neste artigo exploramos a arquitetura modular do <strong>NestJS</strong> integrada ao PostgreSQL.</p><h2>Boas práticas</h2><p>Valide sempre seus DTOs.</p>",
+  "content": "<p>Neste conto exploramos a arquitetura modular do <strong>NestJS</strong> integrada ao PostgreSQL.</p><h2>Boas práticas</h2><p>Valide sempre seus DTOs.</p>",
   "published": false,
   "categoryIds": ["41a9f1d0-827b-483e-9a4a-1e8e4a8b3c12"],
   "tagNames": ["NestJS", "TypeScript", "PostgreSQL"]
@@ -1364,8 +1364,8 @@ Content-Type: application/json
   "title": "Guia Prático de NestJS com TypeORM",
   "slug": "guia-pratico-de-nestjs-com-typeorm",
   "legacySlug": null,
-  "content": "<p>Neste artigo exploramos a arquitetura modular do <strong>NestJS</strong> integrada ao PostgreSQL.</p><h2>Boas práticas</h2><p>Valide sempre seus DTOs.</p>",
-  "excerpt": "Neste artigo exploramos a arquitetura modular do NestJS integrada ao PostgreSQL. Boas práticas Valide sempre seus DTOs.",
+  "content": "<p>Neste conto exploramos a arquitetura modular do <strong>NestJS</strong> integrada ao PostgreSQL.</p><h2>Boas práticas</h2><p>Valide sempre seus DTOs.</p>",
+  "excerpt": "Neste conto exploramos a arquitetura modular do NestJS integrada ao PostgreSQL. Boas práticas Valide sempre seus DTOs.",
   "coverImage": null,
   "publishedAt": null,
   "scheduledAt": null,
@@ -1401,15 +1401,15 @@ Content-Type: application/json
 }
 ```
 
-**Resposta de Erro — Primeiro artigo tentando publicar sem aprovação (`409 Conflict`):**
+**Resposta de Erro — Primeiro conto tentando publicar sem aprovação (`409 Conflict`):**
 ```json
 {
   "statusCode": 409,
-  "message": "O primeiro artigo exige aprovação."
+  "message": "O primeiro conto exige aprovação."
 }
 ```
 
-**Resposta de `GET /api/v1/posts/:id` quando o artigo publicado pertence a uma série (`200 OK`):**
+**Resposta de `GET /api/v1/posts/:id` quando o conto publicado pertence a uma série (`200 OK`):**
 Além dos campos acima, inclui o objeto `series`:
 ```json
 {
@@ -1448,7 +1448,7 @@ Além dos campos acima, inclui o objeto `series`:
   "data": [
     {
       "id": "a1b2c3d4-e5f6-4789-8012-34567890abcd",
-      "content": "Muito bom o artigo!",
+      "content": "Muito bom o conto!",
       "postId": "8e8c3386-3d64-4803-b811-9c9a279a74c5",
       "authorId": "c7b8a910-1234-4ef0-9123-abcdef012345",
       "rootId": null,
@@ -1675,7 +1675,7 @@ export function FollowAuthorButton({ authorId }: { authorId: string }) {
 }
 ```
 
-#### Exemplo 3: Publicar ou Agendar Artigo para Autor já Aprovado (`PATCH /api/v1/posts/:id`)
+#### Exemplo 3: Publicar ou Agendar Conto para Autor já Aprovado (`PATCH /api/v1/posts/:id`)
 
 ```ts
 import { authenticatedFetchForSubject } from "../lib/session-client";
@@ -1704,7 +1704,7 @@ export async function publishOrSchedulePost(
 
   if (response.status === 409) {
     const err = (await response.json().catch(() => null)) as { message?: string } | null;
-    throw new Error(err?.message || "Este artigo exige aprovação editorial antes da publicação.");
+    throw new Error(err?.message || "Este conto exige aprovação editorial antes da publicação.");
   }
 
   if (!response.ok) {
@@ -1730,48 +1730,48 @@ export async function publishOrSchedulePost(
 2. **`POST /api/v1/users/me/author`** (JWT de `READER` com e-mail verificado) enviando `{ version: "1", accepted: true }` -> Retorna `{ role: "AUTHOR", rulesVersion: "1" }`.
 3. Opcionalmente chame **`POST /api/v1/auth/refresh`** para atualizar o claim `role` no JWT client-side (no backend, o `JwtStrategy` já lê `role = 'AUTHOR'` diretamente do banco imediatamente).
 
-### Fluxo 3: Criação de um artigo (1º artigo vs. artigos seguintes)
+### Fluxo 3: Criação de um conto (1º conto vs. contos seguintes)
 1. **`GET /api/v1/categories?page=1&limit=100`** -> Carrega categorias disponíveis para seleção.
 2. **`POST /api/v1/posts`** (JWT de `AUTHOR` ou `ADMIN`) enviando `{ title, content, categoryIds, tagNames, published: false }` -> Retorna o rascunho criado (`201 Created`).
 3. Opcionalmente, envie a capa em **`POST /api/v1/posts/:id/cover-image`** (`multipart/form-data`, campo `file`).
-4. **Se `firstPostApproved === false` (1º artigo do autor):**
+4. **Se `firstPostApproved === false` (1º conto do autor):**
    - Chame **`POST /api/v1/post-reviews/:id/submit`** -> Muda `reviewStatus` para `'PENDING'`.
 5. **Se `firstPostApproved === true` ou `ADMIN`:**
    - Pode criar diretamente com `"published": true` ou `"scheduledAt": "2026-05-01T10:00:00.000-03:00"`.
 
-### Fluxo 4: Edição de um artigo pelo próprio autor e histórico de revisões
-1. **`GET /api/v1/posts/me?page=1&limit=20`** -> Lista os artigos do autor (rascunhos, em revisão e publicados).
-2. **`GET /api/v1/posts/:id`** (com JWT do autor) -> Carrega os dados completos do rascunho ou artigo publicado.
+### Fluxo 4: Edição de um conto pelo próprio autor e histórico de revisões
+1. **`GET /api/v1/posts/me?page=1&limit=20`** -> Lista os contos do autor (rascunhos, em revisão e publicados).
+2. **`GET /api/v1/posts/:id`** (com JWT do autor) -> Carrega os dados completos do rascunho ou conto publicado.
 3. **`PATCH /api/v1/posts/:id`** -> Atualiza `title`, `content`, `categoryIds`, `tagNames`, `commentsEnabled`, etc. (Bloqueado com `409` apenas se `reviewStatus === 'PENDING'`). Cada alteração de título ou conteúdo gera automaticamente um registro em `post_revisions`.
 4. Para consultar ou reverter versões anteriores: **`GET /api/v1/posts/:postId/revisions`** -> **`GET /api/v1/posts/:postId/revisions/:revisionId`** -> **`POST /api/v1/posts/:postId/revisions/:revisionId/restore`**.
 
-### Fluxo 5: Publicação, agendamento, séries e gerenciamento de artigos
-1. **Revisão pelo Admin (para o 1º artigo):**
-   - Admin consulta **`GET /api/v1/post-reviews`** -> Avalia o artigo -> Envia **`POST /api/v1/post-reviews/:id/decision`** com `{ "decision": "APPROVED" }` (publica o post e libera `author.firstPostApproved = true`) ou `{ "decision": "REJECTED" }`.
+### Fluxo 5: Publicação, agendamento, séries e gerenciamento de contos
+1. **Revisão pelo Admin (para o 1º conto):**
+   - Admin consulta **`GET /api/v1/post-reviews`** -> Avalia o conto -> Envia **`POST /api/v1/post-reviews/:id/decision`** com `{ "decision": "APPROVED" }` (publica o post e libera `author.firstPostApproved = true`) ou `{ "decision": "REJECTED" }`.
 2. **Publicação direta ou agendamento (autores aprovados / Admin):**
    - Publicar agora: **`PATCH /api/v1/posts/:id`** com `{ "published": true }`.
    - Agendar: **`PATCH /api/v1/posts/:id`** com `{ "scheduledAt": "2026-05-10T09:00:00.000-03:00" }`. O cron `PostSchedulerService` publica automaticamente no minuto agendado.
 3. **Organizar em Série:**
    - **`POST /api/v1/series`** (`{ title, description }`) -> **`PUT /api/v1/series/:id/items`** (`{ postIds: [...] }`).
 4. **Exclusão (Soft Delete):**
-   - **`DELETE /api/v1/posts/:id`** -> Remove o artigo das listagens públicas.
+   - **`DELETE /api/v1/posts/:id`** -> Remove o conto das listagens públicas.
 
-### Fluxo 6: Consulta de artigos públicos com paginação, busca, filtros e leitura
+### Fluxo 6: Consulta de contos públicos com paginação, busca, filtros e leitura
 1. **Listagem e busca:** **`GET /api/v1/posts?page=1&limit=10&search=nestjs&categorySlug=backend&tagSlug=typescript`** (ou com `cursor=start` para botão "Mostrar mais").
-2. **Leitura do artigo:** **`GET /api/v1/posts/:slug`** -> Retorna artigo completo com `content`, `readingTimeMinutes` e navegação `series`.
+2. **Leitura do conto:** **`GET /api/v1/posts/:slug`** -> Retorna conto completo com `content`, `readingTimeMinutes` e navegação `series`.
 3. **Contabilização de visualização:** **`POST /api/v1/posts/:id/views`** -> Incrementa contador diário deduplicado por IP.
-4. **Artigos relacionados:** **`GET /api/v1/posts/:id/related`** -> Retorna até 4 sugestões de leitura.
+4. **Contos relacionados:** **`GET /api/v1/posts/:id/related`** -> Retorna até 4 sugestões de leitura.
 
 ### Fluxo 7: Criação, listagem e gerenciamento de comentários e respostas
 1. **`GET /api/v1/posts/:postId/comments?page=1&limit=20`** -> Carrega comentários raiz e até 5 respostas iniciais por comentário.
 2. **`GET /api/v1/posts/:postId/comments/:id/replies?page=2&limit=5`** -> Carrega páginas adicionais de respostas de um comentário raiz.
 3. **`POST /api/v1/posts/:postId/comments`** (JWT) -> Envia `{ content }` para comentário raiz ou `{ content, replyToId }` para responder.
 4. **Curtir comentário:** **`GET /api/v1/comments/:id/like`** -> **`PUT /api/v1/comments/:id/like`** / **`DELETE /api/v1/comments/:id/like`**.
-5. **Editar ou excluir comentário:** **`PATCH /api/v1/comments/:id`** (autor do comentário ou Admin) / **`DELETE /api/v1/comments/:id`** (autor do comentário, autor do artigo ou Admin).
+5. **Editar ou excluir comentário:** **`PATCH /api/v1/comments/:id`** (autor do comentário ou Admin) / **`DELETE /api/v1/comments/:id`** (autor do comentário, autor do conto ou Admin).
 
-### Fluxo 8: Upload e atualização de imagens de perfil e de capa de artigos
+### Fluxo 8: Upload e atualização de imagens de perfil e de capa de contos
 1. **Foto de perfil:** **`POST /api/v1/users/:id/profile-photo`** (`multipart/form-data`, campo `file`). Retorna `UserResponseDto` com `profilePhoto: "/uploads/profile-photos/<uuid>.webp"`.
-2. **Capa de artigo:** **`POST /api/v1/posts/:id/cover-image`** (`multipart/form-data`, campo `file`). Retorna `{ coverImage: "/uploads/post-covers/<uuid>.webp" }`.
+2. **Capa de conto:** **`POST /api/v1/posts/:id/cover-image`** (`multipart/form-data`, campo `file`). Retorna `{ coverImage: "/uploads/post-covers/<uuid>.webp" }`.
 3. **Remoção de capa:** **`DELETE /api/v1/posts/:id/cover-image`** -> Retorna `{ coverImage: null }`.
 
 ### Fluxo 9: Configurações e segurança da conta (Perfil, Senha, E-mail, 2FA e Sessões)
@@ -1796,11 +1796,11 @@ O sistema de upload processa imagens localmente com validação rigorosa de assi
 
 ### 11.1. Comparativo dos Endpoints de Upload
 
-| Característica | Foto de Perfil | Capa de Artigo |
+| Característica | Foto de Perfil | Capa de Conto |
 |---|---|---|
 | **Endpoint de Upload** | `POST /api/v1/users/:id/profile-photo` | `POST /api/v1/posts/:id/cover-image` |
 | **Endpoint de Remoção** | Não possui rota `DELETE` dedicada (substituída por novo upload) | `DELETE /api/v1/posts/:id/cover-image` |
-| **Autenticação / Permissão** | JWT — Próprio usuário (`:id`) ou `ADMIN` | JWT — Autor dono do artigo (`:id`) ou `ADMIN` |
+| **Autenticação / Permissão** | JWT — Próprio usuário (`:id`) ou `ADMIN` | JWT — Autor dono do conto (`:id`) ou `ADMIN` |
 | **Content-Type** | `multipart/form-data` | `multipart/form-data` |
 | **Nome do campo no FormData** | `file` | `file` |
 | **Formatos aceitos na entrada** | `image/jpeg`, `image/png`, `image/webp` | `image/jpeg`, `image/png`, `image/webp` |
@@ -1904,7 +1904,7 @@ export function LoadMorePosts({ initialPosts, initialCursor }: { initialPosts: P
       {/* Renderizar lista de posts */}
       {nextCursor ? (
         <button type="button" onClick={loadMore} disabled={loading}>
-          {loading ? "Carregando..." : "Mostrar mais artigos"}
+          {loading ? "Carregando..." : "Mostrar mais contos"}
         </button>
       ) : null}
     </div>
@@ -1919,7 +1919,7 @@ export function LoadMorePosts({ initialPosts, initialCursor }: { initialPosts: P
 - **Ordenação nos demais endpoints:**
   - Categorias e Tags: `name ASC`
   - Comentários e Respostas: `createdAt ASC` (cronológica)
-  - Notificações, Sessões, Revisões, Artigos Salvos e Logs de Auditoria: mais recentes primeiro (`DESC`).
+  - Notificações, Sessões, Revisões, Contos Salvos e Logs de Auditoria: mais recentes primeiro (`DESC`).
 
 ---
 
@@ -1946,8 +1946,8 @@ O filtro intercepta erros nativos do PostgreSQL (`QueryFailedError`) para nunca 
 | Código PostgreSQL | Condição / Constraint | Status HTTP Retornado | Mensagem JSON Retornada |
 |---|---|---|---|
 | `23505` (`unique_violation`) | Violação de chave única não tratada no service | `409 Conflict` | `"Registro duplicado: um dos campos únicos já está em uso."` |
-| `23514` (`check_violation`) | `Post awaiting review cannot be edited` | `409 Conflict` | `"O artigo em revisão não pode ser editado."` |
-| `23514` (`check_violation`) | `First post requires approval` | `409 Conflict` | `"O primeiro artigo exige aprovação."` |
+| `23514` (`check_violation`) | `Post awaiting review cannot be edited` | `409 Conflict` | `"O conto em revisão não pode ser editado."` |
+| `23514` (`check_violation`) | `First post requires approval` | `409 Conflict` | `"O primeiro conto exige aprovação."` |
 | Qualquer outro erro não-HTTP | Exceção interna inesperada | `500 Internal Server Error` | `{ "statusCode": 500, "timestamp": "...", "path": "/api/v1/...", "message": "Erro interno no servidor" }` |
 
 ### 13.3. Códigos de Status HTTP Utilizados pela API
@@ -1984,13 +1984,13 @@ A configuração do Swagger está em `src/docs/swagger.config.ts` e utiliza deco
 2. **Campo `slug` ausente na listagem `GET /api/v1/posts/saved`:**
    - Em `PostInteractionsService.saved()` (`src/modules/posts/post-interactions.service.ts`), a query `.select([...])` seleciona `post.id`, `post.title`, `post.excerpt`, etc., mas não inclui `post.slug`. No frontend (`Front-Blog/src/app/conta/salvos/saved-posts.tsx`), o link aponta para `/posts/${post.id}`. Como `GET /api/v1/posts/:id` resolve tanto UUID quanto `slug` e a página `Front-Blog/src/app/posts/[slug]/page.tsx` faz `permanentRedirect('/posts/' + post.slug)` quando o parâmetro da URL difere de `post.slug`, a navegação funciona via redirecionamento 308, mas requer uma requisição extra.
 3. **Armazenamento de imagens restrito ao disco local:**
-   - Uploads de fotos de perfil e capas de artigos são gravados no sistema de arquivos local (`uploads/`). Não há integração implementada com provedores de armazenamento em nuvem (S3, GCS, Cloudflare R2).
+   - Uploads de fotos de perfil e capas de contos são gravados no sistema de arquivos local (`uploads/`). Não há integração implementada com provedores de armazenamento em nuvem (S3, GCS, Cloudflare R2).
 4. **Remoção isolada de foto de perfil:**
-   - Diferentemente da capa de artigo (que possui `DELETE /api/v1/posts/:id/cover-image`), não existe um endpoint `DELETE /api/v1/users/:id/profile-photo` nem suporte a `profilePhoto: null` no `UpdateUserDto`; a foto de perfil só pode ser substituída por outra imagem.
+   - Diferentemente da capa de conto (que possui `DELETE /api/v1/posts/:id/cover-image`), não existe um endpoint `DELETE /api/v1/users/:id/profile-photo` nem suporte a `profilePhoto: null` no `UpdateUserDto`; a foto de perfil só pode ser substituída por outra imagem.
 5. **Funcionalidades da interface do Frontend condicionadas a Feature Flags de ambiente:**
-   - No `Front-Blog`, a criação e edição de artigos (`/studio/novo` e `/studio/[id]`) exigem `EDITORIAL_WORKFLOW_ENABLED=true` no servidor Next.js, e a tela de revisão administrativa (`/gestao-editorial`) exige `ENABLE_ADMIN_BFF=true`. Sem essas variáveis no ambiente do frontend, as páginas exibem apenas avisos informando que o fluxo está desabilitado.
+   - No `Front-Blog`, a criação e edição de contos (`/studio/novo` e `/studio/[id]`) exigem `EDITORIAL_WORKFLOW_ENABLED=true` no servidor Next.js, e a tela de revisão administrativa (`/gestao-editorial`) exige `ENABLE_ADMIN_BFF=true`. Sem essas variáveis no ambiente do frontend, as páginas exibem apenas avisos informando que o fluxo está desabilitado.
 6. **Publicação direta e agendamento no Editor do Frontend (`Studio`):**
-   - Embora o backend permita que autores com `firstPostApproved = true` e administradores publiquem diretamente (`published: true`) ou agendem (`scheduledAt`) via `POST /api/v1/posts` e `PATCH /api/v1/posts/:id`, o componente `Front-Blog/src/app/studio/editor.tsx` atualmente só envia `{ title, content, categoryIds, tagNames }` (salvando como rascunho) e oferece apenas o botão `"Enviar para revisão"` (`POST /api/v1/post-reviews/:id/submit`), que falha com `400 Autor já possui aprovação para publicar diretamente` quando o autor já teve seu primeiro artigo aprovado.
+   - Embora o backend permita que autores com `firstPostApproved = true` e administradores publiquem diretamente (`published: true`) ou agendem (`scheduledAt`) via `POST /api/v1/posts` e `PATCH /api/v1/posts/:id`, o componente `Front-Blog/src/app/studio/editor.tsx` atualmente só envia `{ title, content, categoryIds, tagNames }` (salvando como rascunho) e oferece apenas o botão `"Enviar para revisão"` (`POST /api/v1/post-reviews/:id/submit`), que falha com `400 Autor já possui aprovação para publicar diretamente` quando o autor já teve seu primeiro conto aprovado.
 
 ---
 
@@ -2029,37 +2029,37 @@ A auditoria cruzada entre os **104 endpoints do backend** e o código-fonte do *
 | Obter dados do usuário autenticado | `GET /api/v1/users/:id` | Integrado | Usado em `/conta`, `/conta/perfil`, `/studio` e `/studio/editor.tsx`. **Observação:** resposta não inclui `totpEnabled`. |
 | Atualizar perfil, senha, e-mail ou role | `PATCH /api/v1/users/:id` | Parcial | Integrado para `name`, `bio`, `websiteUrl`, `socialUrl` (`/conta/perfil`) e `password` (`/conta/senha`). **Ausente no frontend:** alteração de `email` e alteração administrativa de `role`/`isActive`. |
 | Desativar (excluir) conta de usuário | `DELETE /api/v1/users/:id` | Ausente | Não há botão de exclusão/desativação da própria conta em `/conta`. |
-| Listar artigos públicos e busca | `GET /api/v1/posts` | Parcial | Integrado com `page`, `limit` e `search` em `src/app/page.tsx` e `authorId` em `/autores/[id]`. **Ausente no frontend:** uso de `cursor`, `categorySlug`, `tagSlug`. |
-| Listar artigos do próprio autor | `GET /api/v1/posts/me` | Integrado | Usado em `src/app/studio/studio.tsx`. |
-| Listar artigos relacionados | `GET /api/v1/posts/:id/related` | Integrado | Usado em `src/app/posts/[slug]/related.ts`. |
-| Obter artigo por slug ou UUID | `GET /api/v1/posts/:id` | Parcial | Usado em `/posts/[slug]/page.tsx` (público) e `/studio/editor.tsx` (autenticado). **Observação:** o campo `series` retornado pelo backend é ignorado por `normalizePostDetail` em `public-post.ts`. |
-| Criar artigo | `POST /api/v1/posts` | Parcial | Usado em `src/app/studio/editor.tsx` (requer `EDITORIAL_WORKFLOW_ENABLED=true`). Sempre cria rascunho; não expõe campos `published` nem `scheduledAt`. |
-| Editar artigo | `PATCH /api/v1/posts/:id` | Parcial | Usado em `src/app/studio/editor.tsx`. Envia apenas `{ title, content, categoryIds, tagNames }`; não permite publicar/despublicar (`published`), agendar (`scheduledAt`) ou alternar `commentsEnabled`. |
-| Upload de imagem de capa do artigo | `POST /api/v1/posts/:id/cover-image` | Integrado | Usado em `src/app/studio/editor.tsx`. |
-| Remover imagem de capa do artigo | `DELETE /api/v1/posts/:id/cover-image` | Integrado | Usado em `src/app/studio/editor.tsx`. |
-| Excluir artigo (soft delete) | `DELETE /api/v1/posts/:id` | Ausente | Não há botão para excluir rascunho ou artigo no `/studio`. |
-| Listar artigos salvos pelo usuário | `GET /api/v1/posts/saved` | Parcial | Usado em `src/app/conta/salvos/saved-posts.tsx`. **Inconsistência:** o backend não seleciona `post.slug` em `saved()`, fazendo o frontend gerar links `/posts/${post.id}` que dependem de redirect 308. |
+| Listar contos públicos e busca | `GET /api/v1/posts` | Parcial | Integrado com `page`, `limit` e `search` em `src/app/page.tsx` e `authorId` em `/autores/[id]`. **Ausente no frontend:** uso de `cursor`, `categorySlug`, `tagSlug`. |
+| Listar contos do próprio autor | `GET /api/v1/posts/me` | Integrado | Usado em `src/app/studio/studio.tsx`. |
+| Listar contos relacionados | `GET /api/v1/posts/:id/related` | Integrado | Usado em `src/app/posts/[slug]/related.ts`. |
+| Obter conto por slug ou UUID | `GET /api/v1/posts/:id` | Parcial | Usado em `/posts/[slug]/page.tsx` (público) e `/studio/editor.tsx` (autenticado). **Observação:** o campo `series` retornado pelo backend é ignorado por `normalizePostDetail` em `public-post.ts`. |
+| Criar conto | `POST /api/v1/posts` | Parcial | Usado em `src/app/studio/editor.tsx` (requer `EDITORIAL_WORKFLOW_ENABLED=true`). Sempre cria rascunho; não expõe campos `published` nem `scheduledAt`. |
+| Editar conto | `PATCH /api/v1/posts/:id` | Parcial | Usado em `src/app/studio/editor.tsx`. Envia apenas `{ title, content, categoryIds, tagNames }`; não permite publicar/despublicar (`published`), agendar (`scheduledAt`) ou alternar `commentsEnabled`. |
+| Upload de imagem de capa do conto | `POST /api/v1/posts/:id/cover-image` | Integrado | Usado em `src/app/studio/editor.tsx`. |
+| Remover imagem de capa do conto | `DELETE /api/v1/posts/:id/cover-image` | Integrado | Usado em `src/app/studio/editor.tsx`. |
+| Excluir conto (soft delete) | `DELETE /api/v1/posts/:id` | Ausente | Não há botão para excluir rascunho ou conto no `/studio`. |
+| Listar contos salvos pelo usuário | `GET /api/v1/posts/saved` | Parcial | Usado em `src/app/conta/salvos/saved-posts.tsx`. **Inconsistência:** o backend não seleciona `post.slug` em `saved()`, fazendo o frontend gerar links `/posts/${post.id}` que dependem de redirect 308. |
 | Consultar estado de curtida/salvo | `GET /api/v1/posts/:id/interaction` | Integrado | Usado em `src/app/posts/[slug]/interactions.tsx`. |
-| Curtir artigo | `PUT /api/v1/posts/:id/like` | Integrado | Usado em `src/app/posts/[slug]/interactions.tsx`. |
-| Descurtir artigo | `DELETE /api/v1/posts/:id/like` | Integrado | Usado em `src/app/posts/[slug]/interactions.tsx`. |
-| Salvar artigo nos favoritos | `PUT /api/v1/posts/:id/save` | Integrado | Usado em `src/app/posts/[slug]/interactions.tsx`. |
-| Remover artigo dos salvos | `DELETE /api/v1/posts/:id/save` | Integrado | Usado em `src/app/posts/[slug]/interactions.tsx` e `src/app/conta/salvos/saved-posts.tsx`. |
-| Listar artigos em alta (7 dias) | `GET /api/v1/posts/trending` | Ausente | Disponível no backend; nenhuma seção "Em alta" na home do frontend. |
-| Registrar visualização de artigo | `POST /api/v1/posts/:id/views` | Integrado | Usado em `src/app/posts/[slug]/post-view-tracker.tsx`. |
-| Submeter 1º artigo para revisão | `POST /api/v1/post-reviews/:id/submit` | Parcial | Usado em `src/app/studio/editor.tsx`. **Observação:** o botão continua sendo exibido mesmo para autores que já têm `firstPostApproved: true`, para os quais a rota retorna `400`. |
+| Curtir conto | `PUT /api/v1/posts/:id/like` | Integrado | Usado em `src/app/posts/[slug]/interactions.tsx`. |
+| Descurtir conto | `DELETE /api/v1/posts/:id/like` | Integrado | Usado em `src/app/posts/[slug]/interactions.tsx`. |
+| Salvar conto nos favoritos | `PUT /api/v1/posts/:id/save` | Integrado | Usado em `src/app/posts/[slug]/interactions.tsx`. |
+| Remover conto dos salvos | `DELETE /api/v1/posts/:id/save` | Integrado | Usado em `src/app/posts/[slug]/interactions.tsx` e `src/app/conta/salvos/saved-posts.tsx`. |
+| Listar contos em alta (7 dias) | `GET /api/v1/posts/trending` | Ausente | Disponível no backend; nenhuma seção "Em alta" na home do frontend. |
+| Registrar visualização de conto | `POST /api/v1/posts/:id/views` | Integrado | Usado em `src/app/posts/[slug]/post-view-tracker.tsx`. |
+| Submeter 1º conto para revisão | `POST /api/v1/post-reviews/:id/submit` | Parcial | Usado em `src/app/studio/editor.tsx`. **Observação:** o botão continua sendo exibido mesmo para autores que já têm `firstPostApproved: true`, para os quais a rota retorna `400`. |
 | Listar fila de revisão editorial (Admin) | `GET /api/v1/post-reviews` | Integrado | Usado via Route Handler BFF em `src/app/gestao-editorial/queue/route.ts` (requer `ENABLE_ADMIN_BFF=true`). |
-| Aprovar ou rejeitar artigo em revisão | `POST /api/v1/post-reviews/:id/decision` | Integrado | Usado via Route Handler BFF em `src/app/gestao-editorial/decision/route.ts`. |
-| Listar histórico de revisões do artigo | `GET /api/v1/posts/:postId/revisions` | Ausente | Não integrado no editor do `/studio`. |
+| Aprovar ou rejeitar conto em revisão | `POST /api/v1/post-reviews/:id/decision` | Integrado | Usado via Route Handler BFF em `src/app/gestao-editorial/decision/route.ts`. |
+| Listar histórico de revisões do conto | `GET /api/v1/posts/:postId/revisions` | Ausente | Não integrado no editor do `/studio`. |
 | Obter conteúdo de uma revisão | `GET /api/v1/posts/:postId/revisions/:revisionId` | Ausente | Não integrado no editor do `/studio`. |
-| Restaurar revisão de um artigo | `POST /api/v1/posts/:postId/revisions/:revisionId/restore` | Ausente | Não integrado no editor do `/studio`. |
+| Restaurar revisão de um conto | `POST /api/v1/posts/:postId/revisions/:revisionId/restore` | Ausente | Não integrado no editor do `/studio`. |
 | Listar séries do próprio autor | `GET /api/v1/series/me` | Ausente | Módulo de séries não possui interface no frontend. |
 | Detalhar série para gerenciamento | `GET /api/v1/series/:id/manage` | Ausente | Não integrado no frontend. |
 | Obter série pública por ID ou slug | `GET /api/v1/series/:id` | Ausente | Não integrado no frontend. |
-| Criar série de artigos | `POST /api/v1/series` | Ausente | Não integrado no frontend. |
-| Atualizar série de artigos | `PATCH /api/v1/series/:id` | Ausente | Não integrado no frontend. |
-| Ordenar/definir artigos da série | `PUT /api/v1/series/:id/items` | Ausente | Não integrado no frontend. |
-| Excluir série de artigos | `DELETE /api/v1/series/:id` | Ausente | Não integrado no frontend. |
-| Obter série vinculada a um artigo | `GET /api/v1/posts/:postId/series` | Ausente | Não integrado no frontend. |
+| Criar série de contos | `POST /api/v1/series` | Ausente | Não integrado no frontend. |
+| Atualizar série de contos | `PATCH /api/v1/series/:id` | Ausente | Não integrado no frontend. |
+| Ordenar/definir contos da série | `PUT /api/v1/series/:id/items` | Ausente | Não integrado no frontend. |
+| Excluir série de contos | `DELETE /api/v1/series/:id` | Ausente | Não integrado no frontend. |
+| Obter série vinculada a um conto | `GET /api/v1/posts/:postId/series` | Ausente | Não integrado no frontend. |
 | Perfil público do autor | `GET /api/v1/authors/:id` | Integrado | Usado em `src/app/autores/[id]/page.tsx`. |
 | Feed pessoal de autores seguidos | `GET /api/v1/feed` | Ausente | Não há página de feed personalizado no frontend. |
 | Consultar se segue um autor | `GET /api/v1/authors/:id/follow` | Ausente | Não há botão de seguir autor em `/autores/[id]`. |
@@ -2073,18 +2073,18 @@ A auditoria cruzada entre os **104 endpoints do backend** e o código-fonte do *
 | Listar coleções privadas | `GET /api/v1/collections` | Ausente | Não integrado no frontend. |
 | Renomear coleção privada | `PATCH /api/v1/collections/:id` | Ausente | Não integrado no frontend. |
 | Excluir coleção privada | `DELETE /api/v1/collections/:id` | Ausente | Não integrado no frontend. |
-| Listar artigos de uma coleção | `GET /api/v1/collections/:id/posts` | Ausente | Não integrado no frontend. |
-| Adicionar artigo a uma coleção | `PUT /api/v1/collections/:id/posts/:postId` | Ausente | Não integrado no frontend. |
-| Remover artigo de uma coleção | `DELETE /api/v1/collections/:id/posts/:postId` | Ausente | Não integrado no frontend. |
+| Listar contos de uma coleção | `GET /api/v1/collections/:id/posts` | Ausente | Não integrado no frontend. |
+| Adicionar conto a uma coleção | `PUT /api/v1/collections/:id/posts/:postId` | Ausente | Não integrado no frontend. |
+| Remover conto de uma coleção | `DELETE /api/v1/collections/:id/posts/:postId` | Ausente | Não integrado no frontend. |
 | Listar categorias públicas | `GET /api/v1/categories` | Integrado | Usado em `src/app/categorias/page.tsx` e no seletor de categorias de `src/app/studio/editor.tsx`. |
 | Obter detalhes de categoria | `GET /api/v1/categories/:idOrSlug` | Integrado | Usado em `src/app/categorias/[slug]/page.tsx`. |
-| Listar artigos de uma categoria | `GET /api/v1/categories/:idOrSlug/posts` | Integrado | Usado em `src/app/categorias/[slug]/page.tsx`. |
+| Listar contos de uma categoria | `GET /api/v1/categories/:idOrSlug/posts` | Integrado | Usado em `src/app/categorias/[slug]/page.tsx`. |
 | Criar categoria (Admin) | `POST /api/v1/categories` | Ausente | Sem interface administrativa de categorias no frontend. |
 | Editar categoria (Admin) | `PATCH /api/v1/categories/:id` | Ausente | Sem interface administrativa de categorias no frontend. |
 | Excluir categoria (Admin) | `DELETE /api/v1/categories/:id` | Ausente | Sem interface administrativa de categorias no frontend. |
-| Listar tags públicas | `GET /api/v1/tags` | Ausente | Tags são exibidas nos artigos e enviadas como texto livre no editor, mas não há listagem/autocompletar via `/api/v1/tags`. |
+| Listar tags públicas | `GET /api/v1/tags` | Ausente | Tags são exibidas nos contos e enviadas como texto livre no editor, mas não há listagem/autocompletar via `/api/v1/tags`. |
 | Obter detalhes de tag por slug | `GET /api/v1/tags/:slug` | Ausente | Não há página `/tags/[slug]` no frontend. |
-| Listar comentários raiz do artigo | `GET /api/v1/posts/:postId/comments` | Integrado | Usado em `src/app/posts/[slug]/page.tsx` e `comments.ts`. |
+| Listar comentários raiz do conto | `GET /api/v1/posts/:postId/comments` | Integrado | Usado em `src/app/posts/[slug]/page.tsx` e `comments.ts`. |
 | Listar respostas de um comentário | `GET /api/v1/posts/:postId/comments/:id/replies` | Integrado | Usado em `src/app/posts/[slug]/replies.tsx`. |
 | Criar comentário ou resposta | `POST /api/v1/posts/:postId/comments` | Parcial | Usado em `comment-form.tsx` e `replies.tsx`. **Observação:** em `comment-create.ts`, a validação exige `item.rootId === replyToId && item.replyToId === replyToId`, funcionando apenas para respostas diretas ao comentário raiz. |
 | Editar próprio comentário | `PATCH /api/v1/comments/:id` | Ausente | Não há botão de edição nos comentários renderizados. |
@@ -2100,10 +2100,10 @@ A auditoria cruzada entre os **104 endpoints do backend** e o código-fonte do *
 | Assinar newsletter | `POST /api/v1/newsletter/subscribe` | Ausente | Não há formulário de captura de newsletter no frontend. |
 | Confirmar newsletter via JSON | `POST /api/v1/newsletter/confirm` | Ausente | Não integrado no frontend. |
 | Cancelar newsletter via JSON | `POST /api/v1/newsletter/unsubscribe` | Ausente | Não integrado no frontend. |
-| Denunciar artigo ou comentário | `POST /api/v1/reports` | Ausente | Não há botão de denúncia em artigos ou comentários. |
+| Denunciar conto ou comentário | `POST /api/v1/reports` | Ausente | Não há botão de denúncia em contos ou comentários. |
 | Listar denúncias (Admin) | `GET /api/v1/reports` | Ausente | Não há painel de denúncias no frontend. |
 | Resolver ou arquivar denúncia (Admin) | `PATCH /api/v1/reports/:id` | Ausente | Não integrado no frontend. |
-| Suspender usuário e ocultar artigos | `POST /api/v1/admin/users/:id/suspension` | Ausente | Não integrado no frontend. |
+| Suspender usuário e ocultar contos | `POST /api/v1/admin/users/:id/suspension` | Ausente | Não integrado no frontend. |
 | Restaurar usuário suspenso | `POST /api/v1/admin/users/:id/restore` | Ausente | Não integrado no frontend. |
 | Visão geral de Analytics (Admin) | `GET /api/v1/admin/analytics/overview` | Ausente | Não integrado no frontend. |
 | Listar logs de auditoria (Admin) | `GET /api/v1/admin/audit-logs` | Ausente | Não integrado no frontend. |

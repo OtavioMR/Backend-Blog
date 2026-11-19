@@ -24,7 +24,7 @@ describe.skipIf(process.env.RUN_DB_TESTS !== '1')('operações administrativas n
     await runner.startTransaction();
     await runner.query(`INSERT INTO users (id, name, email, password_hash, role, email_verified, author_rules_accepted_at, author_rules_version) VALUES ($1, 'Admin de teste', $2, 'hash', 'SUPER_ADMIN', true, NULL, NULL), ($3, 'Autor de teste', $4, 'hash', 'READER', true, now(), '1')`, [admin, `${admin}@example.invalid`, author, `${author}@example.invalid`]);
     await runner.query('UPDATE users SET totp_enabled = true WHERE id = $1', [admin]);
-    await runner.query(`INSERT INTO posts (id, title, slug, content, author_id, published) VALUES ($1, 'Artigo de teste', $2, 'Conteúdo de teste', $3, false)`, [post, `teste-${post}`, author]);
+    await runner.query(`INSERT INTO posts (id, title, slug, content, author_id, published) VALUES ($1, 'Conto de teste', $2, 'Conteúdo de teste', $3, false)`, [post, `teste-${post}`, author]);
     await runner.query(`INSERT INTO comments (id, post_id, author_id, content) VALUES ($1, $2, $3, 'Comentário de teste')`, [comment, post, author]);
     const db = { transaction: runner.manager.transaction.bind(runner.manager), query: runner.query.bind(runner), getRepository: runner.manager.getRepository.bind(runner.manager) } as unknown as DataSource;
     const audit: any = { record: (manager: any, actorId: string, action: string, targetType: string, targetId: string, details: unknown = {}) => manager.query('INSERT INTO audit_logs(actor_id, action, target_type, target_id, details) VALUES ($1, $2, $3, $4, $5::jsonb)', [actorId, action, targetType, targetId, JSON.stringify(details)]) };
@@ -42,11 +42,11 @@ describe.skipIf(process.env.RUN_DB_TESTS !== '1')('operações administrativas n
     const result = await new AuditService(db).list(1, 20, { actorId: admin, search: 'Comentário de teste' });
     expect(result.data).toEqual(expect.arrayContaining([expect.objectContaining({ actorName: 'Admin de teste', targetLabel: 'Comentário de teste', action: 'comment.hide' })]));
   });
-  it('inclui nomes de autor e artigo nas filas administrativas', async () => {
+  it('inclui nomes de autor e conto nas filas administrativas', async () => {
     const posts = await service.listPosts({ authorId: author });
     const comments = await service.listComments({ authorId: author });
     expect(posts.data).toEqual(expect.arrayContaining([expect.objectContaining({ id: post, author: expect.objectContaining({ name: 'Autor de teste' }) })]));
-    expect(comments.data).toEqual(expect.arrayContaining([expect.objectContaining({ id: comment, author: expect.objectContaining({ name: 'Autor de teste' }), post: expect.objectContaining({ title: 'Artigo de teste' }) })]));
+    expect(comments.data).toEqual(expect.arrayContaining([expect.objectContaining({ id: comment, author: expect.objectContaining({ name: 'Autor de teste' }), post: expect.objectContaining({ title: 'Conto de teste' }) })]));
   });
   it('mostra a concessão administrativa quando há evento histórico correspondente', async () => {
     await runner.query("INSERT INTO audit_logs(actor_id, action, target_type, target_id, details) VALUES ($1, 'user.permissions_changed', 'user', $1, $2::jsonb)", [admin, JSON.stringify({ role: 'SUPER_ADMIN' })]);
@@ -102,7 +102,7 @@ describe.skipIf(process.env.RUN_DB_TESTS !== '1')('operações administrativas n
     const id = randomUUID();
     await runner.query("INSERT INTO reports(id, reporter_id, comment_id, reason) VALUES ($1, $2, $3, 'Motivo sintético')", [id, admin, comment]);
     const unassigned = await reportsService.list({ assignee: 'unassigned', target: ReportTarget.COMMENT }, admin);
-    expect(unassigned.data).toEqual(expect.arrayContaining([expect.objectContaining({ id, targetLabel: 'Comentário de teste', moderatorName: null, authorName: 'Autor de teste', postTitle: 'Artigo de teste' })]));
+    expect(unassigned.data).toEqual(expect.arrayContaining([expect.objectContaining({ id, targetLabel: 'Comentário de teste', moderatorName: null, authorName: 'Autor de teste', postTitle: 'Conto de teste' })]));
     await reportsService.assign(id, admin, admin);
     const mine = await reportsService.list({ assignee: 'me', target: ReportTarget.COMMENT }, admin);
     expect(mine.data).toEqual(expect.arrayContaining([expect.objectContaining({ id, moderatorName: 'Admin de teste' })]));
@@ -146,7 +146,7 @@ describe.skipIf(process.env.RUN_DB_TESTS !== '1')('operações administrativas n
     const [restored] = await runner.query('SELECT is_active, moderation_hidden FROM comments WHERE id = $1', [comment]);
     expect(restored).toMatchObject({ is_active: true, moderation_hidden: false });
   });
-  it('oculta e restaura artigo sem perder seu estado de publicação', async () => {
+  it('oculta e restaura conto sem perder seu estado de publicação', async () => {
     await runner.query('UPDATE users SET first_post_approved = true WHERE id = $1', [author]);
     await runner.query('UPDATE posts SET published = true WHERE id = $1', [post]);
     await service.moderatePost(post, admin, true, 'Violação confirmada');
@@ -180,12 +180,12 @@ describe.skipIf(process.env.RUN_DB_TESTS !== '1')('operações administrativas n
     expect(result.series.reduce((sum: number, row: { users: number }) => sum + row.users, 0)).toBeGreaterThanOrEqual(2);
     await expect(analytics.newsletter()).resolves.toHaveProperty('subscribers.active');
   });
-  it('filtra contas, comentários e artigos diretamente no banco', async () => {
+  it('filtra contas, comentários e contos diretamente no banco', async () => {
     const accounts = await service.listUsers({ page: 1, limit: 10, search: author });
     expect(accounts.data).toEqual(expect.arrayContaining([expect.objectContaining({ id: author })]));
     const comments = await service.listComments({ postId: post, status: 'active' });
     expect(comments.data).toEqual(expect.arrayContaining([expect.objectContaining({ id: comment })]));
-    const posts = await service.listPosts({ authorId: author, search: 'Artigo de teste' });
+    const posts = await service.listPosts({ authorId: author, search: 'Conto de teste' });
     expect(posts.data).toEqual(expect.arrayContaining([expect.objectContaining({ id: post })]));
     const coverImage = '/uploads/post-covers/550e8400-e29b-41d4-a716-446655440000.webp';
     await runner.query('UPDATE posts SET cover_image = $2 WHERE id = $1', [post, coverImage]);
@@ -225,7 +225,7 @@ describe.skipIf(process.env.RUN_DB_TESTS !== '1')('operações administrativas n
     await runner.query("INSERT INTO users(id, name, email, password_hash, role, email_verified, totp_enabled) VALUES ($1, 'Novo admin', $2, 'hash', 'READER', true, true)", [newAdmin, `${newAdmin}@example.invalid`]);
     await runner.query('UPDATE users SET recovery_email=$2, recovery_email_verified_at=now() WHERE id=$1', [newAdmin, `recovery-${newAdmin}@example.invalid`]);
     await service.changeRole(admin, newAdmin, UserRole.ADMIN, 'Promoção aprovada', 0);
-    await runner.query("INSERT INTO posts(id, title, slug, content, author_id, published) VALUES ($1, 'Artigo admin', $2, 'Conteúdo', $3, true)", [newPost, `admin-${newPost}`, newAdmin]);
+    await runner.query("INSERT INTO posts(id, title, slug, content, author_id, published) VALUES ($1, 'Conto admin', $2, 'Conteúdo', $3, true)", [newPost, `admin-${newPost}`, newAdmin]);
     const [row] = await runner.query('SELECT u.first_post_approved, p.published FROM users u JOIN posts p ON p.author_id = u.id WHERE p.id = $1', [newPost]);
     expect(row).toMatchObject({ first_post_approved: true, published: true });
     await expect(service.suspend(admin, newAdmin, 'Suspensão de teste', null, [], 0)).resolves.toMatchObject({ suspended: true });

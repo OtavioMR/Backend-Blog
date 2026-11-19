@@ -6,18 +6,18 @@ import { TagResponseDto } from './tag-response.dto.js';
 
 export class PostInteractionResponseDto {
   @ApiProperty({
-    description: 'O usuário autenticado curtiu o post',
+    description: 'O usuário autenticado curtiu o conto',
     example: true,
   })
   liked: boolean;
 
   @ApiProperty({
-    description: 'O usuário autenticado salvou o post',
+    description: 'O usuário autenticado salvou o conto',
     example: false,
   })
   saved: boolean;
 
-  @ApiProperty({ description: 'Total de curtidas do post', example: 3 })
+  @ApiProperty({ description: 'Total de curtidas do conto', example: 3 })
   likes: number;
 }
 
@@ -27,7 +27,7 @@ export class SavedPostResponseDto {
   @ApiProperty({ type: () => PostAuthorResponseDto })
   author: PostAuthorResponseDto;
 
-  @ApiProperty({ type: () => [SavedPostCategoryResponseDto], description: 'Categorias ativas do artigo' })
+  @ApiProperty({ type: () => [SavedPostCategoryResponseDto], description: 'Categorias ativas do conto' })
   categories: SavedPostCategoryResponseDto[];
 
   @ApiProperty({ type: () => [TagResponseDto] })
@@ -42,7 +42,7 @@ export class SavedPostResponseDto {
   @ApiProperty({ example: 'Introdução ao NestJS' })
   title: string;
 
-  @ApiProperty({ description: 'Resumo do artigo', maxLength: 200 })
+  @ApiProperty({ description: 'Resumo do conto', maxLength: 200 })
   excerpt: string;
 
   @ApiProperty({ type: String, format: 'date-time', nullable: true })

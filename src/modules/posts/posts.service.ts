@@ -234,7 +234,7 @@ export class PostsService {
       where: isUUID(id) ? { id, published: true, isActive: true } : [{ slug: id, published: true, isActive: true }, { legacySlug: id, published: true, isActive: true }],
       relations: { tags: true, categories: true },
     });
-    if (!target) throw new NotFoundException('Artigo não encontrado.');
+    if (!target) throw new NotFoundException('Conto não encontrado.');
     const tagIds = (target.tags ?? []).map(tag => tag.id);
     const categoryIds = (target.categories ?? []).filter(category => category.isActive).map(category => category.id);
     if (!tagIds.length && !categoryIds.length) return [];
@@ -339,7 +339,7 @@ export class PostsService {
     const isAdmin = user ? isAdministrator(user.role) : false;
 
     if (!post || (!post.published && !isAuthor && !isAdmin) || (post.moderationHidden && !isAuthor && !isAdmin)) {
-      throw new NotFoundException('Artigo não encontrado.');
+      throw new NotFoundException('Conto não encontrado.');
     }
 
     post.categories = (post.categories || []).filter((cat) => cat.isActive);
@@ -410,7 +410,7 @@ export class PostsService {
       aiCoverDeclaration: postData.aiCoverDeclaration ?? null,
       scheduledAt: schedule,
       coverImage: null,
-      slug: shortPostSlug(postData.title),
+      slug: shortPostSlug(postData.title, 'conto'),
       excerpt: postData.excerpt === undefined ? sanitizePlainText(postData.content).slice(0, 200) : sanitizePlainText(postData.excerpt ?? ''),
       publishedAt: postData.published ? new Date() : null,
       authorId,
@@ -427,7 +427,7 @@ export class PostsService {
       try {
         savedPost = seriesId ? await this.postsRepository.manager.transaction(async manager => {
           const series = await manager.query('SELECT id, title FROM post_series WHERE id = $1 AND author_id = $2 FOR UPDATE', [seriesId, authorId]);
-          if (!series.length) throw new ForbiddenException('A série deve pertencer ao autor do artigo.');
+          if (!series.length) throw new ForbiddenException('A série deve pertencer ao autor do conto.');
           const [count] = await manager.query('SELECT count(*)::int AS count, COALESCE(max(position), 0)::int AS position FROM post_series_items WHERE series_id = $1', [seriesId]);
           if (count.count >= 100) throw new BadRequestException('A série já possui 100 capítulos.');
           const created = await manager.getRepository(Post).save(post);
@@ -441,7 +441,7 @@ export class PostsService {
         if (dbError.driverError?.code !== '23505' || dbError.driverError.constraint !== 'uq_posts_slug') throw error;
       }
     }
-    this.logger.log(`Artigo ${savedPost.id} criado pelo usuário ${authorId}`);
+    this.logger.log(`Conto ${savedPost.id} criado pelo usuário ${authorId}`);
     return Object.assign(savedPost, { readingTimeMinutes: readingTimeMinutes(savedPost.content ?? '') });
   }
 
@@ -456,7 +456,7 @@ export class PostsService {
     });
 
     if (!post) {
-      throw new NotFoundException('Artigo não encontrado.');
+      throw new NotFoundException('Conto não encontrado.');
     }
 
     if (post.authorId !== user.userId && !isAdministrator(user.role)) {
@@ -513,15 +513,15 @@ export class PostsService {
           return saved;
         })
       : await this.postsRepository.save(post);
-    this.logger.log(`Artigo ${id} atualizado pelo usuário ${user.userId}`);
+    this.logger.log(`Conto ${id} atualizado pelo usuário ${user.userId}`);
     return Object.assign(savedPost, { readingTimeMinutes: readingTimeMinutes(savedPost.content ?? '') });
   }
 
   private async changeCover(id: string, user: AuthenticatedUser, buffer?: Buffer): Promise<{ coverImage: string | null }> {
     const post = await this.postsRepository.findOne({ where: { id, isActive: true } });
-    if (!post) throw new NotFoundException('Artigo não encontrado.');
+    if (!post) throw new NotFoundException('Conto não encontrado.');
     if (post.authorId !== user.userId) throw new ForbiddenException('Apenas o autor pode alterar a capa da sua obra.');
-    if (post.reviewStatus === 'PENDING') throw new ConflictException('Artigo aguarda revisão e não pode ser editado.');
+    if (post.reviewStatus === 'PENDING') throw new ConflictException('Conto aguarda revisão e não pode ser editado.');
 
     const directory = join(process.cwd(), 'uploads', 'post-covers');
     let path: string | undefined;
@@ -588,12 +588,12 @@ export class PostsService {
     });
 
     if (!post) {
-      throw new NotFoundException('Artigo não encontrado.');
+      throw new NotFoundException('Conto não encontrado.');
     }
 
     if (!isAdministrator(user.role) && (post.authorId !== user.userId || user.role !== UserRole.AUTHOR)) {
       throw new ForbiddenException(
-        'Você não tem permissão para desativar este artigo.',
+        'Você não tem permissão para desativar este conto.',
       );
     }
 
@@ -606,6 +606,6 @@ export class PostsService {
       await repository.softRemove(post);
       await manager.query(`INSERT INTO audit_logs (actor_id, action, target_type, target_id) VALUES ($1, 'post.deleted', 'post', $2)`, [user.userId, id]);
     });
-    this.logger.log(`Artigo ${id} desativado pelo usuário ${user.userId}`);
+    this.logger.log(`Conto ${id} desativado pelo usuário ${user.userId}`);
   }
 }

@@ -14,7 +14,9 @@
 
 **Estabilização local da autenticação V1 (12/11/2026):** refresh lê snapshot mínimo e não interpreta todo affected=0 como reutilização. Token atual na leitura que perde o CAS recebe 409 sem tokens nem revogação; sessão ausente/expirada/versão inválida recebe 401 sem deleção adicional. Token já obsoleto continua rejeitado com revogação condicional por hash/versão, sem apagar snapshot que mudou novamente. Swagger atualizado. Passaram 46 verificações direcionadas (5 com PostgreSQL/JWT/guard reais), 348 testes gerais (77 condicionais ignorados), lint completo sem erros e TypeScript de produção. TypeScript global mantém diagnósticos em testes fora da alteração. Frontend tem 43 testes de sessão e jornada Edge com HTTP simulado aprovados. Sem migration, deploy, alteração de TTL ou implementação v2. Recuperação de resposta perdida, ordenação geral de cookies, BFF administrativo e prova conjunta React/Next + Nest continuam pendentes. Relatório: [estabilização V1](../Front-Blog/docs/estabilizacao-auth-v1.md).
 
-**Séries e Estúdio (12/11/2026):** POST de artigo aceita seriesId apenas na criação, com gravação transacional do vínculo sob lock da série; consultas privadas retornam contexto e filtros, e a descoberta pública representa séries antes da paginação. Reutilizados endpoints, tabelas e StorageService; capa própria via migration aditiva SeriesCover1798100000000 aplicada no banco principal configurado. Edição/ordenação aceitam versão opcional com 409 em conflito. Atualização normaliza UPDATE RETURNING do TypeORM; artigos ocultos não aparecem na navegação pública. Build, lint, suíte completa, contrato OpenAPI e quatro integrações PostgreSQL com rollback passaram; jornada Chromium/API Docker verificou publicação/revisão, revisor com 2FA, mídia, permissões e exclusão preservando artigos. Relatório e limites: [séries e Estúdio](../Front-Blog/docs/reestruturacao-series.md). Sem commit, push ou implantação externa.
+**Séries e Estúdio (12/11/2026):** POST de conto aceita seriesId apenas na criação, com gravação transacional do vínculo sob lock da série; consultas privadas retornam contexto e filtros, e a descoberta pública representa séries antes da paginação. Reutilizados endpoints, tabelas e StorageService; capa própria via migration aditiva SeriesCover1798100000000 aplicada no banco principal configurado. Edição/ordenação aceitam versão opcional com 409 em conflito. Atualização normaliza UPDATE RETURNING do TypeORM; contos ocultos não aparecem na navegação pública. Build, lint, suíte completa, contrato OpenAPI e quatro integrações PostgreSQL com rollback passaram; jornada Chromium/API Docker verificou publicação/revisão, revisor com 2FA, mídia, permissões e exclusão preservando contos. Relatório e limites: [séries e Estúdio](../Front-Blog/docs/reestruturacao-series.md). Sem commit, push ou implantação externa.
+
+**Terminologia editorial (19/11/2026).** A API usa conto e contos nas mensagens, nas regras de publicação, nos feeds, na newsletter e no Swagger. A geração de URL usa `conto` como prefixo para novos títulos reservados e como padrão para títulos sem caracteres compatíveis com o slug. Os contratos da API e os endereços de contos existentes foram preservados. A suíte padrão do Vitest passou com 360 testes. Lint e typecheck passaram. As integrações PostgreSQL exigem `RUN_DB_TESTS=1`.
 
 **Recuperação de acesso revisada e validada no navegador (11/11/2026):** remoção de secundário confirmada no principal, estado pendente explícito, cancelamento autenticado e resposta de elegibilidade somente após senha válida. Cadastro/troca/remoção têm páginas próprias no frontend. Percurso manual completo com cadastro real pela interface, SMTP sintético, troca de autenticador, códigos antigos recusados, remoção, ausência de novo envio e redefinição de senha preservando 2FA. Passaram 38 verificações direcionadas, 343 testes gerais (68 condicionais ignorados), 24 E2E de autenticação, build Docker/NestJS, build/TypeScript do front, 26 testes de sessão, 7 administrativos e regressão Chromium real. Lint direcionado sem erros; lint completo do frontend mantém seis erros preexistentes. Conta sintética removida e API normal restaurada. Evidências e limites: [RECOVERY_FLOW_VALIDATION.md](docs/RECOVERY_FLOW_VALIDATION.md).
 
@@ -28,11 +30,11 @@ Este documento consolida e rastreia todos os **55 itens acionáveis** originados
 
 Status da versão 1.0.0: **55 itens originais implementados e validados no escopo da v1**, além da issue #57. A auditoria, evidências por issue e dependências de operação estão em [RELEASE_AUDIT.md](docs/RELEASE_AUDIT.md). Hashes legados são atualizados no próximo login válido; OAuth real requer credenciais dos provedores.
 
-**Decisão de produto — comunidade e autoria:** visitantes leem artigos públicos; contas começam como `READER`. Após verificar o e-mail (#45) e aceitar as regras de publicação, o leitor pode solicitar promoção automática a `AUTHOR`. O primeiro artigo requer aprovação administrativa; depois, novos artigos e edições são publicados imediatamente. Administradores podem revogar a autoria ou suspender a conta e decidir quais artigos publicados ocultar. A moderação posterior deve tratar abusos, inclusive alterações feitas após a aprovação.
+**Decisão de produto — comunidade e autoria:** visitantes leem contos públicos; contas começam como `READER`. Após verificar o e-mail (#45) e aceitar as regras de publicação, o leitor pode solicitar promoção automática a `AUTHOR`. O primeiro conto requer aprovação administrativa; depois, novos contos e edições são publicados imediatamente. Administradores podem revogar a autoria ou suspender a conta e decidir quais contos publicados ocultar. A moderação posterior deve tratar abusos, inclusive alterações feitas após a aprovação.
 
-**Planejamento:** a #47 registra a promoção automática e a #57 a revisão do primeiro artigo. Alinhar revogação, suspensão e auditoria com #49 e #50. A #17 trata do acesso a rascunhos próprios. Essas decisões não alteram a ordem das sprints.
+**Planejamento:** a #47 registra a promoção automática e a #57 a revisão do primeiro conto. Alinhar revogação, suspensão e auditoria com #49 e #50. A #17 trata do acesso a rascunhos próprios. Essas decisões não alteram a ordem das sprints.
 
-**Item adicional:** [#57 — Aprovar o primeiro artigo de cada autor](https://github.com/OtavioMR/Backend-Blog/issues/57), P2, concluído na Sprint 5. Esta issue foi criada após os 55 itens originais do relatório.
+**Item adicional:** [#57 — Aprovar o primeiro conto de cada autor](https://github.com/OtavioMR/Backend-Blog/issues/57), P2, concluído na Sprint 5. Esta issue foi criada após os 55 itens originais do relatório.
 
 ---
 
@@ -73,14 +75,14 @@ Status da versão 1.0.0: **55 itens originais implementados e validados no escop
 #### 🛠️ 2. Melhorias e Bugs (M1 a M14)
 | Código | Issue | Título | Prioridade | Esforço | Status |
 |---|---|---|---|---|---|
-| **M1** | #16 | [Bug] Corrigir operador lógico na consulta filtrada de artigos (trocar OR por AND) | P0 — Crítica | XS | 🟢 Concluído |
+| **M1** | #16 | [Bug] Corrigir operador lógico na consulta filtrada de contos (trocar OR por AND) | P0 — Crítica | XS | 🟢 Concluído |
 | **M2** | #17 | [Melhoria] Permitir que autores visualizem e gerenciem seus próprios rascunhos (GET /posts/me) | P0 — Crítica | S | 🟢 Concluído |
-| **M3** | #18 | [Melhoria] Adicionar campo publishedAt e ordenar artigos pela data real de publicação | P1 — Alta | S | 🟢 Concluído |
-| **M4** | #19 | [Melhoria] Otimizar listagem de artigos com resumo (excerpt) e exclusão de payload pesado | P1 — Alta | S | 🟢 Concluído |
+| **M3** | #18 | [Melhoria] Adicionar campo publishedAt e ordenar contos pela data real de publicação | P1 — Alta | S | 🟢 Concluído |
+| **M4** | #19 | [Melhoria] Otimizar listagem de contos com resumo (excerpt) e exclusão de payload pesado | P1 — Alta | S | 🟢 Concluído |
 | **M5** | #20 | [Performance] Eliminar problema de query N+1 na listagem de comentários e respostas | P1 — Alta | M | 🟢 Concluído |
 | **M6** | #21 | [Melhoria] Implementar busca textual Full-Text nativa com PostgreSQL (tsvector e GIN) | P2 — Média | M | Concluído |
 | **M7** | #22 | [Bug] Permitir moderação e remoção de comentários mesmo com comentários desativados no post | P1 — Alta | XS | ?? Concluído |
-| **M8** | #23 | [Melhoria] Enriquecer resposta de artigos salvos com autor, categorias e tags | P2 — Média | XS | 🟢 Concluído |
+| **M8** | #23 | [Melhoria] Enriquecer resposta de contos salvos com autor, categorias e tags | P2 — Média | XS | 🟢 Concluído |
 | **M9** | #24 | [Refatoração] Padronizar estrutura de metadados de paginação com utilitário compartilhado | P2 — Média | S | 🟢 Concluído |
 | **M10** | #25 | [Melhoria] Padronizar busca de categorias e tags com escape e unaccent | P2 — Média | XS | 🟢 Concluído |
 | **M11** | #26 | [Refatoração] Centralizar serialização de DTOs com ClassSerializerInterceptor e @Exclude | P2 — Média | M | 🟢 Concluído |
@@ -91,19 +93,19 @@ Status da versão 1.0.0: **55 itens originais implementados e validados no escop
 #### ✨ 3. Novas Funcionalidades (F1 a F26)
 | Código | Issue | Título | Prioridade | Esforço | Status |
 |---|---|---|---|---|---|
-| **F1** | #30 | [Feature] Suporte a Slugs amigáveis nas URLs de artigos (GET /posts/:slug) | P1 — Alta | S | Concluído |
-| **F2** | #31 | [Feature] Upload e gerenciamento de Imagem de Capa para artigos (coverImage) | P2 — Média | M | Concluído |
+| **F1** | #30 | [Feature] Suporte a Slugs amigáveis nas URLs de contos (GET /posts/:slug) | P1 — Alta | S | Concluído |
+| **F2** | #31 | [Feature] Upload e gerenciamento de Imagem de Capa para contos (coverImage) | P2 — Média | M | Concluído |
 | **F3** | #32 | [Feature] Agendamento de publicação automática de posts com @nestjs/schedule | P2 — Média | M | Concluído |
 | **F4** | #33 | [Feature] Cálculo e exibição automática do tempo estimado de leitura (readingTimeMinutes) | P2 — Média | XS | Concluído |
 | **F5** | #34 | [Feature] Geração dinâmica de Feeds RSS/Atom e Sitemap XML | P2 — Média | S | Concluído |
-| **F6** | #35 | [Feature] Agrupamento de artigos em séries sequenciais | P3 — Baixa | M | Concluído |
-| **F7** | #36 | [Feature] Histórico de revisões e versionamento de artigos (post_revisions) | P3 — Baixa | M | Concluído |
-| **F8** | #37 | [Feature] Contador de visualizações com deduplicação e endpoint de artigos em alta | P2 — Média | M | 🟢 Concluído |
-| **F9** | #38 | [Feature] Recomendação de artigos relacionados por similaridade de tags e categorias | P2 — Média | S | Concluído |
+| **F6** | #35 | [Feature] Agrupamento de contos em séries sequenciais | P3 — Baixa | M | Concluído |
+| **F7** | #36 | [Feature] Histórico de revisões e versionamento de contos (post_revisions) | P3 — Baixa | M | Concluído |
+| **F8** | #37 | [Feature] Contador de visualizações com deduplicação e endpoint de contos em alta | P2 — Média | M | 🟢 Concluído |
+| **F9** | #38 | [Feature] Recomendação de contos relacionados por similaridade de tags e categorias | P2 — Média | S | Concluído |
 | **F10** | #39 | [Feature] Perfil público do autor com bio, links sociais e contagem de publicações | P2 — Média | S | Concluído |
 | **F11** | #40 | [Feature] Sistema de seguir autores e feed personalizado (GET /feed) | P2 — Média | M | 🟢 Concluído |
 | **F12** | #41 | [Feature] Sistema de reações e curtidas em comentários | P2 — Média | S | 🟢 Concluído |
-| **F13** | #42 | [Feature] Organização de artigos salvos em coleções/pastas personalizadas | P3 — Baixa | M | 🟢 Concluído |
+| **F13** | #42 | [Feature] Organização de contos salvos em coleções/pastas personalizadas | P3 — Baixa | M | 🟢 Concluído |
 | **F14** | #43 | [Feature/Épico] Sistema centralizado de notificações in-app (notificações de interações) | P2 — Média | L | 🟢 Concluído |
 | **F15** | #44 | [Feature] Sistema de Newsletter com double opt-in e disparo automático em novas publicações | P2 — Média | M | 🟢 Concluído |
 | **F16** | #45 | [Feature] Verificação obrigatória de e-mail no cadastro de novos usuários | P1 — Alta | S | 🟢 Concluído |
@@ -116,7 +118,7 @@ Status da versão 1.0.0: **55 itens originais implementados e validados no escop
 | **F23** | #52 | [Feature] Autenticação de dois fatores (2FA / TOTP) | P2 — Média | M | Concluído |
 | **F24** | #53 | [Feature] Interface e endpoints para visualização e revogação de sessões ativas do usuário | P2 — Média | S | Concluído |
 | **F25** | #54 | [Performance] Camada de cache distribuído em memória com Redis para consultas públicas | P2 — Média | M | Concluído localmente |
-| **F26** | #55 | [Performance] Paginação por cursor (keyset pagination) para feed de artigos e comentários | P3 — Baixa | M | Concluído localmente |
+| **F26** | #55 | [Performance] Paginação por cursor (keyset pagination) para feed de contos e comentários | P3 — Baixa | M | Concluído localmente |
 
 ---
 
@@ -142,7 +144,7 @@ Status da versão 1.0.0: **55 itens originais implementados e validados no escop
    - #31 (Imagem de capa)
    - #33 (Tempo de leitura estimado)
    - #34 (RSS/Atom + Sitemap XML)
-   - #38 (Artigos relacionados)
+   - #38 (Contos relacionados)
    - #39 (Perfil público do autor)
    - #32 (Agendamento de publicação)
 
@@ -150,7 +152,7 @@ Status da versão 1.0.0: **55 itens originais implementados e validados no escop
 
 4. **Sprint 4 — Engajamento & Comunidade (P2/P3; concluída localmente, pendente de revisão do usuário):**
    - #15 (Rate limit granular em comentários e reações)
-   - #23 (Enriquecimento de artigos salvos)
+   - #23 (Enriquecimento de contos salvos)
    - #37 (Contador de visualizações e trending)
    - #40 (Seguir autores e feed customizado)
    - #41 (Curtidas em comentários)
@@ -159,36 +161,36 @@ Status da versão 1.0.0: **55 itens originais implementados e validados no escop
    - #44 (Newsletter)
 
    **Ordem sugerida para sessões curtas:**
-   1. #23: enriquecer artigos salvos; verificar a resposta e os relacionamentos existentes.
+   1. #23: enriquecer contos salvos; verificar a resposta e os relacionamentos existentes.
    2. #15: limitar comentários, reações e criação de tags, considerando os controles já existentes.
-   3. #37: visualizações e artigos em alta; definir deduplicação e período de cálculo antes de implementar.
+   3. #37: visualizações e contos em alta; definir deduplicação e período de cálculo antes de implementar.
    4. #41: curtidas em comentários.
    5. #40: seguir autores e feed personalizado.
-   6. #42: coleções de artigos salvos.
+   6. #42: coleções de contos salvos.
    7. #43: notificações in-app; identificar eventos das funcionalidades existentes e definir quais serão cobertos.
    8. #44: newsletter com double opt-in e envio em novas publicações, incluindo publicações agendadas.
 
-   #15: limites por IP e por rota, em memória por instância: 5 comentários, 30 curtidas e 30 remoções de curtidas por minuto; criação e edição de artigos (que também criam tags) limitadas a 10 e 20 por minuto, respectivamente. O limite global existente permanece aplicado às demais rotas. Cada artigo aceita até dez tags.
-   #37: uma visualização por artigo e IP por dia UTC, com IP representado por HMAC; ranking considera hoje e os seis dias UTC anteriores. #41: curtidas idempotentes em comentários ativos de artigos públicos com comentários habilitados.
-   #40: feed mostra artigos públicos de autores ativos seguidos. #42: ao retirar um artigo dos salvos ele fica oculto nas coleções e retorna se for salvo novamente. #43: notifica comentários, respostas, curtidas em artigos e comentários e novos seguidores, sem notificação para ações próprias. #44: confirmação por token de uso único (24 horas), cancelamento por token e entregas de novas publicações manuais ou agendadas; falhas SMTP são retomadas a cada cinco minutos, com processamento de até 50 por minuto. A entrega é pelo menos uma vez: falha após aceitação pelo SMTP e antes do registro pode produzir repetição.
+   #15: limites por IP e por rota, em memória por instância: 5 comentários, 30 curtidas e 30 remoções de curtidas por minuto; criação e edição de contos (que também criam tags) limitadas a 10 e 20 por minuto, respectivamente. O limite global existente permanece aplicado às demais rotas. Cada conto aceita até dez tags.
+   #37: uma visualização por conto e IP por dia UTC, com IP representado por HMAC; ranking considera hoje e os seis dias UTC anteriores. #41: curtidas idempotentes em comentários ativos de contos públicos com comentários habilitados.
+   #40: feed mostra contos públicos de autores ativos seguidos. #42: ao retirar um conto dos salvos ele fica oculto nas coleções e retorna se for salvo novamente. #43: notifica comentários, respostas, curtidas em contos e comentários e novos seguidores, sem notificação para ações próprias. #44: confirmação por token de uso único (24 horas), cancelamento por token e entregas de novas publicações manuais ou agendadas; falhas SMTP são retomadas a cada cinco minutos, com processamento de até 50 por minuto. A entrega é pelo menos uma vez: falha após aceitação pelo SMTP e antes do registro pode produzir repetição.
 
    Conclua e valide cada leva antes de avançar, ajustando a ordem se dependências identificadas durante a implementação exigirem. Atualize os status neste documento; alterações e commits permanecem locais até o usuário enviá-los.
 
 5. **Sprint 5 — Moderação, Governança & Autenticação Avançada (P2):**
    - #14 e #53 — concluídos: sessões por dispositivo, rotação atômica e revogação seletiva. Tokens anteriores à migration exigem novo login.
-   - #46 — concluída: denúncias de artigos e comentários, análise administrativa e auditoria da decisão.
-   - #47 e #57 — concluídas: aceite versionado e promoção automática; o primeiro artigo de novos autores exige aprovação. Autores existentes foram preservados na migration. A revogação bloqueia nova promoção automática e encerra revisões pendentes.
+   - #46 — concluída: denúncias de contos e comentários, análise administrativa e auditoria da decisão.
+   - #47 e #57 — concluídas: aceite versionado e promoção automática; o primeiro conto de novos autores exige aprovação. Autores existentes foram preservados na migration. A revogação bloqueia nova promoção automática e encerra revisões pendentes.
    - #48 — concluída: indicadores agregados disponíveis a administradores.
    - #49 — concluída: auditoria de ações de autenticação, moderação, permissões e administração de conteúdo, com consulta restrita a administradores.
-   - #50 — concluída: suspensão com prazo ou banimento, revogação das sessões, ocultação escolhida de artigos e restauração manual ou após expiração.
+   - #50 — concluída: suspensão com prazo ou banimento, revogação das sessões, ocultação escolhida de contos e restauração manual ou após expiração.
    - #51 — concluída: OAuth2 Google e GitHub, PKCE, estado de uso único, vínculo explícito de contas e desafio TOTP quando necessário. A operação real depende das credenciais dos provedores.
    - #52 — concluída: TOTP com segredo criptografado e proteção contra reutilização de códigos. Não há códigos de recuperação.
 
 6. **Sprint 6 — Performance & Escala (P2/P3):**
-   - #21 — concluída: vetor textual armazenado com pesos por título/conteúdo, ranking por relevância na paginação numérica, busca parcial com índice trigram e EXPLAIN ANALYZE comprovando Bitmap Index Scan nos índices GIN em massa de 5 mil artigos. A paginação por cursor mantém ordem cronológica estável.
+   - #21 — concluída: vetor textual armazenado com pesos por título/conteúdo, ranking por relevância na paginação numérica, busca parcial com índice trigram e EXPLAIN ANALYZE comprovando Bitmap Index Scan nos índices GIN em massa de 5 mil contos. A paginação por cursor mantém ordem cronológica estável.
    - #29 — concluída: fila BullMQ e outbox cifrada no PostgreSQL; queda do Redis preserva e-mails pendentes. O agendador encaminha até 100 mensagens a cada dez segundos. Há teste de falha e recuperação.
-   - #35 — concluída: CRUD com autorização, ordem e navegação anterior/próximo no detalhe do artigo; testes de integração e e2e com três partes e proteção de rascunhos.
-   - #36 — concluída: histórico de título e conteúdo criado automaticamente no banco, com listagem, consulta e restauração pelo autor ou administrador. Artigos existentes recebem uma revisão inicial na migration.
+   - #35 — concluída: CRUD com autorização, ordem e navegação anterior/próximo no detalhe do conto; testes de integração e e2e com três partes e proteção de rascunhos.
+   - #36 — concluída: histórico de título e conteúdo criado automaticamente no banco, com listagem, consulta e restauração pelo autor ou administrador. Contos existentes recebem uma revisão inicial na migration.
    - #54 — concluída: cache compartilhado Redis sem SQL nos hits, invalidado antes da resposta das escritas e após publicações agendadas; reconexões descartam entradas antigas. Há teste HTTP verificando ausência de consultas SQL.
    - #55 — concluída: cursor opcional com precisão de microssegundos e índices B-Tree compostos, preservando paginação numérica. Cinco páginas consecutivas são verificadas sem duplicação ou omissão. Complexidade esperada: O(log N + k), conforme funcionamento de um índice B-Tree.
 

@@ -1,6 +1,6 @@
 # Endpoints da API
 
-Todos os caminhos abaixo começam com `/api/v1`. Por exemplo: `GET /api/v1/health`. Os trechos com `:` são valores que devem ser substituídos, como o ID de um artigo. Algumas rotas exigem login e outras exigem permissões de autor ou administrador; consulte o [README técnico](README.md) para detalhes e exemplos.
+Todos os caminhos abaixo começam com `/api/v1`. Por exemplo: `GET /api/v1/health`. Os trechos com `:` são valores que devem ser substituídos, como o ID de um conto. Algumas rotas exigem login e outras exigem permissões de autor ou administrador; consulte o [README técnico](README.md) para detalhes e exemplos.
 
 ## Saúde
 
@@ -43,37 +43,37 @@ Todos os caminhos abaixo começam com `/api/v1`. Por exemplo: `GET /api/v1/healt
 | PATCH | `/users/:id` | Atualiza os dados de um usuário. |
 | DELETE | `/users/:id` | Exclui um usuário. |
 
-## Artigos
+## Contos
 
 | Método | Caminho | O que faz |
 | --- | --- | --- |
-| GET | `/posts` | Lista artigos. |
-| GET | `/posts/me` | Lista os próprios artigos. |
-| GET | `/posts/trending` | Lista artigos em alta. |
-| GET | `/posts/:id` | Consulta um artigo por ID ou slug. |
-| GET | `/posts/:id/related` | Lista artigos relacionados. |
-| POST | `/posts` | Cria um artigo. |
-| PATCH | `/posts/:id` | Edita um artigo. |
-| DELETE | `/posts/:id` | Exclui um artigo. |
+| GET | `/posts` | Lista contos. |
+| GET | `/posts/me` | Lista os próprios contos. |
+| GET | `/posts/trending` | Lista contos em alta. |
+| GET | `/posts/:id` | Consulta um conto por ID ou slug. |
+| GET | `/posts/:id/related` | Lista contos relacionados. |
+| POST | `/posts` | Cria um conto. |
+| PATCH | `/posts/:id` | Edita um conto. |
+| DELETE | `/posts/:id` | Exclui um conto. |
 | POST | `/posts/:id/cover-image` | Envia ou substitui a capa. |
 | DELETE | `/posts/:id/cover-image` | Remove a capa. |
 | POST | `/posts/:id/views` | Registra uma visualização. |
-| GET | `/posts/saved` | Lista os artigos salvos pelo usuário. |
+| GET | `/posts/saved` | Lista os contos salvos pelo usuário. |
 | GET | `/posts/:id/interaction` | Consulta a curtida, o salvamento e o total de curtidas. |
-| PUT | `/posts/:id/like` | Curte um artigo. |
+| PUT | `/posts/:id/like` | Curte um conto. |
 | DELETE | `/posts/:id/like` | Remove a curtida. |
-| PUT | `/posts/:id/save` | Salva um artigo. |
-| DELETE | `/posts/:id/save` | Remove um artigo dos salvos. |
+| PUT | `/posts/:id/save` | Salva um conto. |
+| DELETE | `/posts/:id/save` | Remove um conto dos salvos. |
 
-## Revisão e histórico de artigos
+## Revisão e histórico de contos
 
 | Método | Caminho | O que faz |
 | --- | --- | --- |
-| POST | `/post-reviews/:id/submit` | Envia o primeiro artigo para revisão. |
-| GET | `/post-reviews` | Lista artigos pendentes de revisão. |
+| POST | `/post-reviews/:id/submit` | Envia o primeiro conto para revisão. |
+| GET | `/post-reviews` | Lista contos pendentes de revisão. |
 | GET | `/post-reviews/:id` | Consulta o resultado e o motivo da revisão, para o autor ou administrador. |
-| POST | `/post-reviews/:id/decision` | Aprova ou rejeita um artigo em revisão. |
-| GET | `/posts/:postId/revisions` | Lista as revisões de um artigo. |
+| POST | `/post-reviews/:id/decision` | Aprova ou rejeita um conto em revisão. |
+| GET | `/posts/:postId/revisions` | Lista as revisões de um conto. |
 | GET | `/posts/:postId/revisions/:revisionId` | Consulta uma revisão. |
 | POST | `/posts/:postId/revisions/:revisionId/restore` | Restaura uma revisão. |
 
@@ -86,9 +86,9 @@ Todos os caminhos abaixo começam com `/api/v1`. Por exemplo: `GET /api/v1/healt
 | GET | `/series/:id` | Consulta uma série pública. |
 | POST | `/series` | Cria uma série. |
 | PATCH | `/series/:id` | Edita uma série. |
-| PUT | `/series/:id/items` | Define os artigos e a ordem da série. |
-| DELETE | `/series/:id` | Exclui a série, mantendo os artigos. |
-| GET | `/posts/:postId/series` | Consulta a série de um artigo público. |
+| PUT | `/series/:id/items` | Define os contos e a ordem da série. |
+| DELETE | `/series/:id` | Exclui a série, mantendo os contos. |
+| GET | `/posts/:postId/series` | Consulta a série de um conto público. |
 
 ## Autores e feeds
 
@@ -98,7 +98,7 @@ Todos os caminhos abaixo começam com `/api/v1`. Por exemplo: `GET /api/v1/healt
 | GET | `/authors/:id/follow` | Consulta se o usuário segue o autor. |
 | PUT | `/authors/:id/follow` | Segue um autor. |
 | DELETE | `/authors/:id/follow` | Deixa de seguir um autor. |
-| GET | `/feed` | Lista artigos dos autores seguidos. |
+| GET | `/feed` | Lista contos dos autores seguidos. |
 | GET | `/feed/rss` | Retorna o feed RSS. |
 | GET | `/feed.xml` | Retorna o feed RSS em um endereço alternativo. |
 | GET | `/feed/atom` | Retorna o feed Atom. |
@@ -108,13 +108,13 @@ Todos os caminhos abaixo começam com `/api/v1`. Por exemplo: `GET /api/v1/healt
 
 | Método | Caminho | O que faz |
 | --- | --- | --- |
-| POST | `/collections` | Cria uma coleção de artigos salvos. |
+| POST | `/collections` | Cria uma coleção de contos salvos. |
 | GET | `/collections` | Lista as próprias coleções. |
 | PATCH | `/collections/:id` | Edita uma coleção. |
 | DELETE | `/collections/:id` | Exclui uma coleção. |
-| GET | `/collections/:id/posts` | Lista os artigos de uma coleção. |
-| PUT | `/collections/:id/posts/:postId` | Adiciona um artigo à coleção. |
-| DELETE | `/collections/:id/posts/:postId` | Remove um artigo da coleção. |
+| GET | `/collections/:id/posts` | Lista os contos de uma coleção. |
+| PUT | `/collections/:id/posts/:postId` | Adiciona um conto à coleção. |
+| DELETE | `/collections/:id/posts/:postId` | Remove um conto da coleção. |
 
 ## Categorias e tags
 
@@ -122,7 +122,7 @@ Todos os caminhos abaixo começam com `/api/v1`. Por exemplo: `GET /api/v1/healt
 | --- | --- | --- |
 | GET | `/categories` | Lista categorias. |
 | GET | `/categories/:idOrSlug` | Consulta uma categoria por ID ou slug. |
-| GET | `/categories/:idOrSlug/posts` | Lista artigos de uma categoria. |
+| GET | `/categories/:idOrSlug/posts` | Lista contos de uma categoria. |
 | POST | `/categories` | Cria uma categoria. |
 | PATCH | `/categories/:id` | Edita uma categoria. |
 | DELETE | `/categories/:id` | Exclui uma categoria. |
@@ -133,7 +133,7 @@ Todos os caminhos abaixo começam com `/api/v1`. Por exemplo: `GET /api/v1/healt
 
 | Método | Caminho | O que faz |
 | --- | --- | --- |
-| GET | `/posts/:postId/comments` | Lista os comentários de um artigo. |
+| GET | `/posts/:postId/comments` | Lista os comentários de um conto. |
 | GET | `/posts/:postId/comments/:id/replies` | Lista as respostas de um comentário. |
 | POST | `/posts/:postId/comments` | Cria um comentário ou resposta. |
 | PATCH | `/comments/:id` | Edita um comentário. |
@@ -179,16 +179,16 @@ Todos os caminhos abaixo começam com `/api/v1`. Por exemplo: `GET /api/v1/healt
 | GET | `/admin/comments/:id/history` | Consulta ações auditadas do comentário. |
 | POST | `/admin/comments/:id/hide` | Oculta um comentário com justificativa. |
 | POST | `/admin/comments/:id/restore` | Restaura comentário ocultado administrativamente. |
-| POST | `/admin/posts/:id/hide` | Oculta artigo publicado com justificativa. |
-| POST | `/admin/posts/:id/restore` | Restaura artigo ocultado administrativamente. |
-| GET | `/admin/posts` | Lista artigos para moderação. |
-| GET | `/admin/posts/:id` | Consulta artigo completo para moderação. |
+| POST | `/admin/posts/:id/hide` | Oculta conto publicado com justificativa. |
+| POST | `/admin/posts/:id/restore` | Restaura conto ocultado administrativamente. |
+| GET | `/admin/posts` | Lista contos para moderação. |
+| GET | `/admin/posts/:id` | Consulta conto completo para moderação. |
 | GET | `/admin/posts/:id/history` | Consulta ações editoriais auditadas. |
-| GET | `/admin/tags` | Lista tags com quantidade de artigos. |
-| GET | `/admin/categories` | Lista categorias com quantidade de artigos. |
+| GET | `/admin/tags` | Lista tags com quantidade de contos. |
+| GET | `/admin/categories` | Lista categorias com quantidade de contos. |
 | POST | `/admin/tags` | Cria uma tag. |
 | PATCH | `/admin/tags/:id` | Renomeia uma tag. |
-| DELETE | `/admin/tags/:id` | Exclui uma tag sem artigos. |
+| DELETE | `/admin/tags/:id` | Exclui uma tag sem contos. |
 | POST | `/admin/tags/:id/merge` | Mescla uma tag em outra. |
 | GET | `/admin/analytics/overview` | Consulta indicadores da plataforma. |
 | GET | `/admin/analytics/newsletter` | Consulta indicadores agregados da newsletter. |

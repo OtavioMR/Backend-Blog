@@ -10,7 +10,7 @@ import {
 export class CreateCommentDto {
   @ApiProperty({
     description: 'Texto simples, não vazio, com até 1000 caracteres.',
-    example: 'Gostei do post!',
+    example: 'Gostei do conto!',
     maxLength: 1000,
   })
   @IsString()

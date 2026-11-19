@@ -65,10 +65,10 @@ export class PostsController {
   @Get(':id/related')
   @ApiPublicRoute()
   @UseGuards(OptionalJwtAuthGuard)
-  @ApiOperation({ summary: 'Artigos relacionados', description: 'Informe o UUID, slug atual ou slug antigo de um artigo publicado e ativo. Retorna até quatro artigos completos, também publicados e ativos, que compartilham tags ou categorias ativas. A ordem prioriza a quantidade de correspondências; em empate, a publicação mais recente e depois o ID. O próprio artigo é excluído. Sem correspondências, retorna []. Não requer autenticação.' })
-  @ApiParam({ name: 'id', description: 'UUID ou slug do artigo público.', example: 'meu-artigo' })
-  @ApiResponse({ status: 200, description: 'Artigos relacionados completos; lista vazia quando não há correspondência.', type: PostResponseDto, isArray: true })
-  @ApiResponse({ status: 404, description: 'Artigo público não encontrado.' })
+  @ApiOperation({ summary: 'Contos relacionados', description: 'Informe o UUID, slug atual ou slug antigo de um conto publicado e ativo. Retorna até quatro contos completos, também publicados e ativos, que compartilham tags ou categorias ativas. A ordem prioriza a quantidade de correspondências; em empate, a publicação mais recente e depois o ID. O próprio conto é excluído. Sem correspondências, retorna []. Não requer autenticação.' })
+  @ApiParam({ name: 'id', description: 'UUID ou slug do conto público.', example: 'meu-conto' })
+  @ApiResponse({ status: 200, description: 'Contos relacionados completos; lista vazia quando não há correspondência.', type: PostResponseDto, isArray: true })
+  @ApiResponse({ status: 404, description: 'Conto público não encontrado.' })
   findRelated(@Param('id') id: string, @Req() request: RequestWithUser) {
     return this.postsService.findRelated(id, request.user);
   }
@@ -83,7 +83,7 @@ export class PostsController {
 
   @ApiCreatePostDoc()
   @Throttle({ default: { limit: 10, ttl: 60_000 } })
-  @ApiResponse({ status: 429, description: 'Limite de 10 criações de artigos por minuto por IP excedido; tags podem ser criadas nesta operação.' })
+  @ApiResponse({ status: 429, description: 'Limite de 10 criações de contos por minuto por IP excedido; tags podem ser criadas nesta operação.' })
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.AUTHOR, UserRole.ADMIN)
   @HttpPost()
@@ -96,7 +96,7 @@ export class PostsController {
 
   @ApiUpdatePostDoc()
   @Throttle({ default: { limit: 20, ttl: 60_000 } })
-  @ApiResponse({ status: 429, description: 'Limite de 20 edições de artigos por minuto por IP excedido; tags podem ser criadas nesta operação.' })
+  @ApiResponse({ status: 429, description: 'Limite de 20 edições de contos por minuto por IP excedido; tags podem ser criadas nesta operação.' })
   @UseGuards(JwtAuthGuard)
   @Patch(':id')
   update(
@@ -118,8 +118,8 @@ export class PostsController {
   @ApiResponse({ status: 400, description: 'UUID ou imagem inválidos.' })
   @ApiResponse({ status: 401, description: 'Token ausente ou inválido.' })
   @ApiResponse({ status: 403, description: 'Sem permissão.' })
-  @ApiResponse({ status: 404, description: 'Artigo não encontrado.' })
-  @ApiResponse({ status: 409, description: 'Capa alterada simultaneamente ou artigo pendente de revisão.' })
+  @ApiResponse({ status: 404, description: 'Conto não encontrado.' })
+  @ApiResponse({ status: 409, description: 'Capa alterada simultaneamente ou conto pendente de revisão.' })
   @ApiResponse({ status: 413, description: 'Arquivo maior que 5 MB.' })
   @HttpPost(':id/cover-image')
   uploadCover(@Param('id', ParseUUIDPipe) id: string, @UploadedFile() file: { buffer: Buffer } | undefined, @Req() request: RequestWithUser) {
@@ -129,14 +129,14 @@ export class PostsController {
 
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth('JWT-auth')
-  @ApiOperation({ summary: 'Remover capa', description: 'Remove a capa do artigo; disponível ao autor ou administrador.' })
+  @ApiOperation({ summary: 'Remover capa', description: 'Remove a capa do conto; disponível ao autor ou administrador.' })
   @ApiParam({ name: 'id', format: 'uuid', example: 'b1ffcd88-8b1a-4ce7-aa5c-5cc8ac271b22' })
   @ApiResponse({ status: 200, description: 'Capa removida.', schema: { example: { coverImage: null } } })
   @ApiResponse({ status: 400, description: 'UUID inválido.' })
   @ApiResponse({ status: 401, description: 'Token ausente ou inválido.' })
   @ApiResponse({ status: 403, description: 'Sem permissão.' })
-  @ApiResponse({ status: 404, description: 'Artigo não encontrado.' })
-  @ApiResponse({ status: 409, description: 'Capa alterada simultaneamente ou artigo pendente de revisão.' })
+  @ApiResponse({ status: 404, description: 'Conto não encontrado.' })
+  @ApiResponse({ status: 409, description: 'Capa alterada simultaneamente ou conto pendente de revisão.' })
   @Delete(':id/cover-image')
   removeCover(@Param('id', ParseUUIDPipe) id: string, @Req() request: RequestWithUser) {
     return this.postsService.removeCover(id, request.user);

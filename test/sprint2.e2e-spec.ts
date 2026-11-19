@@ -72,7 +72,7 @@ describe('Sprint 2 with PostgreSQL', () => {
     const updatedProfile = await request(server).get(`/api/v1/authors/${userId}`).expect(200);
     expect(updatedProfile.body).toMatchObject({ bio: 'Autora', websiteUrl: 'https://example.com' });
     const relatedPost = await request(server).post('/api/v1/posts').set('Authorization', auth)
-      .send({ title: 'Related article', content: 'Some related content', published: true, tagNames: [tagName] }).expect(201);
+      .send({ title: 'Related story', content: 'Some related content', published: true, tagNames: [tagName] }).expect(201);
     const related = await request(server).get(`/api/v1/posts/${post.body.slug}/related`).expect(200);
     expect(related.body.map((item: { id: string }) => item.id)).toContain(relatedPost.body.id);
 
@@ -83,7 +83,7 @@ describe('Sprint 2 with PostgreSQL', () => {
     expect(summary).not.toHaveProperty('content');
     const longContent = Array.from({ length: 1600 }, (_, i) => `palavra${i}`).join(' ');
     const longPost = await request(server).post('/api/v1/posts').set('Authorization', auth)
-      .send({ title: 'Long article test', content: longContent, published: true }).expect(201);
+      .send({ title: 'Long story test', content: longContent, published: true }).expect(201);
     expect(longPost.body.content).toBe(longContent);
     expect(longPost.body.readingTimeMinutes).toBe(8);
     const [storedLongPost] = await db.query('SELECT content FROM posts WHERE id = $1', [longPost.body.id]);
@@ -92,9 +92,9 @@ describe('Sprint 2 with PostgreSQL', () => {
     expect(longDetail.body.content).toBe(longContent);
     expect(longDetail.body.readingTimeMinutes).toBe(8);
     await request(server).post('/api/v1/posts').set('Authorization', auth)
-      .send({ title: 'Maximum length article', content: 'a'.repeat(55000) }).expect(201);
+      .send({ title: 'Maximum length story', content: 'a'.repeat(55000) }).expect(201);
     await request(server).post('/api/v1/posts').set('Authorization', auth)
-      .send({ title: 'Too long article', content: 'a'.repeat(55001) }).expect(400);
+      .send({ title: 'Too long story', content: 'a'.repeat(55001) }).expect(400);
     await request(server).patch(`/api/v1/posts/${post.body.id}`).set('Authorization', auth).send({ published: false }).expect(200);
     const [draft] = await db.query('SELECT published_at FROM posts WHERE id = $1', [post.body.id]);
     expect(draft.published_at).toBeNull();

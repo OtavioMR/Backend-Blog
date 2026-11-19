@@ -21,7 +21,7 @@ export class PostInteractionsService {
         where: { id: postId, published: true, isActive: true },
       }))
     ) {
-      throw new NotFoundException('Artigo não encontrado.');
+      throw new NotFoundException('Conto não encontrado.');
     }
   }
 

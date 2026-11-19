@@ -58,8 +58,8 @@ export class MailService {
     const url = `${base}/posts/${encodeURIComponent(slug)}`;
     await this.transporter.sendMail({
       from: this.configService.get<string>('SMTP_FROM', 'noreply@blog.com'), to: email,
-      subject: `Novo artigo: ${title.replace(/[\r\n]/g, ' ')}`,
-      text: `Novo artigo: ${title}\n${url}\n\nCancelar inscrição: ${this.newsletterLink('unsubscribe', unsubscribeToken)}`,
+      subject: `Novo conto: ${title.replace(/[\r\n]/g, ' ')}`,
+      text: `Novo conto: ${title}\n${url}\n\nCancelar inscrição: ${this.newsletterLink('unsubscribe', unsubscribeToken)}`,
     });
   }
 

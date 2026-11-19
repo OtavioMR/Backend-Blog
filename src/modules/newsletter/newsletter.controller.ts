@@ -52,7 +52,7 @@ export class NewsletterController {
   subscribe(@Body() dto: SubscribeDto) { return this.newsletter.subscribe(dto.email); }
   @Post('confirm') @HttpCode(200) @ApiPublicRoute()
   @Throttle({ default: { limit: 10, ttl: 60_000 } })
-  @ApiOperation({ summary: 'Confirmar inscrição', description: 'Acesso público. Token de uso único recebido por e-mail; somente após confirmação o endereço recebe novos artigos.' })
+  @ApiOperation({ summary: 'Confirmar inscrição', description: 'Acesso público. Token de uso único recebido por e-mail; somente após confirmação o endereço recebe novos contos.' })
   @ApiResponse({ status: 200, description: 'Inscrição confirmada.', type: MessageDto })
   @ApiResponse({ status: 400, description: 'Token inválido, expirado ou já usado.' })
   @ApiResponse({ status: 429, description: 'Limite excedido.' })

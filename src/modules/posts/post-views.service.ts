@@ -21,7 +21,7 @@ export class PostViewsService {
        ON CONFLICT DO NOTHING RETURNING post_id`, [postId, hash, day],
     );
     if (!inserted.length && !(await this.posts.exists({ where: { id: postId, published: true, isActive: true } }))) {
-      throw new NotFoundException('Artigo não encontrado.');
+      throw new NotFoundException('Conto não encontrado.');
     }
     const totals: { total: string }[] = await this.posts.manager.query('SELECT COUNT(*)::int AS total FROM post_views WHERE post_id = $1', [postId]);
     return { counted: inserted.length > 0, total: Number(totals[0].total) };

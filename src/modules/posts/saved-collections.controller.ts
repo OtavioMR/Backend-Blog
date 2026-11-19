@@ -18,8 +18,8 @@ class CollectionDto {
 }
 class CollectionPostDto {
   @ApiProperty({ format: 'uuid' }) id: string;
-  @ApiProperty({ example: 'meu-artigo' }) slug: string;
-  @ApiProperty({ example: 'Meu artigo' }) title: string;
+  @ApiProperty({ example: 'meu-conto' }) slug: string;
+  @ApiProperty({ example: 'Meu conto' }) title: string;
   @ApiProperty({ example: 'Resumo' }) excerpt: string;
 }
 class CollectionPostsDto {
@@ -56,30 +56,30 @@ export class SavedCollectionsController {
   rename(@Param('id', ParseUUIDPipe) id: string, @Req() req: RequestWithUser, @Body() dto: CollectionNameDto) { return this.service.rename(id, req.user.userId, dto.name); }
 
   @Delete(':id') @HttpCode(204)
-  @ApiOperation({ summary: 'Excluir minha coleção', description: 'Os artigos permanecem salvos.' })
+  @ApiOperation({ summary: 'Excluir minha coleção', description: 'Os contos permanecem salvos.' })
   @ApiParam({ name: 'id', format: 'uuid', example: 'b1ffcd88-8b1a-4ce7-aa5c-5cc8ac271b22' })
   @ApiResponse({ status: 204, description: 'Coleção removida.' })
   @ApiResponse({ status: 404, description: 'Coleção não encontrada.' })
   remove(@Param('id', ParseUUIDPipe) id: string, @Req() req: RequestWithUser) { return this.service.remove(id, req.user.userId); }
 
   @Get(':id/posts')
-  @ApiOperation({ summary: 'Listar artigos da coleção', description: 'Somente artigos salvos, publicados e ativos. Ao remover um artigo dos salvos, ele fica oculto; ao salvá-lo novamente, retorna às coleções anteriores.' })
+  @ApiOperation({ summary: 'Listar contos da coleção', description: 'Somente contos salvos, publicados e ativos. Ao remover um conto dos salvos, ele fica oculto; ao salvá-lo novamente, retorna às coleções anteriores.' })
   @ApiParam({ name: 'id', format: 'uuid', example: 'b1ffcd88-8b1a-4ce7-aa5c-5cc8ac271b22' })
-  @ApiResponse({ status: 200, description: 'Artigos paginados.', type: CollectionPostsDto })
+  @ApiResponse({ status: 200, description: 'Contos paginados.', type: CollectionPostsDto })
   @ApiResponse({ status: 404, description: 'Coleção não encontrada.' })
   posts(@Param('id', ParseUUIDPipe) id: string, @Req() req: RequestWithUser, @Query() query: PaginationQueryDto) { return this.service.listPosts(id, req.user.userId, query); }
 
   @Put(':id/posts/:postId') @HttpCode(204)
-  @ApiOperation({ summary: 'Adicionar artigo salvo à coleção', description: 'Operação idempotente; o artigo deve estar salvo e público.' })
+  @ApiOperation({ summary: 'Adicionar conto salvo à coleção', description: 'Operação idempotente; o conto deve estar salvo e público.' })
   @ApiParam({ name: 'id', format: 'uuid', example: 'b1ffcd88-8b1a-4ce7-aa5c-5cc8ac271b22' }) @ApiParam({ name: 'postId', format: 'uuid', example: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11' })
-  @ApiResponse({ status: 204, description: 'Artigo incluído.' })
-  @ApiResponse({ status: 404, description: 'Coleção ou artigo salvo não encontrado.' })
+  @ApiResponse({ status: 204, description: 'Conto incluído.' })
+  @ApiResponse({ status: 404, description: 'Coleção ou conto salvo não encontrado.' })
   add(@Param('id', ParseUUIDPipe) id: string, @Param('postId', ParseUUIDPipe) postId: string, @Req() req: RequestWithUser) { return this.service.add(id, postId, req.user.userId); }
 
   @Delete(':id/posts/:postId') @HttpCode(204)
-  @ApiOperation({ summary: 'Remover artigo da coleção', description: 'Operação idempotente; o artigo permanece salvo.' })
+  @ApiOperation({ summary: 'Remover conto da coleção', description: 'Operação idempotente; o conto permanece salvo.' })
   @ApiParam({ name: 'id', format: 'uuid', example: 'b1ffcd88-8b1a-4ce7-aa5c-5cc8ac271b22' }) @ApiParam({ name: 'postId', format: 'uuid', example: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11' })
-  @ApiResponse({ status: 204, description: 'Artigo removido.' })
+  @ApiResponse({ status: 204, description: 'Conto removido.' })
   @ApiResponse({ status: 404, description: 'Coleção não encontrada.' })
   removePost(@Param('id', ParseUUIDPipe) id: string, @Param('postId', ParseUUIDPipe) postId: string, @Req() req: RequestWithUser) { return this.service.removePost(id, postId, req.user.userId); }
 }

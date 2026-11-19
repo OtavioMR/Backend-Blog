@@ -62,7 +62,7 @@ describe('Release acceptance: public content, direct queries, series and engagem
     await app?.close();
   });
 
-  it('returns previous and next parts in article details and restores revisions', async () => {
+  it('returns previous and next parts in story details and restores revisions', async () => {
     const server = app.getHttpServer();
     await request(server).post('/api/v1/series').set('Authorization', `Bearer ${readerToken}`).send({ title: 'Forbidden' }).expect(403);
     const series = await request(server).post('/api/v1/series').set('Authorization', `Bearer ${authorToken}`).send({ title: 'Release series' }).expect(201);

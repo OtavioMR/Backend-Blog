@@ -4,7 +4,7 @@ import { PostsService } from './posts.service.js';
 import { UserRole } from '../users/enums/user.enum.js';
 
 describe('publicação agendada', () => {
-  it('publica somente artigos ativos e vencidos em atualiza??o condicional', async () => {
+  it('publica somente contos ativos e vencidos em atualiza??o condicional', async () => {
     const execute = vi.fn().mockResolvedValue({ affected: 1 });
     const where = vi.fn().mockReturnValue({ execute });
     const set = vi.fn().mockReturnValue({ where });
@@ -14,7 +14,7 @@ describe('publicação agendada', () => {
     expect(where).toHaveBeenCalledWith(expect.stringContaining('scheduled_at <= CURRENT_TIMESTAMP AND published = false AND is_active = true AND deleted_at IS NULL'));
     expect(set).toHaveBeenCalledWith(expect.objectContaining({ published: true, scheduledAt: null }));
   });
-  it('rejeita agendamentos passados, sem fuso ou em artigos publicados', async () => {
+  it('rejeita agendamentos passados, sem fuso ou em contos publicados', async () => {
     const service = new PostsService({} as never, {} as never, {} as never);
     const dto = { title: 'Título', content: 'Conteúdo suficiente' };
     for (const scheduledAt of ['2000-01-01T00:00:00Z', '2030-01-01T00:00:00']) {

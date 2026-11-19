@@ -17,7 +17,7 @@ export class PostSchedulerService {
         .where("scheduled_at <= CURRENT_TIMESTAMP AND published = false AND is_active = true AND deleted_at IS NULL AND EXISTS (SELECT 1 FROM users WHERE users.id = author_id AND users.first_post_approved = true AND users.is_active = true AND users.role IN ('AUTHOR', 'ADMIN', 'SUPER_ADMIN'))")
         .execute();
     } catch (error) {
-      this.logger.error('Falha ao publicar artigos agendados', error instanceof Error ? error.stack : String(error));
+      this.logger.error('Falha ao publicar contos agendados', error instanceof Error ? error.stack : String(error));
     }
   }
 }

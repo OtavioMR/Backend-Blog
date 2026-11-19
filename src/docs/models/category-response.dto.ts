@@ -10,19 +10,19 @@ export class CategoryResponseDto {
 
   @ApiProperty({
     description: 'Nome da categoria',
-    example: 'Notícias & Tecnologia',
+    example: 'Ficção científica',
   })
   name: string;
 
   @ApiProperty({
     description: 'Slug amigável para URLs e buscas',
-    example: 'noticias-tecnologia',
+    example: 'ficcao-cientifica',
   })
   slug: string;
 
   @ApiPropertyOptional({
     description: 'Descrição da categoria',
-    example: 'Artigos sobre as últimas novidades do mundo da tecnologia.',
+    example: 'Contos sobre viagens no tempo e mundos distantes.',
     nullable: true,
   })
   description: string | null;

@@ -8,7 +8,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     const response = host.switchToHttp().getResponse<Response>();
     const dbError = exception as { driverError?: { code?: string; message?: string } };
     if (dbError?.driverError?.code === '23514' && ['First post requires approval', 'Post awaiting review cannot be edited'].includes(dbError.driverError.message ?? '')) {
-      response.status(HttpStatus.CONFLICT).json({ statusCode: HttpStatus.CONFLICT, message: dbError.driverError.message === 'First post requires approval' ? 'O primeiro artigo exige aprovação.' : 'Artigo em revisão não pode ser alterado.' });
+      response.status(HttpStatus.CONFLICT).json({ statusCode: HttpStatus.CONFLICT, message: dbError.driverError.message === 'First post requires approval' ? 'O primeiro conto exige aprovação.' : 'Conto em revisão não pode ser alterado.' });
       return;
     }
     const status = exception instanceof HttpException ? exception.getStatus() : HttpStatus.INTERNAL_SERVER_ERROR;

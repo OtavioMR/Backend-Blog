@@ -39,7 +39,7 @@ function ApiInteractionErrors() {
     ApiParam({
       name: 'id',
       format: 'uuid',
-      description: 'UUID do post publicado e ativo',
+      description: 'UUID do conto publicado e ativo',
     }),
     ApiResponse({
       status: 400,
@@ -48,7 +48,7 @@ function ApiInteractionErrors() {
     }),
     ApiResponse({
       status: 404,
-      description: 'Post não encontrado ou indisponível.',
+      description: 'Conto não encontrado ou indisponível.',
       type: NotFoundResponseDto,
     }),
   );
@@ -72,10 +72,10 @@ export class PostInteractionsController {
   constructor(private readonly interactions: PostInteractionsService) {}
 
   @Get('saved')
-  @ApiOperation({ summary: 'Listar posts salvos pelo usuário' })
+  @ApiOperation({ summary: 'Listar contos salvos pelo usuário' })
   @ApiResponse({
     status: 200,
-    description: 'Lista paginada de posts publicados e ativos, com autor, categorias ativas e tags.',
+    description: 'Lista paginada de contos publicados e ativos, com autor, categorias ativas e tags.',
     type: PaginatedSavedPostsResponseDto,
   })
   @ApiResponse({
@@ -106,7 +106,7 @@ export class PostInteractionsController {
   @Throttle({ default: { limit: 30, ttl: 60_000 } })
   @ApiResponse({ status: 429, description: 'Limite de 30 curtidas por minuto por IP excedido.' })
   @HttpCode(204)
-  @ApiOperation({ summary: 'Curtir um post' })
+  @ApiOperation({ summary: 'Curtir um conto' })
   @ApiInteractionErrors()
   @ApiResponse({
     status: 204,
@@ -138,11 +138,11 @@ export class PostInteractionsController {
 
   @Put(':id/save')
   @HttpCode(204)
-  @ApiOperation({ summary: 'Salvar um post' })
+  @ApiOperation({ summary: 'Salvar um conto' })
   @ApiInteractionErrors()
   @ApiResponse({
     status: 204,
-    description: 'Post salvo; repetir a operação mantém o post salvo.',
+    description: 'Conto salvo; repetir a operação mantém o conto salvo.',
   })
   save(
     @Param('id', ParseUUIDPipe) id: string,
@@ -153,11 +153,11 @@ export class PostInteractionsController {
 
   @Delete(':id/save')
   @HttpCode(204)
-  @ApiOperation({ summary: 'Remover post dos salvos' })
+  @ApiOperation({ summary: 'Remover conto dos salvos' })
   @ApiInteractionErrors()
   @ApiResponse({
     status: 204,
-    description: 'Post removido dos salvos ou já não estava salvo.',
+    description: 'Conto removido dos salvos ou já não estava salvo.',
   })
   unsave(
     @Param('id', ParseUUIDPipe) id: string,

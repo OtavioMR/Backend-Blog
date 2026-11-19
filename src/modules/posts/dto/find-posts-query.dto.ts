@@ -4,10 +4,10 @@ import { Transform } from 'class-transformer';
 import { PaginationQueryDto } from '../../../common/dto/pagination-query.dto.js';
 
 export class FindPostsQueryDto extends PaginationQueryDto {
-  @ApiPropertyOptional({ enum: ['true', 'false'], description: 'Sem busca/cursor, representa cada s?rie por seu cap?tulo p?blico mais recente antes da pagina??o e inclui discoverySeries. Consumidores antigos mant?m a listagem de artigos.' })
+  @ApiPropertyOptional({ enum: ['true', 'false'], description: 'Sem busca/cursor, representa cada s?rie por seu cap?tulo p?blico mais recente antes da pagina??o e inclui discoverySeries. Consumidores antigos mant?m a listagem de contos.' })
   @IsOptional() @IsIn(['true', 'false']) discovery?: string;
 
-  @ApiPropertyOptional({ enum: ['true', 'false'], description: 'Quando true, retorna apenas artigos avulsos que não pertencem a nenhuma série ou coleção.' })
+  @ApiPropertyOptional({ enum: ['true', 'false'], description: 'Quando true, retorna apenas contos avulsos que não pertencem a nenhuma série ou coleção.' })
   @IsOptional()
   @IsIn(['true', 'false'])
   standalone?: string;
@@ -31,7 +31,7 @@ export class FindPostsQueryDto extends PaginationQueryDto {
   author?: string;
 
   @ApiPropertyOptional({
-    description: 'Filtrar artigos pelo ID (UUID) do autor (opcional)',
+    description: 'Filtrar contos pelo ID (UUID) do autor (opcional)',
     example: 'b1ffcd88-8b1a-4ce7-aa5c-5cc8ac271b22',
     required: false,
   })
@@ -48,7 +48,7 @@ export class FindPostsQueryDto extends PaginationQueryDto {
   categoryName?: string;
 
   @ApiPropertyOptional({
-    description: 'Filtrar artigos pelo ID (UUID) da categoria (opcional)',
+    description: 'Filtrar contos pelo ID (UUID) da categoria (opcional)',
     example: 'b1a7d654-2a6c-4876-b9b6-79cf021516e8',
     required: false,
   })
@@ -60,7 +60,7 @@ export class FindPostsQueryDto extends PaginationQueryDto {
 
   @ApiPropertyOptional({
     description:
-      'Filtrar artigos pelo slug da categoria (ex: "noticias") (opcional)',
+      'Filtrar contos pelo slug da categoria (ex: "noticias") (opcional)',
     example: 'noticias',
     required: false,
   })
@@ -71,7 +71,7 @@ export class FindPostsQueryDto extends PaginationQueryDto {
   categorySlug?: string;
 
   @ApiPropertyOptional({
-    description: 'Filtrar artigos pelo slug da tag',
+    description: 'Filtrar contos pelo slug da tag',
     example: 'nestjs',
   })
   @IsOptional()
@@ -81,7 +81,7 @@ export class FindPostsQueryDto extends PaginationQueryDto {
   tagSlug?: string;
 
   @ApiPropertyOptional({
-    description: 'Filtrar artigos pela classificação etária (LIVRE, 10+, 12+, 14+, 16+, 18+)',
+    description: 'Filtrar contos pela classificação etária (LIVRE, 10+, 12+, 14+, 16+, 18+)',
     example: 'LIVRE',
   })
   @IsOptional()
@@ -91,7 +91,7 @@ export class FindPostsQueryDto extends PaginationQueryDto {
   rating?: string;
 
   @ApiPropertyOptional({
-    description: 'Filtrar artigos pela declaração de uso de IA no texto',
+    description: 'Filtrar contos pela declaração de uso de IA no texto',
     example: 'HUMAN_ONLY',
   })
   @IsOptional()

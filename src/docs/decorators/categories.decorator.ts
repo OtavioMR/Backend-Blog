@@ -109,9 +109,9 @@ export function ApiFindPostsByCategoryDoc() {
   return applyDecorators(
     ApiPublicRoute(),
     ApiOperation({
-      summary: 'Listar artigos vinculados a uma categoria',
+      summary: 'Listar contos vinculados a uma categoria',
       description:
-        'Retorna uma lista paginada de artigos publicados e ativos pertencentes à categoria informada por UUID ou slug.',
+        'Retorna uma lista paginada de contos publicados e ativos pertencentes à categoria informada por UUID ou slug.',
     }),
     ApiParam({
       name: 'idOrSlug',
@@ -132,11 +132,11 @@ export function ApiFindPostsByCategoryDoc() {
       type: Number,
       example: 10,
       description:
-        'Quantidade máxima de artigos por página (padrão: 10, máx: 100)',
+        'Quantidade máxima de contos por página (padrão: 10, máx: 100)',
     }),
     ApiResponse({
       status: 200,
-      description: 'Artigos da categoria retornados com sucesso.',
+      description: 'Contos da categoria retornados com sucesso.',
       type: PaginatedPostResponseDto,
     }),
     ApiResponse({
@@ -151,7 +151,7 @@ export function ApiFindPostsByCategoryDoc() {
     }),
     ApiResponse({
       status: 500,
-      description: 'Erro interno ao listar artigos da categoria.',
+      description: 'Erro interno ao listar contos da categoria.',
       type: InternalServerErrorResponseDto,
     }),
   );
@@ -257,7 +257,7 @@ export function ApiRemoveCategoryDoc() {
     ApiOperation({
       summary: 'Desativar / remover categoria (ADMIN ou SUPER_ADMIN)',
       description:
-        'Realiza soft delete na categoria. Os artigos vinculados permanecem íntegros. Exige token JWT com perfil ADMIN ou SUPER_ADMIN.',
+        'Realiza soft delete na categoria. Os contos vinculados permanecem íntegros. Exige token JWT com perfil ADMIN ou SUPER_ADMIN.',
     }),
     ApiParam({
       name: 'id',

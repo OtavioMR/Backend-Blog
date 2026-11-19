@@ -16,7 +16,7 @@ export class PostRevisionsService {
 
   private async authorize(postId: string, user: AuthenticatedUser): Promise<Post> {
     const post = await this.posts.findOne({ where: { id: postId, isActive: true } });
-    if (!post) throw new NotFoundException('Artigo nao encontrado.');
+    if (!post) throw new NotFoundException('Conto nao encontrado.');
     if (!isAdministrator(user.role) && (user.role !== UserRole.AUTHOR || post.authorId !== user.userId)) {
       throw new ForbiddenException('Sem permissao para acessar o historico.');
     }
@@ -48,9 +48,9 @@ export class PostRevisionsService {
   async restore(postId: string, revisionId: string, user: AuthenticatedUser) {
     const post = await this.authorize(postId, user);
     if (post.authorId !== user.userId) {
-      throw new ForbiddenException('Apenas o autor pode restaurar versões anteriores deste artigo.');
+      throw new ForbiddenException('Apenas o autor pode restaurar versões anteriores deste conto.');
     }
-    if (post.reviewStatus === 'PENDING') throw new ConflictException('Artigo aguarda revisao e nao pode ser editado.');
+    if (post.reviewStatus === 'PENDING') throw new ConflictException('Conto aguarda revisão e não pode ser editado.');
     const revision = await this.revision(postId, revisionId);
     return this.postService.update(postId, { title: revision.title, content: revision.content }, user);
   }

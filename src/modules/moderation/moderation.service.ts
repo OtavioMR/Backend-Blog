@@ -32,7 +32,7 @@ export class ModerationService {
   }
   async postDetail(id: string) {
     const post = await this.dataSource.getRepository(Post).createQueryBuilder('p').addSelect('p.reviewNote').leftJoinAndSelect('p.author', 'author').where('p.id = :id', { id }).getOne();
-    if (!post) throw new NotFoundException('Artigo não encontrado.');
+    if (!post) throw new NotFoundException('Conto não encontrado.');
     return { id: post.id, title: post.title, slug: post.slug, content: post.content, excerpt: post.excerpt, coverImage: post.coverImage, author: post.author ? { id: post.author.id, name: post.author.name } : null, authorId: post.authorId, published: post.published, publishedAt: post.publishedAt, reviewStatus: post.reviewStatus, reviewNote: post.reviewNote, isActive: post.isActive, moderationHidden: post.moderationHidden, createdAt: post.createdAt, updatedAt: post.updatedAt };
   }
   async contentHistory(type: 'post' | 'comment', id: string, page = 1, limit = 10) {
@@ -58,8 +58,8 @@ export class ModerationService {
     const result = await this.dataSource.transaction(async manager => {
       const posts = manager.getRepository(Post);
       const post = await posts.findOne({ where: { id }, lock: { mode: 'pessimistic_write' } });
-      if (!post) throw new NotFoundException('Artigo não encontrado.');
-      if (hide ? !post.isActive || !post.published : post.isActive || !post.moderationHidden) throw new ConflictException('Transição de artigo inválida.');
+      if (!post) throw new NotFoundException('Conto não encontrado.');
+      if (hide ? !post.isActive || !post.published : post.isActive || !post.moderationHidden) throw new ConflictException('Transição de conto inválida.');
       if (!hide) {
         const author = await manager.getRepository(User).findOne({ where: { id: post.authorId, isActive: true } });
         if (!author) throw new ConflictException('Autor indisponível.');
@@ -76,9 +76,9 @@ export class ModerationService {
     const result = await this.dataSource.transaction(async manager => {
       const posts = manager.getRepository(Post);
       const post = await posts.findOne({ where: { id }, lock: { mode: 'pessimistic_write' } });
-      if (!post) throw new NotFoundException('Artigo não encontrado.');
+      if (!post) throw new NotFoundException('Conto não encontrado.');
       const oldRating = post.contentRating;
-      if (oldRating === rating) throw new ConflictException('O artigo já possui esta classificação etária.');
+      if (oldRating === rating) throw new ConflictException('O conto já possui esta classificação etária.');
       await posts.update(id, { contentRating: rating });
       await this.audit.record(manager, actorId, 'post.rating_changed', 'post', id, {
         oldRating,
@@ -128,7 +128,7 @@ export class ModerationService {
       const rows = await manager.query('SELECT id, name, slug FROM tags WHERE id = $1 FOR UPDATE', [id]);
       if (!rows.length) throw new NotFoundException('Tag não encontrada.');
       const usage = await manager.query('SELECT 1 FROM post_tags WHERE tag_id = $1 LIMIT 1', [id]);
-      if (usage.length) throw new ConflictException('A tag está associada a artigos; use a mesclagem.');
+      if (usage.length) throw new ConflictException('A tag está associada a contos; use a mesclagem.');
       await manager.query('DELETE FROM tags WHERE id = $1', [id]);
       await this.audit.record(manager, actorId, 'tag.deleted', 'tag', id, { name: rows[0].name, slug: rows[0].slug });
     });
@@ -328,7 +328,7 @@ export class ModerationService {
     if (endsAt && !/(?:Z|[+-]\d{2}:\d{2})$/i.test(endsAt)) throw new BadRequestException('Informe o fuso horário do fim da suspensão.');
     if (end && (!Number.isFinite(end.getTime()) || end.getTime() <= Date.now())) throw new BadRequestException('O fim da suspensão deve estar no futuro.');
     if (reason.trim().length < 5) throw new BadRequestException('Informe o motivo.');
-    if (new Set(hidePostIds).size !== hidePostIds.length) throw new BadRequestException('Há identificadores de artigos repetidos.');
+    if (new Set(hidePostIds).size !== hidePostIds.length) throw new BadRequestException('Há identificadores de contos repetidos.');
     return this.dataSource.transaction(async manager => {
       const users = manager.getRepository(User);
       const actor = await users.findOne({ where: { id: actorId }, lock: { mode: 'pessimistic_write' } });
@@ -340,7 +340,7 @@ export class ModerationService {
       if (hidePostIds.length) {
         const posts = manager.getRepository(Post);
         const found = await posts.find({ where: { id: In(hidePostIds), authorId: userId, published: true, isActive: true } });
-        if (found.length !== hidePostIds.length) throw new BadRequestException('Os artigos devem estar publicados e pertencer ao usuário.');
+        if (found.length !== hidePostIds.length) throw new BadRequestException('Os contos devem estar publicados e pertencer ao usuário.');
         await posts.update({ id: In(hidePostIds), authorId: userId, published: true }, { published: false, publishedAt: null, scheduledAt: null });
       }
       await users.update(userId, { isActive: false, moderationSuspended: true, suspensionEndsAt: end, authVersion: () => 'auth_version + 1' });
@@ -383,7 +383,7 @@ export class ModerationService {
 
     if (dto.targetType === AppealTargetType.POST) {
       const post = await this.dataSource.getRepository(Post).findOne({ where: { id: dto.targetId } });
-      if (!post) throw new NotFoundException('Artigo não encontrado.');
+      if (!post) throw new NotFoundException('Conto não encontrado.');
       if (post.authorId !== userId) throw new ForbiddenException('Apenas o autor pode recorrer de ações contra sua publicação.');
       if (!post.moderationHidden && post.isActive) {
         const ratingLog: unknown[] = await this.dataSource.query(
@@ -391,7 +391,7 @@ export class ModerationService {
           [dto.targetId],
         );
         if (!ratingLog.length) {
-          throw new ConflictException('O artigo não possui ação de moderação passível de recurso.');
+          throw new ConflictException('O conto não possui ação de moderação passível de recurso.');
         }
       }
     } else if (dto.targetType === AppealTargetType.COMMENT) {

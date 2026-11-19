@@ -27,7 +27,7 @@ describe.skipIf(process.env.RUN_DB_TESTS !== '1')('series workflow on configured
   });
   afterAll(async () => { if (runner) { await runner.rollbackTransaction(); await runner.release(); } if (dataSource.isInitialized) await dataSource.destroy(); });
 
-  it('creates draft and association atomically; edit retains context; deleting series preserves articles', async () => {
+  it('creates draft and association atomically; edit retains context; deleting series preserves stories', async () => {
     const story = await series.create({ title: 'Synthetic serial', description: 'A test story' }, user);
     const updated = await series.update(story.id, { description: 'Updated synthetic description', expectedUpdatedAt: new Date(story.updatedAt).toISOString() }, user);
     expect(updated.description).toBe('Updated synthetic description');

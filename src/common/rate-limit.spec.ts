@@ -65,7 +65,7 @@ describe.skipIf(process.env.RUN_DB_TESTS !== '1')('post and reaction rate limits
     app = module.createNestApplication(); await app.init();
   });
   afterAll(async () => { await app?.close(); });
-  it('limits article creation and updates independently', async () => {
+  it('limits story creation and updates independently', async () => {
     for (let i = 0; i < 10; i++) await supertest(app.getHttpServer()).post('/posts').send({ tagNames: ['new'] }).expect(201);
     await supertest(app.getHttpServer()).post('/posts').send({}).expect(429);
     for (let i = 0; i < 20; i++) await supertest(app.getHttpServer()).patch(`/posts/${id}`).send({ tagNames: ['new'] }).expect(200);

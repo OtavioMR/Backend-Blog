@@ -130,7 +130,7 @@ describe('Swagger Documentation Configuration', () => {
       )
       .addTag('Auth', 'Operações de autenticação e gerenciamento de tokens')
       .addTag('Users', 'Operações de gerenciamento de usuários')
-      .addTag('Posts', 'Operações de gerenciamento e consulta de artigos')
+      .addTag('Contos', 'Operações de gerenciamento e consulta de contos')
       .build();
 
     const document = SwaggerModule.createDocument(app, config);
@@ -166,7 +166,7 @@ describe('Swagger Documentation Configuration', () => {
     const tagNames = document.tags?.map((t) => t.name);
     expect(tagNames).toContain('Auth');
     expect(tagNames).toContain('Users');
-    expect(tagNames).toContain('Posts');
+    expect(tagNames).toContain('Contos');
 
     // Security definition check
     expect(document.components?.securitySchemes).toBeDefined();
@@ -304,7 +304,7 @@ describe('Swagger Documentation Configuration', () => {
         'content' in requestBody &&
         requestBody.content['application/json'].examples,
     ).toMatchObject({
-      comentario: { value: { content: 'Gostei do post!' } },
+      comentario: { value: { content: 'Gostei do conto!' } },
       resposta: {
         value: { content: 'Também gostei!', replyToId: expect.any(String) },
       },
@@ -341,7 +341,7 @@ describe('Swagger Documentation Configuration', () => {
     const documentOrFactory = setup.mock.calls[0][2];
     const generatedDocument = typeof documentOrFactory === 'function' ? documentOrFactory() : documentOrFactory;
     expect(generatedDocument.tags?.map((tag) => tag.name)).toEqual(
-      expect.arrayContaining(['Autenticação', 'Usuários', 'Artigos']),
+      expect.arrayContaining(['Autenticação', 'Usuários', 'Contos']),
     );
     expect(generatedDocument.paths['/api/v1/auth/totp/setup'].post?.summary).toBe('Iniciar configuração do TOTP');
     setup.mockRestore();

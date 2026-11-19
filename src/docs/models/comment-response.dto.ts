@@ -19,7 +19,7 @@ export class CommentResponseDto {
   @ApiProperty({ type: String, format: 'uuid', nullable: true }) replyToId: string | null;
   @ApiProperty({ type: () => ReplyToAuthorResponseDto, nullable: true }) replyToAuthor: ReplyToAuthorResponseDto | null;
   @ApiProperty({ type: () => CommentAuthorResponseDto }) author: CommentAuthorResponseDto;
-  @ApiProperty({ example: 'Gostei do post!' }) content: string;
+  @ApiProperty({ example: 'Gostei do conto!' }) content: string;
   @ApiProperty({ example: true }) isActive: boolean;
   @ApiProperty({ type: String, format: 'date-time', nullable: true }) editedAt: Date | null;
   @ApiProperty({ type: String, format: 'date-time' }) createdAt: Date;

@@ -10,7 +10,7 @@ import {
 export class CreateCategoryDto {
   @ApiProperty({
     description: 'Nome único da categoria',
-    example: 'Notícias & Tecnologia',
+    example: 'Ficção científica',
     minLength: 2,
     maxLength: 100,
   })
@@ -23,7 +23,7 @@ export class CreateCategoryDto {
   @ApiPropertyOptional({
     description: 'Breve descrição sobre a categoria',
     example:
-      'Artigos sobre as últimas novidades do mundo da tecnologia e software.',
+      'Contos sobre viagens no tempo e mundos distantes.',
     maxLength: 255,
   })
   @IsOptional()
@@ -34,7 +34,7 @@ export class CreateCategoryDto {
   @ApiPropertyOptional({
     description:
       'Slug único da categoria para URLs amigáveis. Se omitido, será gerado automaticamente a partir do nome.',
-    example: 'noticias-tecnologia',
+    example: 'ficcao-cientifica',
     minLength: 2,
     maxLength: 120,
   })

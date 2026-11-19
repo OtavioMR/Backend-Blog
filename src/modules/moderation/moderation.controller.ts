@@ -14,7 +14,7 @@ import { TotpService } from '../auth/totp.service.js';
 class SuspendDto {
   @ApiProperty({ minLength: 5, maxLength: 1000, example: 'Abuso recorrente' }) @IsString() @MinLength(5) @MaxLength(1000) reason: string;
   @ApiPropertyOptional({ nullable: true, format: 'date-time', example: '2099-01-01T00:00:00Z', description: 'Omita ou use null para banimento permanente.' }) @IsOptional() @IsISO8601({ strict: true }) endsAt?: string | null;
-  @ApiPropertyOptional({ type: [String], format: 'uuid', example: [], description: 'Artigos publicados que serão ocultados permanentemente.' }) @IsOptional() @IsArray() @ArrayMaxSize(100) @IsUUID('4', { each: true }) hidePostIds?: string[];
+  @ApiPropertyOptional({ type: [String], format: 'uuid', example: [], description: 'Contos publicados que serão ocultados permanentemente.' }) @IsOptional() @IsArray() @ArrayMaxSize(100) @IsUUID('4', { each: true }) hidePostIds?: string[];
 }
 class ChangeRoleDto {
   @ApiProperty({ enum: UserRole, example: UserRole.ADMIN }) @IsEnum(UserRole) role: UserRole;
@@ -57,7 +57,7 @@ export class ModerationController {
   @ApiResponse({ status: 404, description: 'Usuário não encontrado.' })
   userHistory(@Param('id', ParseUUIDPipe) id: string, @Query() query: PaginationQueryDto) { return this.service.userHistory(id, query.page, query.limit); }
   @Get(':id/reports')
-  @ApiOperation({ summary: 'Listar denúncias relacionadas ao usuário', description: 'Inclui denúncias de perfil e de seus artigos e comentários, sem dados do denunciante na listagem.' })
+  @ApiOperation({ summary: 'Listar denúncias relacionadas ao usuário', description: 'Inclui denúncias de perfil e de seus contos e comentários, sem dados do denunciante na listagem.' })
   @ApiParam({ name: 'id', format: 'uuid' }) @ApiResponse({ status: 200, description: 'Denúncias paginadas.' }) @ApiResponse({ status: 400, description: 'Identificador ou paginação inválidos.' }) @ApiResponse({ status: 401, description: 'Autenticação necessária.' }) @ApiResponse({ status: 403, description: 'Requer administrador.' }) @ApiResponse({ status: 404, description: 'Usuário não encontrado.' })
   userReports(@Param('id', ParseUUIDPipe) id: string, @Query() query: PaginationQueryDto) { return this.service.userReports(id, query.page, query.limit); }
   @Patch(':id/role')
@@ -97,7 +97,7 @@ export class ModerationController {
   @ApiOperation({ summary: 'Suspender ou banir usuário', description: 'ADMIN pode suspender contas comuns; SUPER_ADMIN pode também suspender ADMIN. Contas SUPER_ADMIN não podem ser suspensas. Revoga sessões; omitir endsAt cria banimento permanente.' })
   @ApiParam({ name: 'id', format: 'uuid', example: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11' })
   @ApiResponse({ status: 201, description: 'Suspensão aplicada.', schema: { example: { suspended: true, endsAt: null } } })
-  @ApiResponse({ status: 400, description: 'Motivo, prazo ou identificadores de artigos inválidos.' })
+  @ApiResponse({ status: 400, description: 'Motivo, prazo ou identificadores de contos inválidos.' })
   @ApiResponse({ status: 401, description: 'Autenticação necessária.' })
   @ApiResponse({ status: 403, description: 'Permissão insuficiente, conta protegida ou tentativa de suspender a própria conta.' })
   @ApiResponse({ status: 404, description: 'Usuário não encontrado.' })
@@ -105,7 +105,7 @@ export class ModerationController {
   suspend(@Param('id', ParseUUIDPipe) id: string, @Req() req: RequestWithUser, @Body() dto: SuspendDto) { return this.service.suspend(req.user.userId, id, dto.reason, dto.endsAt ?? null, dto.hidePostIds ?? [], req.user.authVersion); }
   @Post(':id/restore')
   @Throttle({ default: { limit: 5, ttl: 60_000 } })
-  @ApiOperation({ summary: 'Restaurar usuário suspenso', description: 'ADMIN restaura contas comuns; SUPER_ADMIN também restaura ADMIN. Artigos ocultados permanecem ocultos.' })
+  @ApiOperation({ summary: 'Restaurar usuário suspenso', description: 'ADMIN restaura contas comuns; SUPER_ADMIN também restaura ADMIN. Contos ocultados permanecem ocultos.' })
   @ApiHeader({ name: 'X-TOTP-Code', required: true, description: 'Código TOTP atual de seis dígitos.', schema: { type: 'string', pattern: '^\\d{6}$', example: '123456' } })
   @ApiParam({ name: 'id', format: 'uuid', example: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11' })
   @ApiResponse({ status: 201, description: 'Usuário restaurado.', schema: { example: { suspended: false } } })

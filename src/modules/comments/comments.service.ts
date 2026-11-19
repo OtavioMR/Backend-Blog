@@ -27,9 +27,9 @@ export class CommentsService {
     const post = await this.posts.findOne({
       where: { id, isActive: true, published: true },
     });
-    if (!post) throw new NotFoundException('Post não encontrado.');
+    if (!post) throw new NotFoundException('Conto não encontrado.');
     if (requireComments && !post.commentsEnabled)
-      throw new ForbiddenException('Comentários desativados neste post.');
+      throw new ForbiddenException('Comentários desativados neste conto.');
     return post;
   }
 

@@ -27,7 +27,7 @@ export class FeedService {
   async rss() {
     const posts = await this.list(50);
     const items = posts.map(p => `<item><title>${escapeHtml(p.title)}</title><link>${escapeHtml(this.url(p))}</link><guid>${escapeHtml(this.url(p))}</guid><description>${escapeHtml(p.excerpt)}</description><pubDate>${(p.publishedAt ?? p.updatedAt).toUTCString()}</pubDate></item>`).join('');
-    return `<?xml version="1.0" encoding="UTF-8"?><rss version="2.0"><channel><title>Blog</title><link>${escapeHtml(this.base)}</link><description>Artigos recentes</description>${items}</channel></rss>`;
+    return `<?xml version="1.0" encoding="UTF-8"?><rss version="2.0"><channel><title>Blog</title><link>${escapeHtml(this.base)}</link><description>Contos recentes</description>${items}</channel></rss>`;
   }
   async atom() {
     const posts = await this.list(50);
