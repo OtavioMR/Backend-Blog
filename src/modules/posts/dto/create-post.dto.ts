@@ -36,12 +36,12 @@ export class CreatePostDto {
     example:
       'À meia-noite, a casa do outro lado da rua acendeu a luz pela primeira vez em dez anos.',
     minLength: 10,
-    maxLength: 55000,
+    maxLength: 100000,
   })
   @IsString()
   @IsNotEmpty()
   @MinLength(10)
-  @MaxLength(55000)
+  @MaxLength(100000)
   content: string;
 
   @ApiPropertyOptional({ description: 'Descrição apresentada abaixo do título e nas listagens; gerada a partir do conteúdo quando omitida na criação.', maxLength: 200, example: 'Uma apresentação do conto.' })

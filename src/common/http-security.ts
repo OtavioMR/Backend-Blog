@@ -8,6 +8,8 @@ export function configureHttpSecurity(
   trustedProxyCidrs = process.env.TRUST_PROXY_CIDRS ?? '',
 ): void {
   app.use(helmet());
+  // Até 100 mil caracteres, incluindo a expansão de escapes JSON e UTF-8.
+  app.useBodyParser('json', { limit: '1mb' });
   app.enableCors({ origin: [new URL(frontendUrl).origin], credentials: true });
   const proxies = trustedProxyCidrs.split(',').map(value => value.trim()).filter(Boolean);
   for (const proxy of proxies) {

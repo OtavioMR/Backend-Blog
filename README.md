@@ -840,7 +840,7 @@ Controller: `src/modules/posts/posts.controller.ts`
   | Campo | Tipo | Obrigatório | Validação e Regras de Negócio |
   |---|---|---|---|
   | `title` | `string` | Sim | 3 a 255 caracteres após sanitização |
-  | `content` | `string` | Sim | Mínimo de 10 caracteres visíveis após sanitização HTML |
+  | `content` | `string` | Sim | De 10 a 100.000 caracteres; mínimo de 10 caracteres visíveis após sanitização HTML |
   | `published` | `boolean` | Não | Padrão `false`. Se `scheduledAt` for informado, `published` é forçado para `false`. |
   | `scheduledAt` | `string (ISO)` | Não | Data futura (`> NOW()`). Não permitido para autor com `firstPostApproved = false`. |
   | `categoryIds` | `UUID[]` | Não | Máximo de 10 UUIDs v4 de categorias ativas. |
@@ -856,7 +856,7 @@ Controller: `src/modules/posts/posts.controller.ts`
 - **Autenticação / Roles:** JWT (`JwtAuthGuard`). Apenas o autor dono do conto ou `ADMIN`. Rate limit: **20 req/min**.
 - **Parâmetros de Rota:** `id` (`UUID`).
 - **Request Body (`UpdatePostDto` — todos opcionais):**
-  - `title` (`string`, 3..255), `content` (`string`, mín 10), `published` (`boolean`), `scheduledAt` (`string ISO | null`), `commentsEnabled` (`boolean`), `categoryIds` (`UUID[]`, máx 10), `tagNames` (`string[]`, máx 10).
+  - `title` (`string`, 3..255), `content` (`string`, 10..100000), `published` (`boolean`), `scheduledAt` (`string ISO | null`), `commentsEnabled` (`boolean`), `categoryIds` (`UUID[]`, máx 10), `tagNames` (`string[]`, máx 10).
 - **Status de Sucesso:** `200 OK` -> Objeto `Post` atualizado.
 - **Erros:** `400`, `403`, `404`, `409` (`"O conto em revisão não pode ser editado."` ou `"O primeiro conto exige aprovação."`).
 

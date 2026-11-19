@@ -8,6 +8,8 @@ import request from 'supertest';
 import { randomUUID } from 'node:crypto';
 import { AppModule } from '../src/app.module.js';
 import { MailService } from '../src/modules/mail/mail.service.js';
+import type { NestExpressApplication } from '@nestjs/platform-express';
+import { configureHttpSecurity } from '../src/common/http-security.js';
 
 process.env.RATE_LIMIT_NAMESPACE = `e2e-${createRunId()}`;
 describe('Sprint 2 with PostgreSQL', () => {
@@ -20,7 +22,9 @@ describe('Sprint 2 with PostgreSQL', () => {
   const mail = { sendEmailVerification: vi.fn(), sendEmailChangeConfirmation: vi.fn(), sendPasswordResetEmail: vi.fn() };
   beforeAll(async () => {
     const module = await Test.createTestingModule({ imports: [AppModule] }).overrideProvider(MailService).useValue(mail).compile();
-    app = module.createNestApplication();
+    const expressApp = module.createNestApplication<NestExpressApplication>();
+    configureHttpSecurity(expressApp, 'http://localhost:5173', '');
+    app = expressApp;
     app.setGlobalPrefix('api/v1');
     app.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }));
     await app.init();
@@ -91,10 +95,19 @@ describe('Sprint 2 with PostgreSQL', () => {
     const longDetail = await request(server).get(`/api/v1/posts/${longPost.body.id}`).expect(200);
     expect(longDetail.body.content).toBe(longContent);
     expect(longDetail.body.readingTimeMinutes).toBe(8);
+    const maximumContent = 'á'.repeat(100000);
+    const maximumPost = await request(server).post('/api/v1/posts').set('Authorization', auth)
+      .send({ title: 'Maximum length story', content: maximumContent }).expect(201);
+    expect(maximumPost.body.content).toBe(maximumContent);
+    const [storedMaximumPost] = await db.query('SELECT content FROM posts WHERE id = $1', [maximumPost.body.id]);
+    expect(storedMaximumPost.content).toBe(maximumContent);
     await request(server).post('/api/v1/posts').set('Authorization', auth)
-      .send({ title: 'Maximum length story', content: 'a'.repeat(55000) }).expect(201);
-    await request(server).post('/api/v1/posts').set('Authorization', auth)
-      .send({ title: 'Too long story', content: 'a'.repeat(55001) }).expect(400);
+      .send({ title: 'Too long story', content: 'a'.repeat(100001) }).expect(400);
+    const maximumUpdate = await request(server).patch(`/api/v1/posts/${maximumPost.body.id}`).set('Authorization', auth)
+      .send({ content: 'é'.repeat(100000) }).expect(200);
+    expect(maximumUpdate.body.content).toBe('é'.repeat(100000));
+    await request(server).patch(`/api/v1/posts/${maximumPost.body.id}`).set('Authorization', auth)
+      .send({ content: 'a'.repeat(100001) }).expect(400);
     await request(server).patch(`/api/v1/posts/${post.body.id}`).set('Authorization', auth).send({ published: false }).expect(200);
     const [draft] = await db.query('SELECT published_at FROM posts WHERE id = $1', [post.body.id]);
     expect(draft.published_at).toBeNull();

@@ -159,6 +159,9 @@ describe('Swagger Documentation Configuration', () => {
     }
 
     expect((document.components?.schemas?.PostResponseDto as any)?.properties.readingTimeMinutes).toMatchObject({ type: 'number', minimum: 1, example: 3 });
+    for (const dto of ['CreatePostDto', 'UpdatePostDto']) {
+      expect((document.components?.schemas?.[dto] as any)?.properties.content).toMatchObject({ minLength: 10, maxLength: 100000 });
+    }
     expect(document.info.title).toBe('Backend Blog API');
     expect(document.info.version).toBe('1.0');
     expect(document.tags).toBeDefined();

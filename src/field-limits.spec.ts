@@ -2,6 +2,7 @@
 import { CreateCommentDto } from './modules/comments/dto/create-comment.dto.js';
 import { UpdateCommentDto } from './modules/comments/dto/update-comment.dto.js';
 import { CreatePostDto } from './modules/posts/dto/create-post.dto.js';
+import { UpdatePostDto } from './modules/posts/dto/update-post.dto.js';
 import { CreateUserDto } from './modules/users/dto/create-user.dto.js';
 
 function errorsFor(instance: object, field: string) {
@@ -13,9 +14,11 @@ describe('limites dos campos', () => {
     expect(errorsFor(Object.assign(new Dto(), { content: 'a'.repeat(1000) }), 'content')).toHaveLength(0);
     expect(errorsFor(Object.assign(new Dto(), { content: 'a'.repeat(1001) }), 'content')).toHaveLength(1);
   });
-  it.each([['title', 150], ['content', 55000]] as const)('valida o limite de conto: %s', (field, max) => {
-    expect(errorsFor(Object.assign(new CreatePostDto(), { [field]: 'a'.repeat(max) }), field)).toHaveLength(0);
-    expect(errorsFor(Object.assign(new CreatePostDto(), { [field]: 'a'.repeat(max + 1) }), field)).toHaveLength(1);
+  it.each([['title', 150], ['content', 100000]] as const)('valida o limite de conto: %s', (field, max) => {
+    for (const Dto of [CreatePostDto, UpdatePostDto]) {
+      expect(errorsFor(Object.assign(new Dto(), { [field]: 'a'.repeat(max) }), field)).toHaveLength(0);
+      expect(errorsFor(Object.assign(new Dto(), { [field]: 'a'.repeat(max + 1) }), field)).toHaveLength(1);
+    }
   });
   it.each([['name', 100], ['password', 72]] as const)('valida o limite de conta: %s', (field, max) => {
     expect(errorsFor(Object.assign(new CreateUserDto(), { [field]: 'a'.repeat(max) }), field)).toHaveLength(0);
